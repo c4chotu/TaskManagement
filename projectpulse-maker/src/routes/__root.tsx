@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet, createRootRouteWithContext, useRouter,
@@ -68,6 +69,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    const cachedTheme = localStorage.getItem("tfp.theme") || "default";
+    document.documentElement.className = `dark ${cachedTheme === "default" ? "" : `theme-${cachedTheme}`}`;
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
