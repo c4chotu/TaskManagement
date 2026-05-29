@@ -1,0 +1,56 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/taskflow_db
+    username: taskflow
+    password: taskflow_password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  elasticsearch:
+    uris: http://localhost:9200
+  kafka:
+    bootstrap-servers: localhost:9092
+    listener:
+      auto-startup: false # Fail-safe if Kafka broker isn't active on startup
+
+taskflow:
+  jwt:
+    secret: aHlwZXJzaXN0ZW5jZS11dGlscy1oaWJlcm5hdGUtNjMtc3VwcG9ydC1mb3ItanBiLWFuZC1zaWduZWQtand0cy1kZXZlbG9wbWVudC1jYXNl
+    access-expiration-ms: 900000
+    refresh-expiration-ms: 604800000
+
+app:
+  file:
+    upload-dir: ./uploads
+
+spring:
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 55MB
+  mail:
+    host: smtp.example.com
+    port: 587
+    username: noreply@taskflow.app
+    password: changeme
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
