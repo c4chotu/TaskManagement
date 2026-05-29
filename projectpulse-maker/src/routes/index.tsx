@@ -3,9 +3,7 @@ import { tokenStore } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
   beforeLoad: () => {
-    if (typeof window !== "undefined") {
-      throw redirect({ to: tokenStore.get() ? "/dashboard" : "/login" });
-    }
+    throw redirect({ to: tokenStore.get() ? "/dashboard" : "/login" });
   },
   component: () => null,
 });
