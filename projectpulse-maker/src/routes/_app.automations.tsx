@@ -45,7 +45,7 @@ function AutomationsPage() {
                       <Badge variant="outline" className="text-[10px]">{r.taskType}</Badge>
                       <Badge variant="outline" className="text-[10px]">Priority {r.priority}</Badge>
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">→ {dept?.name ?? "Any"} · {r.assignToRole} · {r.assignmentStrategy.replace("_", " ")}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">→ {dept?.name ?? "Any"} · {r.assignToRole} · {(r.assignmentStrategy || "").replace("_", " ")}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <Switch checked={r.enabled} onCheckedChange={async (checked) => {

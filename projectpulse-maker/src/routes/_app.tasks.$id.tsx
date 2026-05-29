@@ -180,8 +180,8 @@ function TaskDetail() {
                       const su = users.find(u => u.id === suggestion.suggestedAssigneeId);
                       return (
                         <>
-                          <Avatar className="h-5 w-5"><AvatarFallback className="bg-muted text-[9px]">{su?.name?.slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
-                          <span className="font-medium">{su?.name}</span>
+                          <Avatar className="h-5 w-5"><AvatarFallback className="bg-muted text-[9px]">{su?.name ? su.name.slice(0, 2).toUpperCase() : "??"}</AvatarFallback></Avatar>
+                          <span className="font-medium">{su?.name ?? "Unknown User"}</span>
                         </>
                       );
                     })()}
