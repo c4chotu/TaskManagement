@@ -7,7 +7,7 @@ import * as mock from "./mock-data";
 import type {
   Attachment, AuthResult, AutomationRule, Comment, CustomTaskStatus, Department, Issue,
   OnCallShift, OrgSetupPayload, Project, RoleName, RoutingRule, Sprint, Task, TaskDependency,
-  Team, TimeEntry, User, WorkloadInfo,
+  Team, TimeEntry, User, WorkloadInfo, Timesheet, AssignmentHistory, SuggestedAssignee,
 } from "./types";
 
 
@@ -523,3 +523,209 @@ export function useCreateOrganization() {
 function roleLevelFor(r: RoleName): User["roleLevel"] {
   return ({ ORG_OWNER: 5, ORG_ADMIN: 4, DEPT_HEAD: 3, TEAM_LEAD: 2, TEAM_MEMBER: 1, GUEST: 0 } as const)[r] as User["roleLevel"];
 }
+
+// ---------- timesheets ----------
+export function useCurrentTimesheet(date?: string) {
+  return useQuery({
+    queryKey: ["timesheet", date ?? "current"],
+    queryFn: async (): Promise<Timesheet> => {
+      if (USE_MOCK) {
+        await sleep();
+        // find active user
+        const user = mock.mockUsers[0]; // sarah
+        let ts = mock.mockTimesheets.find((x) => x.userId === user.id);
+        if (!ts) {
+          ts = { id: `ts-${Date.now()}`, userId: user.id, startDate: "2026-05-25", endDate: "2026-05-31", status: "PLANNING" };
+          mock.mockTimesheets.push(ts);
+        }
+        return ts;
+      }
+      return apiRequest<Timesheet>("/timesheets/current", { query: { date } });
+    },
+  });
+}
+
+export function useSubmitTimesheet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (USE_MOCK) {
+        await sleep();
+        const ts = mock.mockTimesheets.find((x) => x.id === id);
+        if (ts) ts.status = "SUBMITTED";
+        return ts;
+      }
+      return apiRequest<Timesheet>(`/timesheets/${id}/submit`, { method: "POST" });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["timesheet"] }),
+  });
+}
+
+export function useApproveTimesheet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (USE_MOCK) {
+        await sleep();
+        const ts = mock.mockTimesheets.find((x) => x.id === id);
+        if (ts) {
+          ts.status = "APPROVED";
+          ts.approvedBy = "Marcus Taylor";
+        }
+        return ts;
+      }
+      return apiRequest<Timesheet>(`/timesheets/${id}/approve`, { method: "POST" });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["timesheet"] }),
+  });
+}
+
+// ---------- task routing & suggestions ----------
+export function useSuggestAssignee(taskId: string | undefined) {
+  return useQuery({
+    queryKey: ["tasks", taskId, "suggest-assignee"],
+    enabled: !!taskId,
+    queryFn: async (): Promise<SuggestedAssignee> => {
+      if (USE_MOCK) {
+        await sleep();
+        // Return a mock suggestion for Priya (u-dev1) or Alice (u-dept)
+        const t = mock.mockTasks.find((x) => x.id === taskId);
+        const isIssue = t?.taskType === "ISSUE";
+        const suggestedId = isIssue ? "u-dept" : "u-dev1";
+        const reason = isIssue
+          ? "Suggested via matching rule: Critical SRE Pager Routing using strategy: ON_CALL (Alice Chen is currently primary SRE)"
+          : "Suggested via matching rule: Frontend bug triage using strategy: LEAST_LOADED (Priya Patel has lowest active workload)";
+        return { taskId: taskId!, suggestedAssigneeId: suggestedId, reason };
+      }
+      return apiRequest<SuggestedAssignee>("/tasks/suggest-assignee", { query: { taskId } });
+    },
+  });
+}
+
+export function useManuallyRouteTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (taskId: string) => {
+      if (USE_MOCK) {
+        await sleep();
+        const t = mock.mockTasks.find((x) => x.id === taskId);
+        if (t) {
+          const prev = t.assigneeIds[0] || null;
+          const next = t.taskType === "ISSUE" ? "u-dept" : "u-dev1";
+          t.assigneeIds = [next];
+          
+          // Add to history
+          const hist: AssignmentHistory = {
+            id: `ah-${Date.now()}`,
+            taskId,
+            previousAssigneeId: prev,
+            newAssigneeId: next,
+            assignedBy: "Auto Router (Manual Evaluate)",
+            assignedAt: new Date().toISOString(),
+            reason: t.taskType === "ISSUE" ? "Routed to active on-call shift (Critical SRE Pager Routing)" : "Routed via workload balance strategy (Frontend bug triage)",
+          };
+          mock.mockAssignmentHistory.push(hist);
+        }
+        return { taskId, routed: true, assignedTo: t?.taskType === "ISSUE" ? "u-dept" : "u-dev1" };
+      }
+      return apiRequest<{ taskId: string; routed: boolean; assignedTo: string }>(`/tasks/${taskId}/route`, { method: "POST" });
+    },
+    onSuccess: (_d, taskId) => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["task", taskId] });
+      qc.invalidateQueries({ queryKey: ["tasks", taskId, "routing-history"] });
+    },
+  });
+}
+
+export function useRoutingHistory(taskId: string | undefined) {
+  return useQuery({
+    queryKey: ["tasks", taskId, "routing-history"],
+    enabled: !!taskId,
+    queryFn: async (): Promise<AssignmentHistory[]> => {
+      if (USE_MOCK) {
+        await sleep();
+        return mock.mockAssignmentHistory.filter((x) => x.taskId === taskId);
+      }
+      return apiRequest<AssignmentHistory[]>(`/tasks/${taskId}/routing-history`);
+    },
+  });
+}
+
+export function useReassignTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { taskId: string; userId: string }) => {
+      if (USE_MOCK) {
+        await sleep();
+        const t = mock.mockTasks.find((x) => x.id === vars.taskId);
+        if (t) {
+          const prev = t.assigneeIds[0] || null;
+          t.assigneeIds = [vars.userId];
+          
+          // Add to history
+          const hist: AssignmentHistory = {
+            id: `ah-${Date.now()}`,
+            taskId: vars.taskId,
+            previousAssigneeId: prev,
+            newAssigneeId: vars.userId,
+            assignedBy: "Sarah Connor (Manual)",
+            assignedAt: new Date().toISOString(),
+            reason: "Manual reassignment to suggested developer",
+          };
+          mock.mockAssignmentHistory.push(hist);
+        }
+        return { taskId: vars.taskId, status: "SUCCESS" };
+      }
+      return apiRequest<{ taskId: string; status: string }>(`/tasks/${vars.taskId}/reassign`, { method: "POST", body: { userId: vars.userId } });
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["task", vars.taskId] });
+      qc.invalidateQueries({ queryKey: ["tasks", vars.taskId, "routing-history"] });
+    },
+  });
+}
+
+// ---------- routing rules creation & edit ----------
+export function useCreateRoutingRule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: Partial<RoutingRule> & { ruleName: string; taskType: Task["taskType"] }) => {
+      if (USE_MOCK) {
+        await sleep();
+        const nr: RoutingRule = {
+          id: `rr-${Date.now()}`,
+          ruleName: payload.ruleName,
+          taskType: payload.taskType,
+          targetDepartmentId: payload.targetDepartmentId,
+          assignToRole: payload.assignToRole || "TEAM_MEMBER",
+          assignmentStrategy: payload.assignmentStrategy || "ROUND_ROBIN",
+          priority: payload.priority ?? 1,
+          enabled: true,
+        };
+        mock.mockRoutingRules.unshift(nr);
+        return nr;
+      }
+      return apiRequest<RoutingRule>("/routing/rules", { method: "POST", body: payload });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["routing-rules"] }),
+  });
+}
+
+export function useUpdateRoutingRule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { id: string; rule: Partial<RoutingRule> }) => {
+      if (USE_MOCK) {
+        await sleep();
+        const r = mock.mockRoutingRules.find((x) => x.id === vars.id);
+        if (r) Object.assign(r, vars.rule);
+        return r;
+      }
+      return apiRequest<RoutingRule>(`/routing/rules/${vars.id}`, { method: "PUT", body: vars.rule });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["routing-rules"] }),
+  });
+}
+

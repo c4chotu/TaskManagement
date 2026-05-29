@@ -3,7 +3,8 @@ import { Topbar } from "@/components/tfp/topbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useStartTimer, useStopTimer, useTasks, useTimeEntries } from "@/lib/queries";
+import { useStartTimer, useStopTimer, useTasks, useTimeEntries, useCurrentTimesheet, useSubmitTimesheet, useApproveTimesheet } from "@/lib/queries";
+import { useAuth } from "@/lib/auth";
 import { findUser } from "@/lib/mock-data";
 import { Play, Square, Clock } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
@@ -15,6 +16,11 @@ export const Route = createFileRoute("/_app/time")({
 });
 
 function TimePage() {
+  const { user } = useAuth();
+  const { data: timesheet } = useCurrentTimesheet();
+  const submitTimesheet = useSubmitTimesheet();
+  const approveTimesheet = useApproveTimesheet();
+
   const { data: entries = [] } = useTimeEntries();
   const { data: tasks = [] } = useTasks();
   const stop = useStopTimer();
@@ -24,14 +30,55 @@ function TimePage() {
   const totalHours = entries.reduce((sum, e) => sum + (e.hours ?? 0), 0);
   const billable = entries.filter((e) => e.billable).reduce((sum, e) => sum + (e.hours ?? 0), 0);
 
+  const userLevel = user?.roleLevel ?? 0;
+  const isApprover = userLevel >= 3;
+
   return (
     <>
       <Topbar title="Time Tracking" />
       <main className="flex-1 space-y-4 p-6">
         <div className="grid gap-3 sm:grid-cols-3">
-          <Card className="p-5"><p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">This week</p><p className="mt-1 text-2xl font-semibold tabular-nums">{totalHours.toFixed(1)}h</p></Card>
-          <Card className="p-5"><p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Billable</p><p className="mt-1 text-2xl font-semibold tabular-nums text-primary">{billable.toFixed(1)}h</p></Card>
-          <Card className="p-5"><p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Status</p><Badge className="mt-2 bg-primary/15 text-primary">Approved by Marcus Taylor</Badge></Card>
+          <Card className="p-5 flex flex-col justify-between"><p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">This week</p><p className="mt-1 text-2xl font-semibold tabular-nums">{totalHours.toFixed(1)}h</p></Card>
+          <Card className="p-5 flex flex-col justify-between"><p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Billable</p><p className="mt-1 text-2xl font-semibold tabular-nums text-primary">{billable.toFixed(1)}h</p></Card>
+          <Card className="p-5 flex flex-col justify-between">
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground font-semibold">Timesheet Status</p>
+              <div className="mt-2 flex items-center gap-2">
+                <Badge className={
+                  timesheet?.status === "APPROVED" ? "bg-primary/15 text-primary border border-primary/20" :
+                  timesheet?.status === "SUBMITTED" ? "bg-info/15 text-info border border-info/20" :
+                  "bg-warning/15 text-warning border border-warning/20"
+                }>
+                  {timesheet?.status ?? "PLANNING"}
+                </Badge>
+                {timesheet?.approvedBy && (
+                  <span className="text-[10px] text-muted-foreground">by {timesheet.approvedBy}</span>
+                )}
+              </div>
+            </div>
+            {timesheet && (
+              <div className="mt-3">
+                {timesheet.status === "PLANNING" && !isApprover && (
+                  <Button size="sm" className="w-full text-xs h-7 bg-gradient-primary text-primary-foreground"
+                    onClick={async () => {
+                      await submitTimesheet.mutateAsync(timesheet.id);
+                      toast.success("Timesheet submitted for approval");
+                    }}>
+                    Submit for Approval
+                  </Button>
+                )}
+                {timesheet.status === "SUBMITTED" && isApprover && (
+                  <Button size="sm" className="w-full text-xs h-7 bg-gradient-primary text-primary-foreground"
+                    onClick={async () => {
+                      await approveTimesheet.mutateAsync(timesheet.id);
+                      toast.success("Timesheet approved");
+                    }}>
+                    Approve Timesheet
+                  </Button>
+                )}
+              </div>
+            )}
+          </Card>
         </div>
 
         {running && (

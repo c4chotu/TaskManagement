@@ -6,15 +6,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { useAddComment, useComments, useIssue, useProject, useStatuses, useTask } from "@/lib/queries";
+import {
+  useAddComment, useComments, useIssue, useProject, useStatuses, useTask,
+  useStartTimer, useStopTimer, useTimeEntries, useUsers,
+  useSuggestAssignee, useManuallyRouteTask, useRoutingHistory, useReassignTask
+} from "@/lib/queries";
+import { toast } from "sonner";
+import { SlaCountdown } from "@/components/tfp/sla";
 import { findUser } from "@/lib/mock-data";
-import { ArrowLeft, Clock, Calendar, FolderKanban, MessageSquare, Play, Square } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, FolderKanban, MessageSquare, Play, Square, Route as RouteIcon, History } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useState } from "react";
 import { SeverityBadge } from "@/components/tfp/badges";
-import { useStartTimer, useStopTimer, useTimeEntries } from "@/lib/queries";
-import { toast } from "sonner";
-import { SlaCountdown } from "@/components/tfp/sla";
 
 import { AttachmentsPanel } from "@/components/tfp/attachments-panel";
 import { TaskStatusSelect, TaskAssignPopover } from "@/components/tfp/task-quick-edit";
@@ -38,6 +41,12 @@ function TaskDetail() {
   const startTimer = useStartTimer();
   const stopTimer = useStopTimer();
   const runningEntry = timeEntries.find((te) => te.taskId === id && !te.endTime);
+
+  const { data: suggestion } = useSuggestAssignee(id);
+  const { data: routingHistory = [] } = useRoutingHistory(id);
+  const manuallyRoute = useManuallyRouteTask();
+  const reassign = useReassignTask();
+  const { data: users = [] } = useUsers();
 
   if (!task) return (<><Topbar title="Task" /><main className="p-6"><Card className="p-8 text-center text-sm text-muted-foreground">Task not found.</Card></main></>);
   const status = statuses.find((s) => s.id === task.statusId);
@@ -148,6 +157,75 @@ function TaskDetail() {
                 {task.assigneeIds.length === 0 && <p className="text-xs text-muted-foreground">Unassigned</p>}
               </div>
             </Card>
+
+            <Card className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                  <RouteIcon className="h-3 w-3" /> Auto-Routing
+                </h4>
+              </div>
+              <Button size="sm" variant="outline" className="w-full text-xs h-7"
+                disabled={manuallyRoute.isPending}
+                onClick={async () => {
+                  await manuallyRoute.mutateAsync(id);
+                  toast.success("Task routed using system rules");
+                }}>
+                {manuallyRoute.isPending ? "Routing..." : "Trigger Auto-Routing"}
+              </Button>
+              {suggestion && suggestion.suggestedAssigneeId && (
+                <div className="rounded border border-primary/20 bg-primary/5 p-2 text-xs">
+                  <span className="font-semibold text-[10px] uppercase tracking-wide text-primary block">Suggested Assignee</span>
+                  <div className="mt-1 flex items-center gap-1.5">
+                    {(() => {
+                      const su = users.find(u => u.id === suggestion.suggestedAssigneeId);
+                      return (
+                        <>
+                          <Avatar className="h-5 w-5"><AvatarFallback className="bg-muted text-[9px]">{su?.name?.slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
+                          <span className="font-medium">{su?.name}</span>
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <p className="mt-1 text-[10px] text-muted-foreground leading-normal">{suggestion.reason}</p>
+                  {!task.assigneeIds.includes(suggestion.suggestedAssigneeId) && (
+                    <Button size="sm" className="w-full h-6 text-[10px] mt-2 bg-gradient-primary text-primary-foreground"
+                      disabled={reassign.isPending}
+                      onClick={async () => {
+                        await reassign.mutateAsync({ taskId: id, userId: suggestion.suggestedAssigneeId! });
+                        toast.success("Applied suggested assignee");
+                      }}>
+                      Apply Suggestion
+                    </Button>
+                  )}
+                </div>
+              )}
+            </Card>
+
+            {routingHistory.length > 0 && (
+              <Card className="p-4">
+                <h4 className="mb-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                  <History className="h-3 w-3" /> Routing History
+                </h4>
+                <div className="space-y-3 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+                  {routingHistory.map((h) => {
+                    const prevUser = h.previousAssigneeId ? users.find((u) => u.id === h.previousAssigneeId) : null;
+                    const newUser = users.find((u) => u.id === h.newAssigneeId);
+                    return (
+                      <div key={h.id} className="border-l-2 border-primary/30 pl-2 text-xs">
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                          <span>{h.assignedBy}</span>
+                          <span>{formatDistanceToNow(new Date(h.assignedAt), { addSuffix: true })}</span>
+                        </div>
+                        <p className="mt-0.5 font-medium">
+                          {prevUser ? prevUser.name : "Unassigned"} → {newUser ? newUser.name : "Unassigned"}
+                        </p>
+                        {h.reason && <p className="mt-0.5 text-[10px] text-muted-foreground">{h.reason}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
 
             <Card className="p-4">
               <h4 className="mb-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Attachments</h4>

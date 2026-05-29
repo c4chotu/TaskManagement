@@ -188,3 +188,29 @@ export interface OrgSetupPayload {
   members: { name: string; email: string; roleName: RoleName; teamName?: string }[];
 }
 
+export interface Timesheet {
+  id: string;
+  userId: string;
+  startDate: string;
+  endDate: string;
+  status: "PLANNING" | "SUBMITTED" | "APPROVED" | "REJECTED";
+  approvedBy?: string;
+}
+
+export interface AssignmentHistory {
+  id: string;
+  taskId: string;
+  previousAssigneeId?: string | null;
+  newAssigneeId: string;
+  assignedBy: string;
+  assignedAt: string;
+  reason?: string;
+}
+
+export interface SuggestedAssignee {
+  taskId: string;
+  suggestedAssigneeId?: string | null;
+  reason: string;
+}
+
+

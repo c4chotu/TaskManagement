@@ -3,6 +3,7 @@
 import type {
   Attachment, AutomationRule, Comment, CustomTaskStatus, Department, Issue, OnCallShift,
   Project, RoutingRule, Sprint, Task, TaskDependency, Team, TimeEntry, User, WorkloadInfo,
+  Timesheet, AssignmentHistory,
 } from "./types";
 
 
@@ -126,5 +127,16 @@ export const mockSprints: Sprint[] = [
   { id: "sp-1", projectId: "p-billing", name: "Sprint 12 · Event Sourcing", goal: "Migrate billing reads to event store.", startDate: iso(-7), endDate: iso(7), status: "ACTIVE", taskIds: ["t-1", "t-2", "t-3"] },
   { id: "sp-2", projectId: "p-billing", name: "Sprint 13 · Cutover", goal: "Switch writes to new pipeline.", startDate: iso(8), endDate: iso(22), status: "PLANNED", taskIds: ["t-4"] },
   { id: "sp-3", projectId: "p-mobile", name: "Beta-A", goal: "Stabilize cold-start crashloops.", startDate: iso(-14), endDate: iso(-1), status: "COMPLETED", taskIds: ["t-5"] },
+];
+
+export const mockTimesheets: Timesheet[] = [
+  { id: "ts-1", userId: "u-owner", startDate: "2026-05-25", endDate: "2026-05-31", status: "APPROVED", approvedBy: "Marcus Taylor" },
+  { id: "ts-2", userId: "u-dev1", startDate: "2026-05-25", endDate: "2026-05-31", status: "PLANNING" },
+  { id: "ts-3", userId: "u-dev2", startDate: "2026-05-25", endDate: "2026-05-31", status: "SUBMITTED" },
+];
+
+export const mockAssignmentHistory: AssignmentHistory[] = [
+  { id: "ah-1", taskId: "t-1", previousAssigneeId: null, newAssigneeId: "u-dev1", assignedBy: "Diego Martinez", assignedAt: iso(-3), reason: "Initial assignment" },
+  { id: "ah-2", taskId: "i-1", previousAssigneeId: null, newAssigneeId: "u-dept", assignedBy: "Auto Router", assignedAt: iso(0), reason: "Routed to active on-call shift (Critical SRE Pager Routing)" },
 ];
 
