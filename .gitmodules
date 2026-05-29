@@ -1,0 +1,9 @@
+[submodule "taskflow-backend"]
+	path = taskflow-backend
+	url = ./taskflow-backend
+[submodule "taskflow-web"]
+	path = taskflow-web
+	url = ./taskflow-web
+[submodule "projectpulse-maker"]
+	path = projectpulse-maker
+	url = https://github.com/c4chotu/projectpulse-maker.git
