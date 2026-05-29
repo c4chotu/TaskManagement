@@ -714,3 +714,4 @@ sequenceDiagram
     Member ->> API: POST /api/v1/tasks/{id}/status (NewStatusId: Blocked, comment: "Replication lag")
     API -->> Member: Transition Succeeded. StatusHistory log written.
 ```
+
