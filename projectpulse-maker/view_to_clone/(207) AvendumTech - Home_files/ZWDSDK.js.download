@@ -1,0 +1,315 @@
+/* global WD_ASSETS_MAP, WD_INTL, localeObj, wd_userLanguage, loginJson, userTeamInfo */
+
+function ZWDSDK()
+{
+	let injectWDScript = function(src, id) {
+
+		let script = document.createElement('script');
+		script.type = 'text/javascript';
+		script.src = src;
+		script.async = false;
+		if (id) {
+			script.id = id;
+		}
+		document.getElementsByTagName('head')[0].appendChild(script);
+
+	};
+
+	let appendInBody = function(script) {
+      let body_elem = document.getElementsByTagName('body');
+      if (body_elem) {
+          body_elem[0].appendChild(script);
+      }
+    };
+
+	let appendOnboardingRoot = function() {
+      let script = document.createElement('div');
+		script.id = 'zd-user-onboard'; // NO I18N
+		script.classList.add('explorer-theme'); // NO I18N
+	   if (window.initProperties.containerId) {
+			let containerElement = document.querySelectorAll('#' + window.initProperties.containerId);
+			if (containerElement.length) {
+				for (let i = 0; i < containerElement.length; i++) {
+				containerElement[i].appendChild(script);
+				}
+			} else {
+				appendInBody(script);
+			}
+	   } else {
+			appendInBody(script);
+	   }
+    };
+
+	let wdXHR = function(xhrparams) {
+		let xhr = new XMLHttpRequest(); // eslint-disable-line @zoho-wd/wd/no-xhr
+		xhr.open(xhrparams.method, xhrparams.url, xhrparams.async);
+		if (xhrparams.withCredentials) {
+			xhr.withCredentials = xhrparams.withCredentials;
+		}
+		if (xhrparams.headers) {
+			for (let headername in xhrparams.headers) {
+				if (!{}.hasOwnProperty.call(xhrparams.headers, headername)) {
+					continue;
+				}
+				if (xhrparams.headers[headername]) {
+					xhr.setRequestHeader(headername, xhrparams.headers[headername]);
+				}
+			}
+		}
+		xhr.onreadystatechange = function() {
+			if (this.readyState === 4 && this.status === 200) {
+				if (typeof xhrparams.successcallback === 'function') {
+					xhrparams.successcallback(this.response);
+				}
+			}
+		};
+		xhr.send();
+	};
+
+	let replaceTheDynamicAppnameString = function(url, appName) {
+		return url.indexOf('$0') !== -1 ? url.replace('$0', appName) : url;
+	};
+
+	let getAssetMapUrl = function(appName) {
+		let assetMapURL = '';
+        if (window.WD_ASSETS_MAP.ZCDN.IS_ZCDN_SUB_STATIC_ENABLED) {
+			assetMapURL = replaceTheDynamicAppnameString(window.WD_ASSETS_MAP.ZCDN.ASSET_MAP_URL, appName);
+    	}
+        return assetMapURL;
+	};
+
+	let fetchAssetMap = function(appName) {
+
+		window.WD_INTL = {};
+		window.WD_INTL.SUPPORTED_LANGUAGES = ['en', 'ar', 'bg', 'ca', 'cs', 'da', 'de', 'es', 'fr', 'iw', 'hu', 'it', 'ja', 'ko', 'no', 'nl', 'pl', 'pt', 'ro', 'ru', 'sl', 'sr', 'sv', 'tr', 'uk', 'vi', 'zh', 'th', 'in', 'ms', 'as', 'bn', 'gu', 'hi', 'kn', 'mr', 'pa', 'ta', 'te', 'ur', 'ml', 'ne', 'or', 'sa', 'sd', 'ks', 'kok', 'mni', 'brx', 'mai', 'doi', 'sat', 'si', 'af', 'el', 'eo', 'eu', 'fa', 'fi', 'tl', 'gl', 'hr', 'ka', 'mk', 'my', 'sq']; // No I18N
+		window.localeObj = {};
+		localeObj.language = typeof wd_userLanguage !== 'undefined' ? wd_userLanguage : 'en';
+		WD_INTL.language = typeof wd_userLanguage !== 'undefined' ? wd_userLanguage : 'en';
+		WD_INTL.isTheLangSupported = WD_INTL.SUPPORTED_LANGUAGES.indexOf(WD_INTL.language) !== -1;
+		let langAndCountrycode = '';
+		if (localeObj.language !== 'en' && WD_INTL.SUPPORTED_LANGUAGES.indexOf(localeObj.language) !== -1) {
+			langAndCountrycode = localeObj.language;
+		}
+		localeObj.languageAndCountryCode = langAndCountrycode;
+		WD_INTL.languageAndCountryCode = langAndCountrycode;
+
+        let xhrParams = {
+        		'method': 'GET', // NO I18N
+        		'url': getAssetMapUrl(appName), // NO I18N
+        		'async': true, // NO I18N
+        		'successcallback': function(response) { // NO I18N
+				let responseObj = JSON.parse(response);
+
+				if (appName === 'ui-lab') {
+					window.loginJson = [];
+					WD_ASSETS_MAP.uiLabJSON = responseObj;
+					loginJson.uilab_client_manifest = this.response;
+					fetchAssetMap('onboarding'); // No I18N
+
+				} else {
+					WD_ASSETS_MAP.appJSON = responseObj;
+					loginJson.client_manifest = this.response;
+					let lang_key = '';
+					if (window.localeObj.languageAndCountryCode)
+					{
+						lang_key = 'assets/dev/intl/js/component/component_' + window.localeObj.languageAndCountryCode + '.js'; // No I18N
+					} else {
+						lang_key = 'assets/dev/intl/js/component/component.js'; // No I18N
+					}
+					loadWDAssets(window.zohostaticurl + '/jsapps/ui-lab/dist/' + WD_ASSETS_MAP.uiLabJSON.assets[lang_key], true);
+				}
+			}
+		};
+        wdXHR(xhrParams);
+	};
+	let loadWDAssets = function(src, listenForOnLoadEVENT) {
+		let script = document.createElement('script');
+		script.type = 'text/javascript';
+		script.src = src;
+		script.async = false;
+		document.getElementsByTagName('head')[0].appendChild(script);
+		if (listenForOnLoadEVENT)
+		{
+			script.onload = function() {
+
+				let app_theme = '';
+
+				app_theme = WD_ASSETS_MAP.uiLabJSON.assets['assets/dev/scoped_explorer_theme.css']; // No I18N
+
+				appendOnboardingRoot();
+				let app_js = WD_ASSETS_MAP.appJSON.assets['app.js']; // No I18N
+
+				let link = document.createElement('link');
+				link.href = window.ZD_CSSStaticSever + '/jsapps/ui-lab/dist/' + app_theme;
+				link.type = 'text/css';
+				link.rel = 'stylesheet';
+				document.head.appendChild(link);
+
+				window.EmberENV = { 'EXTEND_PROTOTYPES': false }; // No I18N
+
+				injectWDScript(window.ZD_JSStaticSever + '/jsapps/onboarding/dist/' + app_js, 'onboarding-onboarding'); // No I18N
+			};
+		}
+
+	};
+	this.loadThemes = function(initProperties) {
+
+		if (document.querySelectorAll('#' + initProperties.wdFrameID).length)
+		{
+			document.getElementById(initProperties.wdFrameID).contentWindow.postMessage(initProperties, initProperties.WDDomainURL);
+		}
+
+	};
+	this.loadOnboarding = function(initProperties) {
+		window.initProperties = initProperties;
+		if (initProperties.WDDomainURL !== window.location.origin)
+        {
+        	initProperties.wdURL = initProperties.proxyPath ? initProperties.proxyPath : '/workdriveapi'; // No I18N
+        }
+        else
+        {
+        	initProperties.wdURL = ''; // No I18N
+        }
+		if (!window.initProperties.nameToDisplay)
+		{
+			window.initProperties.nameToDisplay = 'service'; // No I18N
+		}
+		// if (!(document.querySelectorAll('#onboarding-onboarding').length))
+		// {
+			let url = initProperties.wdURL + '/docs/wdonboard.do'; // No I18N
+
+			if (initProperties.portalId)
+			{
+				url = url + '?zsoid=' + initProperties.portalId + '&service=' + initProperties.productName; // No I18N
+			}
+			if (typeof initProperties.ismappedwithworkplacebundle === 'boolean')
+			{
+				url = url + '&ismappedwithworkplacebundle=' + initProperties.ismappedwithworkplacebundle; // No I18N
+			}
+
+	        let xhrParams = {
+	        		'method': 'GET', // NO I18N
+	        		'url': url, // NO I18N
+	        		'async': true, // NO I18N
+	        		'withCredentials': true, // NO I18N
+	        		'headers': { 'Authorization': initProperties.oauthToken }, // NO I18N
+	        		'successcallback': function(response) { // NO I18N
+			    let data = JSON.parse(response);
+
+			    let zd_user_details_elem = document.querySelectorAll('#zd_user_details'); // NO I18N
+
+			    for (let i = 0; i < zd_user_details_elem.length; i++) {
+			      zd_user_details_elem[i].remove();
+			    }
+			    window.ORG_INFO = {};
+			    window.productIcons = [];
+				if (typeof window.WD_ASSETS_MAP === 'undefined') {
+					window.WD_ASSETS_MAP = {};
+				}
+				window.WD_ASSETS_MAP.ZCDN = data.ZCDN;
+			    window.wd_userLanguage = data.wd_userLanguage;
+			    window.zohostaticurl = data.ZD_JSStaticSever;
+			    window.ZD_CSSStaticSever = data.ZD_CSSStaticSever;
+			    window.ZD_JSStaticSever = data.ZD_JSStaticSever;
+			    window.urlJson = data.urlJson;
+			    window.API_PATH_PREFIX = data.API_PATH_PREFIX;
+			    if (data.essentialsHelpURL)
+			    {
+			      window.essentialsHelpURL = data.essentialsHelpURL;
+			    }
+			    else
+			    {
+			      let urlArray = window.location.origin.split('.');
+			      window.essentialsHelpURL = window.document.location.protocol + '//help.' + urlArray[1] + '.' + urlArray[2] + '/portal/en/kb/workdrive/integrations/internal-integrations/articles/essentials-plan'; // No I18N
+			    }
+
+			    window.userTeamInfo = data.userInfo;
+
+			    window.generalInfo = JSON.parse(data.userInfo.general_info);
+
+			    window.teamData = {};
+			    window.teamsUnderDomainData = {};
+			    if (window.userTeamInfo.isPersonalUser)
+			    {
+			      window.isPersonalUser = window.userTeamInfo.isPersonalUser;
+			      window.isPaidPersonal = window.userTeamInfo.isPaidPersonal;
+			    }
+			    else
+			    {
+			      window.teamData = JSON.parse(userTeamInfo.user_team_data);
+			      window.teamsUnderDomainData = JSON.parse(userTeamInfo.teams_under_domain);
+			    }
+
+			    let unmappedteams = [],
+				unsupportedteams = [];
+
+			    // Here we will check if any mapped teams(if teams are already mapped in the same service) and we will load create team or map team ui accordingly
+			    for (let i = 0; i < window.teamData.length; i++)
+			    {
+			      if (!window.teamData[i].mapped_current_service_org && !window.teamData[i].is_installed_current_app)
+			      {
+					window.teamData[i].is_unsupported_bundle = window.teamData[i].is_unsupported_bundle || false;
+					if (window.teamData[i].is_unsupported_bundle)
+					{
+						unsupportedteams.push(window.teamData[i]);
+					}
+					else
+					{
+						unmappedteams.push(window.teamData[i]);
+					}
+			      }
+
+			    }
+			    if (!(unmappedteams.length || unsupportedteams.length) && window.teamData.length)
+			    {
+			      window.mappedUnderSameService = true;
+			      window.serviceOrgName = window.teamData[0].service_org_name;
+			      window.teamName = window.teamData[0].attributes.name;
+			    }
+			    else
+			    {
+			      window.mappedUnderSameService = false;
+			      window.teamData = unmappedteams;
+				  window.unSupportedTeamData = unsupportedteams;
+			      window.serviceOrgName = '';
+			      window.teamName = '';
+			    }
+
+			    if (window.isPersonalUser) {
+			      window.serviceOrgName = window.userTeamInfo.service_org_data.SERVICE_ORG_NAME;
+			    }
+
+			    let onboarding_elem = document.querySelectorAll('#onboarding-onboarding'); // NO I18N
+
+			    if (!(onboarding_elem && onboarding_elem.length)) {
+			    	window.EmberENV = { 'EXTEND_PROTOTYPES': false }; // No I18N
+				    window.isFromApp = true;
+				    fetchAssetMap('ui-lab');  // No I18N
+			    } else {
+					window._babelPolyfill = false;
+					let rootElemement = document.querySelectorAll('#zd-user-onboard'); // NO I18N
+					if (!rootElemement.length) {
+						appendOnboardingRoot();
+					}
+					window.wdOnboardingAppInit();
+			    }
+
+			  }
+			};
+	        wdXHR(xhrParams);
+	/*	} // As the updated team name is not returned properly when accessing the onboarding dialog for the second time, we decided to make onboard.do API call for every time as a temp fix.
+		else
+		{
+			let onboarding_elem = document.querySelectorAll('#onboarding-onboarding'); // NO I18N
+
+			for (let i = 0; i < onboarding_elem.length; i++) {
+				onboarding_elem[i].remove();
+			}
+			window._babelPolyfill = false;
+			let app_js = WD_ASSETS_MAP.appJSON.assets['app.js']; // No I18N
+			injectWDScript(window.ZD_JSStaticSever + '/jsapps/onboarding/dist/' + app_js, 'onboarding-onboarding'); // No I18N
+		} */
+	};
+
+}
+ZWDSDK();

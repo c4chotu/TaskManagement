@@ -1,0 +1,1605 @@
+html, body {
+  font-size: 15.5px;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+:root {
+  --fontlight: "PuviLight", RobotoLight, sans-serif;
+  --fontregular: "PuviRegular", RobotoRegular, sans-serif;
+  --fontsemibold: "PuviSemibold", RobotoSemibold, sans-serif;
+  --fontmedium: "PuviMedium", RobotoMedium, sans-serif;
+  --fontbold: "PuviBold", RobotoSemibold, sans-serif;
+  --fontExtraBold: "PuviExtrabold", RobotoBold, sans-serif;
+  --fontBlack: "PuviBlack", RobotoBlack, sans-serif;
+  --fontExtraBlack: "PuviExtrablack", RobotoBlack, sans-serif;
+  --fontcommon: "Roboto",sans-serif;
+  --fontPTmono: PT Mono;
+  /********* This Sizes are marked with base font size of 14px *********/
+  --baseFs: 0.0714285714;
+  --fs-10px: calc((-10 * var(--baseFs)) * 1rem);
+  --fs-9px: calc((-9 * var(--baseFs)) * 1rem);
+  --fs-8px: calc((-8 * var(--baseFs)) * 1rem);
+  --fs-7px: calc((-7 * var(--baseFs)) * 1rem);
+  --fs-6px: calc((-6 * var(--baseFs)) * 1rem);
+  --fs-5px: calc((-5 * var(--baseFs)) * 1rem);
+  --fs-4px: calc((-4 * var(--baseFs)) * 1rem);
+  --fs-3px: calc((-3 * var(--baseFs)) * 1rem);
+  --fs-2px: calc((-2 * var(--baseFs)) * 1rem);
+  --fs-1px: calc((-1 * var(--baseFs)) * 1rem);
+  --fs0px: calc((0 * var(--baseFs)) * 1rem);
+  --fs1px: calc((1 * var(--baseFs)) * 1rem);
+  --fs1-5px: calc((1.5 * var(--baseFs)) * 1rem);
+  --fs2px: calc((2 * var(--baseFs)) * 1rem);
+  --fs3px: calc((3 * var(--baseFs)) * 1rem);
+  --fs3-5px: calc((3.5 * var(--baseFs)) * 1rem);
+  --fs4px: calc((4 * var(--baseFs)) * 1rem);
+  --fs5px: calc((5 * var(--baseFs)) * 1rem);
+  --fs6px: calc((6 * var(--baseFs)) * 1rem);
+  --fs7px: calc((7 * var(--baseFs)) * 1rem);
+  --fs8px: calc((8 * var(--baseFs)) * 1rem);
+  --fs9px: calc((9 * var(--baseFs)) * 1rem);
+  --fs10px: calc((10 * var(--baseFs)) * 1rem);
+  --fs10-5px: calc((10.5 * var(--baseFs)) * 1rem);
+  --fs11px: calc((11 * var(--baseFs)) * 1rem);
+  --fs11-5px: calc((11.5 * var(--baseFs)) * 1rem);
+  --fs12px: calc((12 * var(--baseFs)) * 1rem);
+  --fs12-5px: calc((12.5 * var(--baseFs)) * 1rem);
+  --fs13px: calc((13 * var(--baseFs)) * 1rem);
+  --fs13-5px: calc((13.5 * var(--baseFs)) * 1rem);
+  --fs14px: calc((14 * var(--baseFs)) * 1rem);
+  --fs14-5px: calc((14.5 * var(--baseFs)) * 1rem);
+  --fs15px: calc((15 * var(--baseFs)) * 1rem);
+  --fs15-5px: calc((15.5 * var(--baseFs)) * 1rem);
+  --fs16px: calc((16 * var(--baseFs)) * 1rem);
+  --fs16-5px: calc((16.5 * var(--baseFs)) * 1rem);
+  --fs17px: calc((17 * var(--baseFs)) * 1rem);
+  --fs18px: calc((18 * var(--baseFs)) * 1rem);
+  --fs18-5px: calc((18.5 * var(--baseFs)) * 1rem);
+  --fs19px: calc((19 * var(--baseFs)) * 1rem);
+  --fs20px: calc((20 * var(--baseFs)) * 1rem);
+  --fs21px: calc((21 * var(--baseFs)) * 1rem);
+  --fs22px: calc((22 * var(--baseFs)) * 1rem);
+  --fs23px: calc((23 * var(--baseFs)) * 1rem);
+  --fs24px: calc((24 * var(--baseFs)) * 1rem);
+  --fs25px: calc((25 * var(--baseFs)) * 1rem);
+  --fs26px: calc((26 * var(--baseFs)) * 1rem);
+  --fs27px: calc((27 * var(--baseFs)) * 1rem);
+  --fs28px: calc((28 * var(--baseFs)) * 1rem);
+  --fs29px: calc((29 * var(--baseFs)) * 1rem);
+  --fs30px: calc((30 * var(--baseFs)) * 1rem);
+  --fs31px: calc((31 * var(--baseFs)) * 1rem);
+  --fs32px: calc((32 * var(--baseFs)) * 1rem);
+  --fs33px: calc((33 * var(--baseFs)) * 1rem);
+  --fs34px: calc((34 * var(--baseFs)) * 1rem);
+  --fs35px: calc((35 * var(--baseFs)) * 1rem);
+  --fs36px: calc((36 * var(--baseFs)) * 1rem);
+  --fs37px: calc((37 * var(--baseFs)) * 1rem);
+  --fs38px: calc((38 * var(--baseFs)) * 1rem);
+  --fs39px: calc((39 * var(--baseFs)) * 1rem);
+  --fs40px: calc((40 * var(--baseFs)) * 1rem);
+  --fs41px: calc((41 * var(--baseFs)) * 1rem);
+  --fs42px: calc((42 * var(--baseFs)) * 1rem);
+  --fs43px: calc((43 * var(--baseFs)) * 1rem);
+  --fs44px: calc((44 * var(--baseFs)) * 1rem);
+  --fs45px: calc((45 * var(--baseFs)) * 1rem);
+  --fs46px: calc((46 * var(--baseFs)) * 1rem);
+  --fs47px: calc((47 * var(--baseFs)) * 1rem);
+  --fs48px: calc((48 * var(--baseFs)) * 1rem);
+  --fs49px: calc((49 * var(--baseFs)) * 1rem);
+  --fs50px: calc((50 * var(--baseFs)) * 1rem);
+  --fs52px: calc((52 * var(--baseFs)) * 1rem);
+  --fs55px: calc((55 * var(--baseFs)) * 1rem);
+  --fs60px: calc((60 * var(--baseFs)) * 1rem);
+  --fs65px: calc((65 * var(--baseFs)) * 1rem);
+  --fs68px: calc((68 * var(--baseFs)) * 1rem);
+  --fs70px: calc((70 * var(--baseFs)) * 1rem);
+  --fs75px: calc((75 * var(--baseFs)) * 1rem);
+  --fs80px: calc((80 * var(--baseFs)) * 1rem);
+  --fs82px: calc((82 * var(--baseFs)) * 1rem);
+  --fs85px: calc((85 * var(--baseFs)) * 1rem);
+  --fs86px: calc((86 * var(--baseFs)) * 1rem);
+  --fs88px: calc((88 * var(--baseFs)) * 1rem);
+  --fs90px: calc((90 * var(--baseFs)) * 1rem);
+  --fs95px: calc((95 * var(--baseFs)) * 1rem);
+  --fs98px: calc((98 * var(--baseFs)) * 1rem);
+  --fs100px: calc((100 * var(--baseFs)) * 1rem);
+  --fs103px: calc((103 * var(--baseFs)) * 1rem);
+  --fs105px: calc((105 * var(--baseFs)) * 1rem);
+  --fs106px: calc((106 * var(--baseFs)) * 1rem);
+  --fs110px: calc((110 * var(--baseFs)) * 1rem);
+  --fs111px: calc((111 * var(--baseFs)) * 1rem);
+  --fs112px: calc((112 * var(--baseFs)) * 1rem);
+  --fs115px: calc((115 * var(--baseFs)) * 1rem);
+  --fs120px: calc((120 * var(--baseFs)) * 1rem);
+  --fs125px: calc((125 * var(--baseFs)) * 1rem);
+  --fs130px: calc((130 * var(--baseFs)) * 1rem);
+  --fs135px: calc((135 * var(--baseFs)) * 1rem);
+  --fs140px: calc((140 * var(--baseFs)) * 1rem);
+  --fs145px: calc((145 * var(--baseFs)) * 1rem);
+  --fs148px: calc((148 * var(--baseFs)) * 1rem);
+  --fs150px: calc((150 * var(--baseFs)) * 1rem);
+  --fs153px: calc((153 * var(--baseFs)) * 1rem);
+  --fs155px: calc((155 * var(--baseFs)) * 1rem);
+  --fs160px: calc((160 * var(--baseFs)) * 1rem);
+  --fs165px: calc((165 * var(--baseFs)) * 1rem);
+  --fs169px: calc((169 * var(--baseFs)) * 1rem);
+  --fs170px: calc((170 * var(--baseFs)) * 1rem);
+  --fs175px: calc((175 * var(--baseFs)) * 1rem);
+  --fs177px: calc((177 * var(--baseFs)) * 1rem);
+  --fs180px: calc((180 * var(--baseFs)) * 1rem);
+  --fs185px: calc((185 * var(--baseFs)) * 1rem);
+  --fs190px: calc((190 * var(--baseFs)) * 1rem);
+  --fs195px: calc((195 * var(--baseFs)) * 1rem);
+  --fs200px: calc((200 * var(--baseFs)) * 1rem);
+  --fs205px: calc((205 * var(--baseFs)) * 1rem);
+  --fs210px: calc((210 * var(--baseFs)) * 1rem);
+  --fs215px: calc((215 * var(--baseFs)) * 1rem);
+  --fs220px: calc((220 * var(--baseFs)) * 1rem);
+  --fs225px: calc((225 * var(--baseFs)) * 1rem);
+  --fs230px: calc((230 * var(--baseFs)) * 1rem);
+  --fs235px: calc((235 * var(--baseFs)) * 1rem);
+  --fs240px: calc((240 * var(--baseFs)) * 1rem);
+  --fs245px: calc((245 * var(--baseFs)) * 1rem);
+  --fs250px: calc((250 * var(--baseFs)) * 1rem);
+  --fs255px: calc((255 * var(--baseFs)) * 1rem);
+  --fs260px: calc((260 * var(--baseFs)) * 1rem);
+  --fs270px: calc((270 * var(--baseFs)) * 1rem);
+  --fs280px: calc((280 * var(--baseFs)) * 1rem);
+  --fs290px: calc((290 * var(--baseFs)) * 1rem);
+  --fs300px: calc((300 * var(--baseFs)) * 1rem);
+  --fs308px: calc((308 * var(--baseFs)) * 1rem);
+  --fs320px: calc((320 * var(--baseFs)) * 1rem);
+  --fs350px: calc((350 * var(--baseFs)) * 1rem);
+  --fs354px: calc((354 * var(--baseFs)) * 1rem);
+  --fs380px: calc((380 * var(--baseFs)) * 1rem);
+  --fs387px: calc((387 * var(--baseFs)) * 1rem);
+  --fs420px: calc((420 * var(--baseFs)) * 1rem);
+  --fs450px: calc((450 * var(--baseFs)) * 1rem);
+  --fs530px: calc((530 * var(--baseFs)) * 1rem);
+  --fs750px: calc((750 * var(--baseFs)) * 1rem);
+  --fs800px: calc((800 * var(--baseFs)) * 1rem);
+}
+
+:root {
+  --zpBackground: 255, 255, 255;
+  --zpOnBackground: 0, 0, 0;
+  --zpSurface: 255, 255, 255;
+  --zpOnSurface: 0, 0, 0;
+  --zpSurfaceBdr: 230, 230, 230;
+  --zpMarketplaceStripbdr: 218, 225, 235;
+  --zpSecondary: 250, 250, 250;
+  --zpOnSecondary: 70, 70, 70;
+  --zpSecondaryBdr: 235, 235, 235;
+  --zpTopBarBdr: 235, 235, 235;
+  --zpTertiary: 247, 247, 247;
+  --zpsMLTGrpheader: 247, 249, 251;
+  --zpQuaternary: 251, 251, 251;
+  --zpData: 255, 255, 255;
+  --zpOnData: 32, 33, 35;
+  --zpOnDataLight: 85, 85, 85;
+  --zpDisabled: 241, 241, 241;
+  --zpOnDisabled: 142, 142, 142;
+  --zpReadonly: 172, 172, 172;
+  --zpTooltip: 0, 0, 0;
+  --zpOnTooltip: 242, 242, 242;
+  --zpOnPrimary: 255, 255, 255;
+  --zpOnDark: 255, 255, 255;
+  --zpOnLight: 0, 0, 0;
+  --zpPopupBase: 255, 255, 255;
+  --zpDetailBase: 245, 245, 245;
+  --zpMarketplaceStrip: 231, 231, 242;
+  --zpDetailLHS: 231, 231, 242;
+  --zpAttachmentBar: 236, 240, 245;
+  --zpFreezeOpacity: 0.82;
+  --zpFreeze: 0, 0, 0, var(--zpFreezeOpacity);
+  --zpShadow: 0, 0, 0;
+  --zpBorderGrey: 0, 0, 0;
+  --zpHeaderFont: 102, 102, 102;
+  --zpMLTGroup: 247, 249, 251;
+  --zpOnMLTHeader: 77, 77, 79;
+  --zpOnMLTHeaderBdr: 242, 242, 242;
+  --zpDashboardbdr: 242, 242, 242;
+  --zpProgressGreen: 135, 211, 124;
+  --zpFormElement: 255, 255, 255;
+  --zpFormElementBdr: 217, 226, 236;
+  --zpDetailFieldBdr: 232, 238, 244;
+  --zpPopInputBdr: 217, 226, 236;
+  --zpOnFormElement: 0, 0, 0;
+  --zpFormLabel: 32, 33, 35;
+  --zpMandatory: 255, 247, 247;
+  --zpMandatoryBdr: 255, 175, 180;
+  --zpWarning: 255, 49, 55;
+  --zpBulkUpdate: 254, 247, 227;
+  --zpKanbanBg: 223, 230, 233;
+  --zpKanabanParent: 248, 248, 248;
+  --zpKanbanCard: 255, 255, 255;
+  --zpKanbanCardBorder: 210, 210, 210;
+  --zpCalendarBdr: 230, 230, 230;
+  --zpCalHoliday: 242, 249, 250;
+  --zpCalHolidayText: 55, 193, 207;
+  --weekNumberBg: 241, 245, 246;
+  --zpDarkBg: 34, 34, 34;
+  --zp777: 119, 119, 119;
+  --zp555: 85, 85, 85;
+  --zpE2: 226, 226, 226;
+  --zpBlueprint: 245, 250, 255;
+  --zpBPGrid: 180, 217, 250;
+  --zpBlackOpac: 0, 0, 0;
+  --zpHelpNote: 255, 243, 204;
+  --zpOnHelpNote: 133, 100, 4;
+  --zpUnread: 255, 247, 231;
+  --zpFilterInvert: unset;
+  --zpOnFilterInvert: 0, 0, 0;
+  --zpDropDownShadow: -2px 0 15px rgba(0, 0, 0, .14);
+  --zpTimerShadow: 6px 6px 20px 0px rgb(var(--zpOnData),.3);
+  --zpPageTour: #18d3ce;
+  --zpPageTourWhiteText: 255, 255, 255;
+  --zpWMSbar: 255, 255, 255;
+  --resWeekendBg: rgb(244, 251, 253);
+  --holidayColor: 0, 202, 210;
+  --subdropbg: 235, 252, 252;
+  --zpScrollWH: 5px;
+  --zpScrollThumb: 232, 232, 232;
+  --zpScrollThumbHover: 226, 226, 226;
+  --zpNotifyBadge: #ea4f3d;
+  --zpGanttJoiner: 153, 153, 153;
+  --zpGanttNode: 77, 77, 79;
+  --resTaskBar: 199, 233, 248;
+  --resTaskWork: 92, 173, 218;
+  --editorpop: 249, 250, 254;
+  --ganttOverdue: #f6837d;
+  --automationBg:242, 243, 246;
+  --newGalleryBg: 225, 233, 238;
+  --newCustomModuleBg: 230, 255, 252;
+  --customModuleTileBg: 255, 255, 255;
+  --OnNewGallery: var(--zpOnData);
+  --ziaInsightsRHS: 255, 255, 255;
+  --zp-switchWrapColor:219, 221, 223;
+  --zpSwitchBtnColor:255, 255, 255;
+  --zpswitchBefore:219, 221, 223;
+  --zpswitchAfter:255, 255, 255;
+  --zpswitchAfterChecked:255, 255, 255;
+  --activityLineBorder: rgba(var(--zpBlackOpac),.10) solid 1px;
+  --activityLine:rgba(var(--zpBlackOpac),.10);
+  --zpAttachmentBarBg:var(--zpFormElement);
+  --kanbanScrollBorder:rgba(var(--zpBlackOpac), .13) dashed 2px;
+  --kanbanScrollColor:rgba(var(--zpBlackOpac), .38);
+  --zpItemsListColor:var(--zpData);
+  --zpItemsListBg:var(--zpBlackOpac);
+  --zpPopupHover: var(--zpPrimaryHover);
+  --zpUserSwitch: 241, 245, 246;
+  --zpOnDisabledLHS: var(var(--zpOnDisabled));
+  --zpToastBg: 255,255,255;
+  --zpHomecardbdr:235, 235, 235;
+  --zpEntityMarketPlaceColorCollapsed: rgb(229, 231, 235);
+  --user-detailpage-color:203, 133, 192;
+  --priorityNone: 135, 139, 142;
+  --priorityLow: 94, 184, 100;
+  --priorityMedium: 255, 177, 0;
+  --priorityHigh: 243, 105, 105;
+  --status4: 245, 107, 98;
+  --status6: 44, 200, 186;
+  --status11: 116, 203, 128;
+  --status1: 152, 202, 60;
+  --status2: 251, 193, 30;
+  --status3: 78, 211, 229;
+  --status5: 8, 174, 234;
+  --status7: 103, 160, 255;
+  --status8: 165, 147, 255;
+  --status9: 255, 123, 215;
+  --status10: 85, 141, 202;
+  --status12: 230, 203, 76;
+  --status13: 185, 152, 151;
+  --status14: 246, 169, 109;
+  --status15: 197, 160, 112;
+  --status16: 73, 230, 207;
+  --status17: 140, 186, 187;
+  --status18: 167, 188, 238;
+  --status19: 219, 154, 202;
+  --status20: 169, 178, 192;
+  --col-bill: 58, 204, 230;
+  --col-nonbill: 250, 173, 81;
+  --col-totalh: 53, 143, 255;
+  --totalcost: 64, 175, 72;
+  --escalate1: 0, 154, 102;
+  --escalate2: 226, 177, 60;
+  --escalate3: 232, 111, 37;
+  --escalate4: 203, 0, 50;
+  --unassigned: #bbbcbc;
+  --statusTextColor:#fff;
+  --unassignedborder: linear-gradient(45deg, #e0e4e4 0, rgba(255, 255, 255, 0) 49%, rgb(255, 255, 255) 49%, rgb(255, 255, 255) 52%, rgb(255, 255, 255) 52%, rgba(255, 255, 255, 0) 52%, #e0e4e4 100%), linear-gradient(135deg, #e0e4e4 0, #e0e4e4 49%, #ffffff 46%, rgb(255, 255, 255) 52%, rgb(255, 255, 255) 51%, #e0e4e4 51%, #e0e4e4 100%);
+  --multiownerborder: linear-gradient(45deg, #ecd19f 5%, #f5ebd9 15%, #f5ebd9 48%, #ecd19f 50%, #ecd19f 60%, #f5ebd9 50%, #f5ebd9);
+  --multiowner: #827716;
+  --deleteduser: rgb(255, 159, 159);
+  --deleteduserborder: radial-gradient(#ffaaaa 0, #ffaaaa 0, #ffaaaa 15%, rgba(0, 0, 0, 0) 16%, rgba(0, 0, 0, 0) 100%), radial-gradient(#ffaaaa 0, #ffaaaa 15%, rgba(0, 0, 0, 0) 16%, rgba(0, 0, 0, 0) 100%), rgba(255, 234, 234, 1);
+  --deleteduser_background_image: radial-gradient(#ffaaaa 0, #ffaaaa 0, #ffaaaa 15%, rgba(0, 0, 0, 0) 16%, rgba(0, 0, 0, 0) 100%);
+  --deleteduser_background_color: rgba(255, 234, 234, 1);
+  --typeColorDisplay: none;
+  --projColorDisplay: none;
+  --userColorDisplay: none;
+  --evcalendarHeader: #f15d59;
+  --onSelection: #fff;
+  --cfDefaultSection: linear-gradient(45deg, rgba(var(--zpSurfaceBdr), 0.45) 5%, rgb(var(--zpData)) 15%, rgb(var(--zpData)) 48%, rgba(var(--zpSurfaceBdr), 0.45) 50%, rgba(var(--zpSurfaceBdr), 0.45) 60%, rgb(var(--zpData)) 50%, rgb(var(--zpData)));
+  --basecamp: 29, 44, 53;
+  --jira: 37, 131, 255;
+  --mpp: 15, 159, 74;
+  --upgradeYellow: #ffe700;
+  --tag1: 13, 211, 211;
+  --tag2: 226, 185, 16;
+  --tag3: 97, 191, 193;
+  --tag4: 242, 136, 64;
+  --tag5: 211, 89, 170;
+  --tag6: 131, 183, 39;
+  --tag7: 181, 138, 97;
+  --tag8: 255, 172, 20;
+  --tag9: 72, 183, 180;
+  --tag10: 247, 139, 132;
+  --tag11: 1, 142, 205;
+  --tag12: 87, 192, 101;
+  --tag13: 9, 149, 186;
+  --tag14: 51, 197, 242;
+  --tag15: 255, 101, 203;
+  --tag16: 183, 157, 125;
+  --tag17: 59, 146, 255;
+  --tag18: 186, 131, 242;
+  --tag19: 211, 133, 74;
+  --tag20: 153, 168, 189;
+  --onTag: 255, 255, 255;
+  --zpChckin-available: #14b474;
+  --zpChckin-away: #f9af29;
+  --zpChckin-busy: #fd3a36;
+  --zpChckin-invisible: #bfcacd;
+  --workUnAlloc: 202, 217, 223;
+  --workUnder: 206, 241, 215;
+  --workUnderWload: 149, 217, 159;
+  --workOver: 255, 207, 205;
+  --workOverWload: 247, 139, 132;
+  --workOptimal: 187, 236, 253;
+  --workOptimalText:var(--zpOnData);
+  --workOptimalWload: 109, 206, 245;
+  --calCurrentMonthColor: 0, 0, 0;
+  --calOtherMonthColor: 161, 167, 173;
+  --whfail1: #b85e20;
+  --whfail2: #848a93;
+  --whfail3: #ff7e00;
+  --whfail4: #db4453;
+  --textLeft: left;
+  --textRight: right;
+  --logStart: #39b24a;
+  --logPause: #fb8a01;
+  --logResume: #3b92fe;
+  --logStop: #ed4b3c;
+  --redHexa: #ff3137;
+  --zohoRed: 227, 38, 40;
+  --zohoGreen: 4, 153, 73;
+  --zohoYellow: 247, 178, 27;
+  --zohoBlue: 35, 110, 180;
+  --zohoDesk: 2, 154, 73;
+  --nowrap: nowrap;
+  --zpUserGroupLabel: 120, 85, 73;
+  --zpPlanned: 85, 141, 202;
+  --zpActual: 152, 202, 60;
+  --zpOverActual: 235, 111, 98;
+  --mltHeaderBG: 255, 255, 255;
+  --mltHeaderBdr: 230, 231, 238;
+  --sheetTableBdr: 232, 238, 244;
+  --sheetGroupBG: 247, 249, 251;
+  --separatorBdr: 217, 226, 236;
+  --fieldBorder: 200, 213, 227;
+  --sheetColumnBdr: 232, 238, 244;
+  --zpSheetIcons: 77, 77, 79;
+  --zpFormFieldsIcon: 129, 133, 143;
+  --mltSubLevelExpand: 120, 120, 120;
+  --sheetCellShadow: 0px 1px 5px rgba(var(--zpBlackOpac),0.3);
+  --sortColor: 179, 179, 179;
+  --baseLineHdr1: 158, 180, 192;
+  --baseLineHdr2: 71, 115, 138;
+  --baseLineCell1: 248, 249, 250;
+  --baseLineCell2: 243, 245, 247;
+  --customProfile: 224, 162, 67;
+  --approval: 122, 206, 76;
+  --pending: 120, 144, 156;
+  --rejected: 243, 49, 85;
+  --zpProjTemplate: 218, 234, 243;
+  --shortcutNameBg: 38,31,28;
+  --OnshortcutName: 255,255,255,0.9;
+  --statusNocolor: 204, 204, 204;
+  --zpTimerbg: 248, 248, 248;
+  --zpTimerField: 248, 248, 248;
+  --zpDetailBg: 255, 255, 255;
+  --zpSetupLeftBg: 247, 247, 247;
+  --zpSetupHeaderBdr: 217, 226, 236;
+  --zpDragIcon: 184, 184, 184;
+  --zpGraytxt: 133, 133, 133;
+  --zpInputBg: 255, 255, 255;
+  --zpPopInputBg: 255, 255, 255;
+  --zpDetailpageBG: 240, 240, 247;
+  --zpFormHeaderbg: 241, 244, 248;
+  --zpInsiteHeaderbg:255,255,255;
+  --zpInsitebg:240,240,248;
+  --zpInsiteContentbg:255,255,255;
+  --zpInsiteHighlightredClr: 215, 93, 85;
+  --zpInsiteHighlightgreenClr: 112, 199, 115;
+  --zpHighlightBG: 230, 236, 243;
+  --zpSignoutTray: 245, 245, 245;
+  --zpCalendarHoliday: 242, 249, 250;
+  --zpPrivateLabel: 248, 248, 248;
+  --zpCardShadow: 5px 8px 10px 0px rgba(var(--zpShadow), 0.07);
+  --zpActivitycol: 191 107 39;
+  --lightNullColor: transparent;
+  --darkNullColor: #ccc;
+  --transparentBgGrad: linear-gradient(45deg, var(--darkNullColor) 25%, var(--lightNullColor) 25%), linear-gradient(-45deg, var(--darkNullColor) 25%, var(--lightNullColor) 25%), linear-gradient(45deg, var(--lightNullColor) 75%, var(--darkNullColor) 75%), linear-gradient(-45deg, var(--lightNullColor) 75%, var(--darkNullColor) 75%);
+  --zpCreditFeedBg: 239, 250, 255;
+  /* kanban Priority */
+  --kanbanpriorityNone: 225, 226, 226;
+  --kanbanpriorityLow: 218, 234, 219;
+  --kanbanpriorityMedium: 250, 233, 207;
+  --kanbanpriorityHigh: 247, 220, 219;
+  --zpPreferenceBg: 242, 242, 242;
+  --zpLeftmoreiconBg: 0, 0, 0;
+  --zpHomecardoddBg: 255, 255, 255;
+  --zpHomecardevenBg: 255, 255, 255;
+  --zpEditToolbarBg: 255, 255, 255;
+  --zpPaginationBg: 255, 255, 255;
+  --zpSetupHeaderBg: 247, 247, 247;
+  --zpcvnewBg: 250, 250, 250;
+  --zpFeedboxBg: 255, 255, 255;
+  --zpInsertcodeBg: 245, 245, 245;
+  --zpInsercodebdr: 235, 235, 235;
+  --zpAttachmentboxBg: 255, 255, 255;
+  --zpInviteUserBG: var(--zpMenuPanelHover);
+  --zpScrollbarColor: rgb(var(--zpShadow), 0.2) rgb(var(--zpHeaderFont), 0.03);
+  --zpCalLeavePopBG: 248, 250, 251;
+  --custDashboardBG: #e9f0fa;
+}
+:root .zia-insight-defBG1 {
+  --ziainsightColor: 245 , 241, 241;
+  --ziainsightTxtColor: 236, 28, 36;
+}
+:root .zia-insight-defBG2 {
+  --ziainsightColor: 257,253,252;
+  --ziainsightTxtColor: 11, 181, 181;
+}
+
+.zps-MLT[sheet-view=yes] {
+  --zpOnMLTHeader: 90, 90, 90;
+}
+
+/* Theme Options */
+body[theme-color="1"] {
+  --zpPrimary: 255, 100, 0;
+  --zpPrimaryHover: 255, 247, 243;
+  --zpGradient-start: 125, 35, 0;
+  --zpGradient-middle: 141, 45, 44;
+  --zpGradient-end: 225, 100, 0;
+  --zpGradientprimary: 255, 146, 76;
+  --zpGradientprimaryHover: 255, 244, 236;
+}
+body[theme-color="1"]:is([theme-panel="1"], [theme-panel="5"]) {
+  --zpMenuPanel: 22, 16, 13;
+  --zpMenuPanelHover: 55, 48, 45, 1;
+}
+body[theme-color="1"] gantt-chart-row:not(.ganttGrid):hover > gantt-row-data:first-of-type {
+  --zpPrimaryHover: 255, 240, 233;
+}
+
+body[theme-color="2"] {
+  --zpPrimary: 0, 167, 246;
+  --zpPrimaryHover: 242, 251, 255;
+  --zpGradient-start: 0, 37, 86;
+  --zpGradient-end: 0, 166, 246;
+  --zpGradientprimary: 102, 202, 250;
+  --zpGradientprimaryHover: 232, 249, 255;
+}
+body[theme-color="2"]:is([theme-panel="1"], [theme-panel="5"]) {
+  --zpMenuPanel: 1, 17, 36;
+  --zpMenuPanelHover: 20, 50, 66, 1;
+}
+body[theme-color="2"] gantt-chart-row:not(.ganttGrid):hover > gantt-row-data:first-of-type {
+  --zpPrimaryHover: 235, 246, 254;
+}
+
+body[theme-color="3"] {
+  --zpPrimary: 0, 197, 176;
+  --zpPrimaryHover: 243, 253, 253;
+  --zpGradient-start: 0, 53, 72;
+  --zpGradient-end: 0, 192, 175;
+  --zpGradientprimary: 102, 217, 208;
+  --zpGradientprimaryHover: 231, 251, 249;
+}
+body[theme-color="3"]:is([theme-panel="1"], [theme-panel="5"]) {
+  --zpMenuPanel: 1, 20, 23;
+  --zpMenuPanelHover: 20, 54, 61, 1;
+}
+body[theme-color="3"] gantt-chart-row:not(.ganttGrid):hover > gantt-row-data:first-of-type {
+  --zpPrimaryHover: 235, 249, 247;
+}
+
+body[theme-color="4"] {
+  --zpPrimary: 236, 24, 21;
+  --zpPrimaryHover: 255, 243, 242;
+  --zpGradient-start: 85, 0, 34;
+  --zpGradient-end: 230, 30, 0;
+  --zpGradientprimary: 241, 93, 91;
+  --zpGradientprimaryHover: 255, 235, 236;
+}
+body[theme-color="4"]:is([theme-panel="1"], [theme-panel="5"]) {
+  --zpMenuPanel: 23, 0, 1;
+  --zpMenuPanelHover: 53, 20, 20, 1;
+}
+body[theme-color="4"] gantt-chart-row:not(.ganttGrid):hover > gantt-row-data:first-of-type {
+  --zpPrimaryHover: 255, 233, 233;
+}
+
+body[theme-color="5"] {
+  --zpPrimary: 3, 182, 84;
+  --zpPrimaryHover: 245, 251, 246;
+  --zpGradient-start: 0, 38, 36;
+  --zpGradient-end: 57, 181, 74;
+  --zpGradientprimary: 79, 204, 136;
+  --zpGradientprimaryHover: 232, 250, 240;
+}
+body[theme-color="5"]:is([theme-panel="1"], [theme-panel="5"]) {
+  --zpMenuPanel: 1, 17, 4;
+  --zpMenuPanelHover: 26, 48, 31, 1;
+}
+body[theme-color="5"] gantt-chart-row:not(.ganttGrid):hover > gantt-row-data:first-of-type {
+  --zpPrimaryHover: 235, 248, 238;
+}
+
+body[theme-color="6"] {
+  --zpPrimary: 39, 122, 247;
+  --zpPrimaryHover: 244, 248, 255;
+  --zpGradient-start: 9, 25, 112;
+  --zpGradient-end: 65, 149, 255;
+  --zpGradientprimary: 102, 163, 249;
+  --zpGradientprimaryHover: 233, 243, 254;
+}
+body[theme-color="6"]:is([theme-panel="1"], [theme-panel="5"]) {
+  --zpMenuPanel: 18, 19, 32;
+  --zpMenuPanelHover: 54, 56, 71, 1;
+}
+body[theme-color="6"] gantt-chart-row:not(.ganttGrid):hover > gantt-row-data:first-of-type {
+  --zpPrimaryHover: 235, 241, 254;
+}
+
+body:is([theme-panel="6"]) {
+  --zpOnMenuPanel: 255, 255, 255;
+  --zpMenuPanel: 22, 16, 13;
+}
+
+body:is([theme-panel="6"], [theme-code="1"]) {
+  --zpMenuPanelHover: ;
+}
+
+body:is([theme-panel="1"], [theme-panel="5"], [theme-panel="4"], [theme-panel="6"]) {
+  --zpOnMenuPanel: 255, 255, 255;
+  --zpMainTopbar: 255, 255, 255;
+}
+
+body:is([theme-panel="2"], [theme-panel="3"]) {
+  --zpMainTopbar: 255, 255, 255;
+  --zpOnMenuPanel: 0, 0, 0;
+  --OnshortcutName: 102, 102, 102,0.9;
+}
+
+body[theme-panel="2"] {
+  --zpMenuPanel: 242, 242, 242;
+  --zpMenuPanelHover: 224, 224, 224, 1;
+  --shortcutNameBg: 255, 255, 255, 0.5;
+}
+body[theme-panel="2"] .zps-menu-panel .zps-items-list.select-item {
+  --shortcutNameBg: 255, 255, 255,0.2;
+  --OnshortcutName: 255, 255, 255, 1;
+}
+
+body[theme-panel="3"] {
+  --zpMenuPanel: 255, 255, 255;
+  --zpMenuPanelHover: 245, 245, 245, 1;
+  --shortcutNameBg: 212, 212, 212, 0.5;
+  --sheetGroupBG: 246, 248, 250;
+  --zpOnMLTHeader: 77, 77, 79;
+  --zpTopBarBdr: 242, 245, 248;
+}
+body[theme-panel="3"] .zps-menu-panel .zps-items-list.select-item {
+  --shortcutNameBg: 255, 255, 255,0.2;
+  --OnshortcutName: 255, 255, 255, 1;
+}
+
+body[theme-panel="4"] {
+  --zpOnMenuPanel: 255, 255, 255;
+  --zpMenuPanelHover: 255, 255, 255, 0.18;
+}
+body[theme-panel="4"] .zps-menu-panel .zps-items-list.select-item {
+  --shortcutNameBg: 0,0,0,0.05;
+  --OnshortcutName: 0,0,0,0.4;
+}
+
+body[dark-mode=true] {
+  --zpDashBoardbdr: 44, 46, 47;
+  --zpMainTopbar: 32, 33, 36;
+  --zpBackground: 32, 33, 36;
+  --zpOnBackground: 97, 97, 97;
+  --zpSurface: 32, 33, 36;
+  --zpOnSurface: 185, 185, 185;
+  --zpSurfaceBdr: 55, 58, 61;
+  --zpMarketplaceStripbdr: 55, 58, 61;
+  --zpDashboardbdr: 44, 46, 48;
+  --zpPrimaryHover: 41, 43, 45;
+  --zpSetupLeftBg: 41, 42, 45;
+  --zpSetupHeaderBdr: 55, 58, 61;
+  --zpSecondary: 37, 38, 40;
+  --zpOnSecondary: 158, 158, 158;
+  --zpSecondaryBdr: 55, 58, 61;
+  --zpTopBarBdr: 55, 58, 61;
+  --zpTertiary: 37, 38, 40;
+  --zpsMLTGrpheader: 37, 38, 40;
+  --zpQuaternary: 32, 33, 36;
+  --zpData: 32, 33, 36;
+  --zpOnData: 212, 212, 212;
+  --zpOnDataLight: 150, 150, 150;
+  --zpDisabled: 62, 62, 62;
+  --zpOnDisabled: 152, 152, 152;
+  --zpReadonly: 152, 152, 152;
+  --zpTooltip: 222, 222, 222;
+  --zpOnTooltip: 0, 0, 0;
+  --zpPopupBase: 48, 49, 52;
+  --zpDetailBase: 32, 33, 36;
+  --zpMarketplaceStrip: 32, 33, 36;
+  --zpAttachmentBar: 46, 46, 46;
+  --zpFreezeOpacity: 0.7
+  --zpFreeze: 0, 0, 0, var(--zpFreezeOpacity);
+  --zpShadow: 0, 0, 0;
+  --zpBorderGrey: 225, 225, 225;
+  --zpOnDark: 255, 255, 255;
+  --zpOnLight: 88, 88, 88;
+  --zpOnMLTHeader: 122, 122, 122;
+  --zpOnMLTHeaderBdr: 55, 58, 61;
+  --mltHeaderBG: 32, 33, 36;
+  --mltHeaderBdr: 70, 70, 70;
+  --sheetTableBdr: 55, 58, 61;
+  --sheetGroupBG: 37, 38, 40;
+  --sheetColumnBdr:55,58,61;
+  --separatorBdr:55,58,61;
+  --mltSubLevelExpand: 102, 102, 102;
+  --zpCalendarBdr: 55, 58, 61;
+  --fieldBorder:150, 150, 150;
+  --zpCalendarHoliday: 38, 39, 42;
+  --zpProgressGreen: 108, 156, 101;
+  --zpFormElement: 37, 38, 40;
+  --zpFormElementBdr: 55, 58, 61;
+  --zpDetailFieldBdr: 55, 58, 61;
+  --zpOnFormElement: 204, 204, 204;
+  --zpFormLabel: 150, 150, 150;
+  --zpTooltip: 222, 222, 222;
+  --zpOnTooltip: 0, 0, 0;
+  --zpMLTGroup: 28, 29, 30;
+  --zpBulkUpdate: 44, 46, 48;
+  --zpKanbanBg: 15, 16, 17;
+  --zpKanbanCard: 32, 33, 36;
+  --zpKanbanCardBorder: 51, 51, 51;
+  --zpCalHoliday: 41, 43, 45;
+  --zpDarkBg: 34, 34, 34;
+  --weekNumberBg: 55, 58, 61;
+  --zp777: 158, 158, 158;
+  --zp555: 158, 158, 158;
+  --zpE2: 28, 28, 28;
+  --zpBlueprint: 18, 18, 18;
+  --zpBPGrid: 43, 43, 43;
+  --zpBlackOpac: 255, 255, 255;
+  --zpUnread: 41, 43, 45;
+  --zpFilterInvert: invert(1);
+  --zpOnFilterInvert: 0, 0, 0;
+  --zpDropDownShadow: -2px 0 15px rgba(0, 0, 0, .41);
+  --resWeekendBg: rgba(244, 251, 253, 0.04);
+  --zpMandatory: 39, 7, 7;
+  --zpMandatoryBdr: 119, 28, 33;
+  --zpHelpNote: 35, 35, 35;
+  --zpWMSbar: 37, 38, 40;
+  --subdropbg: 47, 52, 52;
+  --zpScrollThumb: 82, 82, 82;
+  --zpScrollThumbHover: 108, 108, 108;
+  --zpPageTourWhiteText: 226, 226, 226;
+  --zpGanttJoiner: 110, 110, 110;
+  --zpGanttNode: 122, 122, 122;
+  --resTaskBar: 199, 233, 248;
+  --onSelection: #000;
+  --zpUserGroupLabel: 91, 91, 91;
+  --automationBg: 23, 24, 25;
+  --shortcutNameBg: 255,255,255,0.1;
+  --OnshortcutName: 255,255,255,0.9;
+  --baseLineCell1: 25, 25, 25;
+  --baseLineCell2: 51, 51, 51;
+  --editorpop: 25, 25, 25;
+  --zpKanbanbg: 28, 29, 30;
+  --zpKanabanParent: 28, 29, 30;
+  --zpPreferenceBg: 44, 46, 48;
+  --zpDetailBg: 23, 24, 25;
+  --priorityNone: 135, 139, 142;
+  --priorityLow: 94, 184, 100;
+  --priorityMedium: 255, 177, 0;
+  --priorityHigh: 243, 105, 105;
+  --zpTimerbg: 69, 69, 69;
+  --zpTimerField: 0, 0, 0;
+  --zpPrivateLabel: 91, 91, 91;
+  --workOptimalText:0, 0, 0;
+  --workOptimal: 44, 86, 122;
+  --workOver: 101, 46, 59;
+  --workUnder: 30, 72, 38;
+  --workUnAlloc: 91, 91, 91;
+  --calCurrentMonthColor: 212, 212, 212;
+  --calOtherMonthColor: 124, 131, 138;
+  --zpDragIcon: 69, 69, 69;
+  --zpDetailLHS: 44, 46, 48;
+  --zpGraytxt: 150, 150, 150;
+  --zpInputBg: 32, 33, 36;
+  --zpPopInputBg: 48, 49, 52;
+  --zpPopInputBdr: 71, 74, 76;
+  --zpDetailpageBG: 23, 24, 25;
+  --zpFormHeaderbg: 28, 29, 30;
+  --zpInsitebg: 32, 33, 37;
+  --zpInsiteContentbg: 15, 16, 17;
+  --zpInsiteHeaderbg: 44, 46, 48;
+  --zpHighlightBG: 32, 33, 36;
+  --zpSignoutTray: 28, 29, 30;
+  --zpCardShadow: 2px 4px 13px rgba(var(--zpShadow), 0.5);
+  --newCustomModuleBg: 55, 58, 61;
+  --customModuleTileBg: 44, 46, 48;
+  --zpPopHoverBg: 55, 58, 61;
+  --ziaInsightsRHS: 37, 38, 40;
+  --zpUserSwitch: 55, 58, 61;
+  --statusTextColor:#fff;
+  --zpToastBg: 55,58,61;
+  --zpEntityMarketPlaceColorCollapsed: rgb(39 40 40);
+  --baseLineHdr1: 59, 66, 77;
+  --baseLineHdr2: 47, 53, 62;
+  --baseLineCell1: 37, 40, 44;
+  --baseLineCell2: 40, 43, 49;
+  --cfDefaultSection: linear-gradient(45deg, rgba(var(--zpSurfaceBdr), 0.85) 5%, rgb(var(--zpData)) 15%, rgb(var(--zpData)) 48%, rgba(var(--zpSurfaceBdr), 0.85) 50%, rgba(var(--zpSurfaceBdr), 0.85) 60%, rgb(var(--zpData)) 50%, rgb(var(--zpData)));
+  --zpCreditFeedBg: 55,58,61;
+  /* kanban Priority */
+  --kanbanpriorityNone: 43, 46, 49;
+  --kanbanpriorityLow: 31, 43, 34;
+  --kanbanpriorityMedium: 62, 52, 31;
+  --kanbanpriorityHigh: 62, 32, 33;
+  --zpLeftmoreiconBg: 22, 22, 22;
+  --zpHomecardoddBg: 23, 24, 25;
+  --zpHomecardevenBg: 44, 46, 48;
+  --zpHomecardbdr: 57, 58, 62;
+  --zpEditToolbarBg: 32, 33, 36;
+  --zpPaginationBg: 37, 38, 40;
+  --zpSetupHeaderBg: 41, 42, 45;
+  --zpcvnewBg: 55, 58, 61;
+  --zpModeHoverbg: 78, 78, 83;
+  --zpFeedboxBg: 32, 33, 36;
+  --zpInsertcodeBg: 51, 52, 53;
+  --zpInsercodebdr: 74, 75, 79;
+  --zpAttachmentboxBg: 32, 33, 36;
+  --zpScrollbarColor: rgb(var(--zpOnBackground),0.5) rgb(var(--zpOnBackground), 0.08);
+  --zp-switchWrapColor:219, 221, 223;
+  --zpswitchBefore:98, 98, 100;
+  --zpswitchAfter:212, 212, 212;
+  --zpswitchAfterChecked:32, 33, 36;
+  --activityLineBorder: rgba(var(--zpBlackOpac),.10) solid 1px;
+  --activityLine:rgba(var(--zpBlackOpac),.10);
+  --zpAttachmentBarBg:var(--zpFormElement);
+  --kanbanScrollBorder:rgba(var(--zpBlackOpac), .13) dashed 2px;
+  --kanbanScrollColor:rgba(var(--zpBlackOpac), .38);
+  --zpItemsListColor:var(--zpOnData);
+  --zpItemsListBg:22, 22, 22;
+  --custDashboardBG: rgb(32, 33, 36);
+  /* deluge editor custom function overwrites */
+  --dre-expr-builder-foreground: #d4d4d4;
+  --dre-expr-builder-input-type-text-foreground: #d4d4d4;
+  --dre-topbar-foreground: #d4d4d4;
+  --dre-expr-builder-hidden-elements-title-foreground: #d4d4d4;
+  --dre-expr-builder-popup-header-background: #303134;
+  --dre-expr-builder-popup-header-foreground: #d4d4d4;
+  --dre-expr-builder-popup-background: #303134;
+  --dre-expr-builder-filter-icon-background: #303134;
+  --dre-expr-builder-filter-icon-border: #373a3d;
+  --dre-expr-builder-popup-border: #373a3d;
+  --dre-expr-builder-variables-foreground: #d4d4d4;
+  --dre-expr-builder-list-boxes-foreground: #d4d4d4;
+  --dre-expr-builder-title-foreground: #d4d4d4;
+  --dre-expr-builder-variables-hoverBackground: #292b2d;
+  --dre-expr-builder-popup-foreground: #d4d4d4;
+  --dre-expr-builder-input-datatype-background: #303134;
+  --dre-expr-builder-input-datatype-border: #373a3d;
+  --dre-expr-builder-description-code-foreground: #d4d4d4;
+  --zpCalLeavePopBG: 54, 58, 61;
+  --zpMltRowHover: 38, 39, 42;
+}
+body[dark-mode=true][theme-color][theme-panel]:not([theme-panel="4"], [theme-panel="6"]) {
+  --zpMenuPanel: 17, 17, 17;
+  --zpOnMenuPanel: 204, 204, 204;
+  --zpMenuPanelHover: 37, 38, 40, 1;
+  --zpMenuPanel-overlay: 17, 17, 17;
+}
+body[dark-mode=true] .zps-MLT[sheet-view=yes] {
+  --zpOnMLTHeader: 102, 102, 102;
+}
+body[dark-mode=true] .zps-menu-panel .zps-items-list.select-item {
+  --shortcutNameBg: 0,0,0,0.3;
+  --OnshortcutName: 255,255,255,1;
+}
+body[dark-mode=true][theme-panel="4"] .zps-menu-panel .zps-items-list.select-item {
+  --shortcutNameBg: 0,0,0,0.1;
+  --OnshortcutName: 0,0,0,0.6;
+}
+
+body[dim-mode=true][theme-panel] {
+  --zpMainTopbar: 0, 40, 62;
+  --zpBackground: 0, 40, 62;
+  --zpOnBackground: 102, 126, 139;
+  --zpSurface: 0, 40, 62;
+  --zpOnSurface: 175, 190, 200;
+  --zpSurfaceBdr: 25, 61, 81;
+  --zpMarketplaceStripbdr: 25, 61, 81;
+  --zpDashboardbdr: 25, 61, 81;
+  --zpPrimaryHover: 10, 49, 70;
+  --bgCol: 10, 49, 70;
+  --zpSetupLeftBg: 0, 59, 86;
+  --zpSetupHeaderBdr: 51, 83, 101;
+  --zpSecondary: 8, 46, 68;
+  --zpOnSecondary: 176, 186, 195;
+  --zpSecondaryBdr: 25, 61, 81;
+  --zpTopBarBdr: 25, 61, 81;
+  --zpTertiary: 8, 46, 68;
+  --zpsMLTGrpheader: 8, 46, 68;
+  --zpQuaternary: 0, 40, 62;
+  --zpData: 0, 40, 62;
+  --zpOnData: 178, 190, 197;
+  --zpOnDataLight: 102, 126, 139;
+  --zpDisabled: 8, 46, 68;
+  --zpOnDisabled: 55, 84, 96;
+  --zpOnDisabled: 55, 84, 96;
+  --zpReadonly: 55, 84, 96;
+  --zpTooltip: 222, 222, 222;
+  --zpOnTooltip: 0, 0, 0;
+  --zpOnMenuPanel: 204, 204, 204;
+  --zpMenuPanelHover: 10, 49, 70, 1;
+  --zpPopupBase: 13, 51, 72;
+  --zpDetailBase: 0, 40, 62;
+  --zpMarketplaceStrip: 0, 40, 62;
+  --zpAttachmentBar: 10,49,70;
+  --zpFreezeOpacity: 0.8;
+  --zpFreeze: 6, 26, 35, var(--zpFreezeOpacity);
+  --zpShadow: 0, 0, 0;
+  --zpBorderGrey: 225, 225, 225;
+  --zpOnDark: 255, 255, 255;
+  --zpOnLight: 88, 88, 88;
+  --zpOnMLTHeader: 102, 126, 139;
+  --zpOnMLTHeaderBdr: 25, 61, 81;
+  --mltHeaderBG: 0, 40, 62;
+  --mltHeaderBdr: 25, 61, 81;
+  --sheetTableBdr: 25, 61, 81;
+  --sheetGroupBG: 8, 46, 68;
+  --mltSubLevelExpand: 102, 102, 102;
+  --zpCalendarBdr: 25, 61, 81;
+  --zpCalendarHoliday: 6, 46, 67;
+  --zpProgressGreen: 108, 156, 101;
+  --zpFormElement: 8, 46, 68;
+  --zpFormElementBdr: 25, 61, 81;
+  --zpDetailFieldBdr: 25, 61, 81;
+  --zpOnFormElement: 204, 204, 204;
+  --zpFormLabel: 102, 126, 139;
+  --zpTooltip: 222, 222, 222;
+  --zpOnTooltip: 0, 0, 0;
+  --zpMLTGroup: 8, 46, 68;
+  --zpBulkUpdate: 15, 53, 74;
+  --zpKanbanBg: 0, 59, 86;
+  --zpKanbanCard: 0, 40, 62;
+  --zpKanbanCardBorder: 51, 83, 101;
+  --zpCalHoliday: 6, 46, 67;
+  --zpDarkBg: 34, 34, 34;
+  --weekNumberBg: 25, 61, 81;
+  --zp777: 158, 158, 158;
+  --zp555: 158, 158, 158;
+  --zpE2: 28, 28, 28;
+  --zpBlueprint: 18, 18, 18;
+  --zpBPGrid: 43, 43, 43;
+  --zpBlackOpac: 255, 255, 255;
+  --zpUnread: 6, 46, 67;
+  --zpFilterInvert: invert(1);
+  --zpOnFilterInvert: 0, 0, 0;
+  --zpDropDownShadow: -2px 0 15px rgba(0, 0, 0, .41);
+  --resWeekendBg: rgba(244, 251, 253, 0.04);
+  --zpMandatory: 39, 7, 7;
+  --zpMandatoryBdr: 119, 28, 33;
+  --zpHelpNote: 35, 35, 35;
+  --zpWMSbar: 5, 44, 66;
+  --subdropbg: 47, 52, 52;
+  --zpScrollThumb: 82, 82, 82;
+  --zpScrollThumbHover: 108, 108, 108;
+  --zpPageTourWhiteText: 226, 226, 226;
+  --zpGanttJoiner: 110, 110, 110;
+  --resTaskBar: 199, 233, 248;
+  --onSelection: #000;
+  --zpUserGroupLabel: 0, 119, 135;
+  --automationBg: 0, 33, 55;
+  --shortcutNameBg: 255,255,255,0.1;
+  --OnshortcutName: 255,255,255,0.9;
+  --baseLineHdr1: 49, 69, 87;
+  --baseLineHdr2: 38, 55, 76;
+  --baseLineCell1: 10, 46, 67;
+  --baseLineCell2: 19, 48, 69;
+  --editorpop: 0, 40, 62;
+  --zpKanbanbg: 8, 46, 68;
+  --zpKanabanParent: 5, 44, 66;
+  --zpPreferenceBg: 25, 61, 81;
+  --zpDetailBg: 0, 33, 55;
+  --priorityNone: 135, 139, 142;
+  --priorityLow: 94, 184, 100;
+  --priorityMedium: 255, 177, 0;
+  --priorityHigh: 243, 105, 105;
+  --zpTimerbg: 69, 69, 69;
+  --zpTimerField: 0, 0, 0;
+  --zpPrivateLabel: 91, 91, 91;
+  --workOptimal: 0, 76, 131;
+  --workOver: 125, 36, 0;
+  --workUnder: 0, 89, 5;
+  --workUnAlloc: 107, 126, 139;
+  --workOptimalText: 0, 0, 0;
+  --calCurrentMonthColor: 178, 190, 197;
+  --calOtherMonthColor: 136, 146, 152;
+  --zpDragIcon: 51, 83, 101;
+  --zpDetailLHS: 0, 59, 86;
+  --zpGraytxt: 150, 150, 150;
+  --zpInputBg: 0, 40, 62;
+  --zpPopInputBg: 13, 51, 72;
+  --zpPopInputBdr: 51, 83, 101;
+  --zpDetailpageBG: 0, 33, 55;
+  --zpFormHeaderbg: 0, 41, 64;
+  --zpInsitebg: 22, 58, 84;
+  --zpInsiteContentbg:12, 39, 60;
+  --zpHighlightBG: 0, 40, 62;
+  --zpSignoutTray: 6, 46, 68;
+  --zpCardShadow: 2px 4px 13px rgba(var(--zpShadow), 0.5);
+  --zpPopHoverBg: 6, 61, 83;
+  --mltFirstColumnBG: 0, 40, 62;
+  --newGalleryBg: 38,72,91;
+  --newCustomModuleBg: 0, 59, 86;
+  --customModuleTileBg: 20, 57, 77;
+  --OnNewGallery:178,190,197;
+  --zpPopupHover: 25, 61, 81;
+  --redHexa: #f0536d;
+  --zpWarning: 240, 83, 109;
+  --zpUserSwitch: 25, 61, 81;
+  --statusTextColor:#000000;
+  --ziaInsightsRHS:8, 46, 68;
+  --zpOnDisabledLHS: 79,102,114;
+  --zpToastBg: 26, 62, 81;
+  --cfDefaultSection: linear-gradient(45deg, rgba(var(--zpSurfaceBdr), 0.85) 5%, rgb(var(--zpData)) 15%, rgb(var(--zpData)) 48%, rgba(var(--zpSurfaceBdr), 0.85) 50%, rgba(var(--zpSurfaceBdr), 0.85) 60%, rgb(var(--zpData)) 50%, rgb(var(--zpData)));
+  --zpCreditFeedBg: 26, 62, 81;
+  --zpEntityMarketPlaceColorCollapsed: rgb(0 40 62);
+  --zpInsiteHeaderbg:0,41,64;
+  /* kanban Priority */
+  --kanbanpriorityNone: 21, 52, 73;
+  --kanbanpriorityLow: 0, 59, 66;
+  --kanbanpriorityMedium: 42, 57, 48;
+  --kanbanpriorityHigh: 53, 43, 54;
+  --zpLeftmoreiconBg: 4, 36, 54;
+  --zpHomecardoddBg: 3, 29, 40;
+  --zpHomecardevenBg: 4, 36, 54;
+  --zpHomecardbdr: 38, 72, 91;
+  --zpEditToolbarBg: 0, 52, 74;
+  --zpPaginationBg: 8, 33, 53;
+  --zpSetupHeaderBg: 5, 44, 66;
+  --zpcvnewBg: 20, 57, 77;
+  --zpModeHoverbg: 10, 49, 70;
+  --zpFeedboxBg: 0, 40, 62;
+  --zpInsertcodeBg: 0, 59, 86;
+  --zpInsercodebdr: 38, 72, 91;
+  --zpAttachmentboxBg: 0, 40, 62;
+  --zpProgressCircle: 40, 77, 103;
+  --zpScrollbarColor: rgb(var(--zpOnBackground),0.5) rgb(var(--zpOnBackground), 0.08);
+  --timerBg:0,59,86;
+  --timerBorder:102,126,139;
+  --ganttRowHover:37, 88, 117, 0.25;
+  --sheetColumnBdr:25, 61, 81;
+  --separatorBdr:25, 61, 81;
+  --fieldBorder: 79, 102, 114;
+  --zpItemListHover:4,36,54;
+  --zpSheetIcons:102,126,139;
+  --zp-switchWrapColor:178, 190, 197;
+  --zpSwitchBtnColor: 0, 40, 62;
+  --zpswitchBefore:65,93,110;
+  --zpswitchAfter:178, 190, 197;
+  --zpswitchAfterChecked:178, 190, 197;
+  --zpTimerbg:0,59,86;
+  --zpPrivateLabel:102,126,139;
+  --activityLineBorder: rgb(25, 61, 81) solid 1px;
+  --activityLine:rgb(25, 61, 81);
+  --zpAttachmentBarBg:var(--zpInputBg);
+  --kanbanScrollBorder:rgba(var(--zpPrimary) , 0.8) dashed 2px;
+  --kanbanScrollColor:rgb(var(--zpOnData));
+  --zpItemsListColor:var(--zpOnData);
+  --zpItemsListBg:var(--zpItemListHover);
+  --zpCalLeavePopBG: 5, 62, 83;
+}
+body[dim-mode=true][theme-panel][theme-color] {
+  --zpMenuPanel: 4, 36, 54;
+  --zpOnMenuPanel: 204, 204, 204;
+  --zpMenuPanelHover: 10, 49, 70, 1;
+  --zpMenuPanel-overlay: 17, 17, 17;
+}
+body[dim-mode=true][theme-panel] .zia-insight-defBG1 {
+  --ziainsightColor: 66, 54, 56;
+  --ziainsightTxtColor: 240, 83, 109;
+}
+body[dim-mode=true][theme-panel] .zia-insight-defBG2 {
+  --ziainsightColor: 53, 65, 69;
+  --ziainsightTxtColor: 11, 181, 181;
+}
+
+html {
+  --vpLeft: 0px;
+  --fullvh: 100vh;
+  --fullvw: calc(100vw - var(--vpLeft));
+  --wmsbarHeight: 28px;
+  --zpFormInput: 2.5rem;
+  --slideFormHeaderBand: 45px;
+  --slideFormBottombtn: 55px;
+  --zpFormButtonHeight: var(--fs27px);
+}
+
+aside#zohohc-asap-web-helper-main {
+  --zohohc_asap_web_layout_width: 500px;
+  --zohohc_asap_web_appclose_iconbg: rgb(var(--zpPrimary));
+  --zohohc_asap_web_appheader_bg: #f3f3f5;
+  --zohohc_asap_web_appheader_textclr: #000;
+  --zohohc_asap_web_appheader_backiconclr:rgb(var(--zpPrimary));
+  --zohohc_asap_web_appbutton_primary_bg: rgb(var(--zpPrimary));
+  --zohohc_asap_web_appbutton_primary_bg_bdr: rgb(var(--zpPrimary));
+  --zohohc_asap_web_apptabitem_selectedtextclr: rgb(var(--zpPrimary));
+  --zohohc_asap_web_apploading_iconbg: linear-gradient(rgba(255, 255, 255, 0.3), transparent), radial-gradient(rgb(var(--zpPrimary)), rgb(var(--zpPrimary)));
+  --zohohc_asap_web_appfootermenu_bg:#f5f5f5;
+  --zohohc_asap_web_apptabitem_bdr_right: #ededed solid 1px;
+  --zohohc_asap_web_apptabitem_iconclr: #000;
+  --zohohc_asap_web_appfootermenu_shadow:var(--zpDropDownShadow);
+  --zohohc_asap_web_apptabitem_selectedbg: #ffffff ;
+  --zohohc_asap_web_appclose_iconclr: rgb(var(--zpPrimary));
+  --zpOnData: 32, 33, 35;
+  --zpFormElement: 255, 255, 255;
+  --zpInputBg: 255, 255, 255;
+  --zohohc_asap_web_appthird_bgclr:#fff;
+  --zohohc_asap_web_fontfamily: var(--fontregular);
+  --zohohc_asap_web_fontsize: var(----basefont);
+}
+
+#zohoasap_root {
+  --zohohc_asap_web_header_bg_color: rgba(241, 244, 248, 1);
+  --hc_web_header_text_clr: #000000;
+  --zohohc_asap_web_theme_color: rgb(var(--zpPrimary));
+  --hc_web_primary_button_bg_hover: rgb(var(--zpPrimary));
+  --zohohc_asap_web_header_bg_primary_color: rgb(var(--zpPrimary));
+  --zohohc_asap_web_header_bg_secondary_color: rgb(var(--zpPrimary));
+  --zohohc_asap_web_link_hover_color: rgb(var(--zpPrimary));
+  --hc_web_header_dec_clr: #000000 !important;
+  --zohohc_asap_web_font_size8: calc((8 * var(--baseFs)) * 1rem);
+  --zohohc_asap_web_font_size10: calc((10 * var(--baseFs)) * 1rem);
+  --zohohc_asap_web_font_size11: calc((11 * var(--baseFs)) * 1rem);
+  --zohohc_asap_web_size11: calc((11 * var(--baseFs)) * 1rem);
+  --zohohc_asap_web_font_size12: calc((12 * var(--baseFs)) * 1rem);
+  --zohohc_asap_web_font_size13: calc((13 * var(--baseFs)) * 1rem);
+  --zohohc_asap_web_font_size14: calc((14 * var(--baseFs)) * 1rem);
+  --zohohc_asap_web_font_size16: calc((16 * var(--baseFs)) * 1rem);
+  --zohohc_asap_web_font_size18: calc((18 * var(--baseFs)) * 1rem);
+  --zohohc_asap_web_font_size20: calc((20 * var(--baseFs)) * 1rem);
+  --zohohc_asap_web_font_size24: calc((24 * var(--baseFs)) * 1rem);
+  --zohohc_asap_web_form_border: rgb(var(--zpFormElementBdr));
+}
+
+/* Single value declaration */
+html {
+  --topHeaderHeight: var(--fs65px);
+  --topHeaderHeightAddOn: 0px;
+  --productLogoWidth: 144px;
+  --productLogoHeight: var(--fs48px);
+  --zpOutline: none;
+  --detailPageExtnPanelWidth: var(--fs48px);
+  --mp-extn-detailpanel: 325px;
+  --detailpageWidth: 98vw;
+  --detailpageHeight: 93vh;
+  --detailFieldLabelWidth: 13vw;
+  --detailLHSWidth: 22%;
+  --detailBaseRadius: 15px;
+  --dtQuicklinkHeight:var(--fs30px);
+  --dtStickyBox: var(--fs70px);
+  --tlistHeader:var(--fs100px);
+  --chatFooterWidth: calc(100% + 70px);
+  --cfmenuarea: 385px;
+  --cflayoutTitleHeight: var(--fs55px);
+  --cflayoutbuttonHeight: var(--fs55px);
+  --globaddtab: 35px;
+  --btnRadius: var(--fs5px);
+  --btnHeight: var(--fs27px);
+  --sheetCellHeight: var(--fs40px);
+  --dbTop5Height: var(--fs46px);
+  --zpFontPrimary: calc((14 * var(--baseFs)) * 1rem);
+  --zpFontHeading1: calc((16 * var(--baseFs)) * 1rem);
+  --zpFontHeading2: calc((15 * var(--baseFs)) * 1rem);
+  --zpFontSubtext: calc((13 * var(--baseFs)) * 1rem);
+  --zpFontHeader: calc((13 * var(--baseFs)) * 1rem);
+  --zpFontHeaderUpperCase: calc((11 * var(--baseFs)) * 1rem);
+  --zpFontSubtextUpperCase: calc((11 * var(--baseFs)) * 1rem);
+  --detailBlockRadius: 7px;
+  --LHSWidth: 260px;
+  --leftMenuWidth: var(--LHSWidth); /* Static Width product menu */
+  --inverseleftMenuWidth: calc(-1 * calc(var(--leftMenuWidth)));
+  --menuPanelWidth: var(--LHSWidth); /* Dynamic Width product menu */
+  --zpMainPaddingLeft: var(--fs36px);
+  --zpMainPaddingRight: var(--fs25px);
+  --zpModuleHeader: var(--fs55px);
+  --zpTableHeader: var(--fs34px);
+  --zpTableGroupHeader: var(--sheetCellHeight);
+  --zpBulkUpdateBar: var(--fs45px);
+  --zpFilterWidth: 400px;
+  --zpFormWidth: 750px;
+  --zpFormOutPadding: var(--fs34px);
+  --zpSlidewidth: 440px;
+  --zpfilterHeight: var(--fs36px);
+  --zpPaginationHeight: 36px;
+  --setupMenu: 220px;
+  --setupheaderHeight: 50px;
+  --setupTabHeaderHeight: var(--fs46px);
+  --setupSelProjHeight:var(--fs35px);
+  --setupBotButtonHeight: var(--fs50px);
+  --setupListHeaderHeight: var(--fs60px);
+  --calendarHdr: var(--fs28px);
+  --calTimeCol: 60px;
+  --filterHeaderHeight: var(--fs48px);
+  --kanbanActionBar: var(--fs37px);
+  --kanbanColumn:320px;
+  --kanbanCard: 316px;
+  --kanbanPadding:15px;
+  --kanbanColTop:var(--fs36px);
+  --mileHeaderH:var(--fs120px);
+  --budgetRowSpec:var(--fs65px);
+  --mileDTtabH:var(--fs48px);
+  --resNaviBarH:var(--fs40px);
+  --ganttTitleBar: var(--fs50px);
+  --resNamePanel: 230px;
+  --resRangePanel: 100px;
+  --resCellD: 38px;
+  --resCellW: 135px;
+  --resRowH: 50px;
+  --ganttRowHt: 40px;
+  --ganttAddRowHt: 50px;
+  --ganttSmartbarWidth: var(--fs48px);
+  --zpfeed: 850px;
+  --zpForumDataH: calc(var(--detailpageHeight) - 40px);
+  --zpGReportLHS: var(--fs240px);
+  --zpGReportRHSFixed: 350px;
+  --zpGReportRHS: 350px;
+  --zpGReportCollapsedRHS: 50px;
+  --gbruleWidget: 60vw;
+  --userIconSheetList: var(--fs18px);
+  --userIconList: var(--fs28px);
+  --userIconInfoView: var(--fs23px);
+  --userIconComments: var(--fs37px);
+  --userHierarchy: var(--fs48px);
+  --userTileHeight: calc((215 * var(--baseFs)) * 1rem);
+  --gpTopbar:0px;
+  --statusDot: var(--fs10px);
+  --profileImg: var(--fs28px);
+  --profileImgRadius: 50%;
+  --profileInitialFont: 75%;
+  --popListHeight: var(--fs28px);
+  --popListLineHeight: var(--fs18px);
+  --popListVPad: var(--fs6px);
+  --popListHPad: var(--fs15px);
+  --zpscrolloverlay: overlay;
+  --zpMilePadding: var(--fs30px);
+  --checkboxTop: calc(var(--fs22px) / calc(0.9285714285714286 / calc(1/8.5)));
+  --checkboxInSheetTop: calc(var(--fs36px) / calc(0.9285714285714286 / calc(1/14)));
+  --checkboxInInter: calc(var(--checkboxTop) + calc(var(--fs13px) / 3));
+  --checkboxInSheetInter: calc(var(--checkboxInSheetTop) + calc(var(--fs13px) / 3));
+  --zpProfileRowHeight: var(--fs38px);
+  --zpProfileLeftPanel: 230px;
+  --cursorDefault: default;
+  --cursorPointer: pointer;
+  --cursorGrab: grab;
+  --cursorGrabbed: auto;
+  --cursorText: text;
+  --cursorMove: move;
+  --cursorHelp: help;
+  --cursorNotAllowed: not-allowed;
+  --cursorColResize: col-resize;
+  --cursorRowResize: row-resize;
+  --cursorNorth: n-resize;
+  --cursorEast: e-resize;
+  --cursorSouth: s-resize;
+  --cursorWest: w-resize;
+  --cursorNE: ne-resize;
+  --cursorNW: nw-resize;
+  --cursorSE: se-resize;
+  --cursorSW: sw-resize;
+  --lineThrough: line-through;
+  --zpBaseTransition: 1;
+  --zpTransition200ms: calc(200ms * var(--zpBaseTransition));
+  --zpTransition300ms: calc(300ms * var(--zpBaseTransition));
+  --zpTransition400ms: calc(400ms * var(--zpBaseTransition));
+  --zpTransition500ms: calc(500ms * var(--zpBaseTransition));
+  --zpTransition600ms: calc(600ms * var(--zpBaseTransition));
+  --zpTransition700ms: calc(700ms * var(--zpBaseTransition));
+  --zpTransition800ms: calc(800ms * var(--zpBaseTransition));
+  --zpTransition900ms: calc(900ms * var(--zpBaseTransition));
+  --zpTransition1000ms: calc(1000ms * var(--zpBaseTransition));
+  --zpTransition1100ms: calc(1100ms * var(--zpBaseTransition));
+  --zpTransition1200ms: calc(1200ms * var(--zpBaseTransition));
+  --zpTransition1300ms: calc(1300ms * var(--zpBaseTransition));
+  --zpTransition1400ms: calc(1400ms * var(--zpBaseTransition));
+  --zpTransition1500ms: calc(1500ms * var(--zpBaseTransition));
+  --zpTransition1600ms: calc(1600ms * var(--zpBaseTransition));
+  --zpTransition1700ms: calc(1700ms * var(--zpBaseTransition));
+  --zpTransition1s: calc(1s * var(--zpBaseTransition));
+  --zpTransition2s: calc(2s * var(--zpBaseTransition));
+  --zpTransition3s: calc(3s * var(--zpBaseTransition));
+  --zpTransition4s: calc(4s * var(--zpBaseTransition));
+  --zpTransition5s: calc(5s * var(--zpBaseTransition));
+  --zpTransition6s: calc(6s * var(--zpBaseTransition));
+  --zpTransition7s: calc(7s * var(--zpBaseTransition));
+  --zpTransition8s: calc(8s * var(--zpBaseTransition));
+  --zpTransition9s: calc(9s * var(--zpBaseTransition));
+  --zpTransition10s: calc(10s * var(--zpBaseTransition));
+  --zpAnimation1000ms: 1000ms;
+}
+
+profile-view-list {
+  --zpfilterHeight: var(--fs45px);
+}
+
+.detail-container[isMarketplaceStrip=false][marketplace-panel=expand] {
+  --detailPageExtnPanelWidth: 0px;
+  --mp-extn-detailpanel: 365px;
+}
+
+body[voice-over=true] {
+  --zpOutline: unset;
+}
+
+.zps-slideform-container.criteria-mode {
+  --zpFormWidth: 70vw;
+}
+
+body[ext-frame=crmplus],
+body[ext-frame=msteam],
+body[ext-frame=crmpartner],
+body[view-mode=project],
+body[ext-frame=widgets],
+body[ext-focus=mlt] {
+  --leftMenuWidth: 0px;
+  --menuPanelWidth: 0px;
+  --detailBaseRadius: 0px;
+  --zpMainPaddingLeft: 25px;
+  --productInnerWidth: var(--fullvw);
+  --kanbanContentwidth: calc(var(--fullvw) - var(--zpMainPaddingLeft));
+  --detailpageWidth: 100vw;
+  --detailpageHeight: 100vh;
+}
+
+body[ext-frame=crmplus],
+body[ext-frame=crmpartner] {
+  --rowActionWidth: var(--fs24px);
+  --mltFirstCell: var(--fs24px);
+}
+
+body[ext-frame=msteam] {
+  --zpMainPaddingLeft: 20px;
+}
+
+body[ext-frame=crmpartner],
+body[ext-frame=crm],
+body[ext-frame=crmplus],
+body[ext-frame=widgets],
+body[ext-frame=workplace],
+body[ext-focus=mlt] {
+  --wmsbarHeight: 0px;
+}
+
+.wms-mainui {
+  --fontlight: "LatoLight",Roboto,sans-serif;
+  --fontregular: "LatoRegular",Roboto,sans-serif;
+  --fontsemibold: "LatoSemiBold",Roboto,sans-serif;
+  --fontbold: "LatoBold",Roboto,sans-serif;
+}
+
+body[ext-frame=crmplus] {
+  --fontlight: "PuviLight",Roboto,sans-serif;
+  --fontregular: "PuviRegular",Roboto,sans-serif;
+  --fontmedium: "PuviMedium",Roboto,sans-serif;
+  --fontsemibold: "PuviSemibold",Roboto,sans-serif;
+}
+
+body.zpovw-notopbar, body[ext-frame=widgets], body[ext-focus=mlt] {
+  --topHeaderHeight: 0px;
+}
+
+body.crm-tab-header {
+  --topHeaderHeight: var(--fs40px);
+}
+
+body[ext-frame=crmplus] {
+  --setupheaderHeight: 50px;
+}
+
+body[ext-frame=widgets], body[ext-focus=mlt] {
+  --setupheaderHeight: 0px;
+}
+
+body[ext-frame=widgets] #tagsearchcontainer {
+  --setupheaderHeight: 50px;
+}
+
+body[ext-frame=msteam] {
+  --topHeaderHeight: 30px;
+  --wmsbarHeight: 0px;
+}
+
+body[ext-focus=mlt] {
+  --zpModuleHeader: 0px;
+}
+
+/*ProjectsPlus: Common Frame Changes*/
+body[ext-frame=projectsplusdashboard] {
+  --topHeaderHeight: 0px;
+  --leftMenuWidth: 0px;
+  --menuPanelWidth: 0px;
+  --setupMenu: 0px;
+  --wmsbarHeight: 0px;
+}
+
+/*ProjectsPlus: UI changes*/
+body[ext-frame=projectsplus] {
+  --wmsbarHeight: 0px;
+  --detailpageWidth: 100vw;
+  --detailpageHeight: 100vh;
+  --zpOnMenuPanel: 255, 255, 255;
+  --zpMenuPanel: 26, 36, 63 !important;
+  --zpMenuPanelHover: 255,255,255,0.5 !important;
+  --blurTruncateDir: none;
+  --topHeaderHeight: var(--fs40px);
+  --setupheaderHeight: 0px;
+}
+
+body[ext-frame=projectsplus] .zps-main-topbar.hideimp + .zps-main-content {
+  --mltHeight: calc(var(--fullvh) - calc( var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight) + var(--zpPaginationHeight) + 5px));
+}
+
+/*ProjectsPlus: Add Top Header Height For Project View*/
+body[ext-frame=projectsplus] .projectlevellistview {
+  --productInnerHeight: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--wmsbarHeight)));
+  --mltHeightNoPage: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight)));
+  --mltHeightwithFilter: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight) + var(--zpfilterHeight) + 11px + var(--zpPaginationHeight)));
+  --mltHeight: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight) + var(--zpPaginationHeight) + 5px));
+  --kanbanContentHeight: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--wmsbarHeight) + var(--zpModuleHeader)));
+}
+
+/*ProjectsPlus: Reduce Top Header Content For portal View*/
+body[ext-frame=projectsplus] .portallevellistview {
+  --productInnerHeight: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--wmsbarHeight)) + var(--fs40px));
+  --mltHeightNoPage: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight)) + var(--fs40px));
+  --mltHeightwithFilter: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight) + var(--zpfilterHeight) + 11px + var(--zpPaginationHeight)) + var(--fs40px));
+  --mltHeight: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight) + var(--zpPaginationHeight) + 5px));
+  --kanbanContentHeight: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--wmsbarHeight) + var(--zpModuleHeader)) + var(--fs40px));
+}
+
+body[ext-frame=workplace] {
+  --setupheaderHeight: 50px;
+  --workplaceRHS: 45px;
+}
+
+@supports not (overflow: overlay) {
+  html {
+    --zpscrolloverlay: auto;
+  }
+}
+@media only screen and (min-device-width: 250px) and (max-device-width: 600px) {
+  html {
+    --wmsbarHeight: 0px;
+    --zpFormWidth: 95vw;
+  }
+}
+@media only screen and (min-width: 768px) and (max-width: 1024px) and (-webkit-min-device-pixel-ratio: 2) {
+  :root {
+    --detailpageWidth: 100vw;
+    --detailpageHeight: 100vh;
+  }
+}
+.detail-container {
+  --dtTitleHeight:3.4rem;
+  --dtStickyBoxMarginTop: 40px;
+}
+.detail-container[title-row="1"] {
+  --dtTitleHeight: 2.7rem;
+}
+.detail-container[title-row="2"] {
+  --dtTitleHeight: 3.9rem;
+}
+.detail-container[title-row="3"] {
+  --dtTitleHeight: 5.1rem;
+}
+.detail-container[secondary-sticky-box=false] {
+  --dtStickyBox: 0px;
+  --dtStickyBoxMarginTop: 30px;
+}
+.detail-container {
+  --dtTabHeaderTop:calc(var(--dtTitleHeight) + var(--dtQuicklinkHeight) + var(--dtStickyBox) + var(--dtStickyBoxMarginTop));
+  --dtTabContent:calc(var(--detailpageHeight) - calc(var(--dtTitleHeight) + var(--dtQuicklinkHeight) + var(--dtStickyBox) + var(--dtStickyBoxMarginTop) + var(--fs28px) + 10px));
+  --dtTabContentInner:calc(var(--detailpageHeight) - calc(var(--dtTitleHeight) + var(--dtQuicklinkHeight) + var(--dtStickyBox) + var(--fs48px) + var(--dtStickyBoxMarginTop) + var(--fs28px) + var(--fs20px) + 10px));
+}
+
+body[ext-frame=workplace] {
+  --feedRGutter: calc(100vw - calc(var(--menuPanelWidth) + var(--zpfeed) + var(--vpLeft) + 55px));
+}
+
+/* Variable Calculation */
+body {
+  --dtMpStrip: calc(100% - var(--detailPageExtnPanelWidth));
+  --dtMpExpand: calc(100% - calc(var(--detailPageExtnPanelWidth) + var(--mp-extn-detailpanel)));
+  --dtHamburgerColp:calc(22% - 41px);
+  --dtMpPanelExpand:calc(var(--detailPageExtnPanelWidth) + var(--mp-extn-detailpanel));
+  --cflayoutarea: calc(var(--fullvw) - calc(var(--setupMenu) + var(--cfmenuarea) + 40px));
+  --cfsecFullWidth:calc(var(--fullvw) - calc(var(--setupMenu) + var(--cfmenuarea) + 40px + 45px + 25px));
+  --cfsecHalfWidth:calc(calc(var(--fullvw) - calc(var(--setupMenu) + var(--cfmenuarea) + 40px + 45px + 50px))/2);
+  --zpHamburgerVis:calc(var(--menuPanelWidth) - 28px);
+  --zpHamburgerFlip:calc(var(--leftMenuWidth) - 28px);
+  --headerFilter:calc(var(--zpModuleHeader) + var(--zpfilterHeight) + 10px);
+  --innerHeight:calc(var(--fullvh) - var(--wmsbarHeight));
+  --productInnerWidth: calc(var(--fullvw) - var(--menuPanelWidth));
+  --productInnerHeight:calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--wmsbarHeight)));
+  --setupInnerWidth:calc(var(--fullvw) - var(--setupMenu));
+  --setupInnerHeight:calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--wmsbarHeight)));
+  --setupContainerHeight:calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--wmsbarHeight)));
+  --setupHeightforbuttonNoTab: calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--wmsbarHeight) + var(--setupBotButtonHeight) + var(--setupTabHeaderHeight)));
+  --setupHeightforbuttonProjTemp: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--wmsbarHeight) + var(--setupBotButtonHeight)));
+  --setupHeightforbutton: calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--wmsbarHeight) + var(--setupTabHeaderHeight) + var(--setupBotButtonHeight)));
+  --setupHeightGenbutton: calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--wmsbarHeight) + var(--setupListHeaderHeight) + var(--setupBotButtonHeight)));
+  --setupTabContentHeight:calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--wmsbarHeight) + var(--setupTabHeaderHeight)));
+  --setupListContentHeight:calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--wmsbarHeight) + var(--setupListHeaderHeight)));
+  --setupListHeightforbutton: calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--wmsbarHeight) + var(--setupListHeaderHeight) + var(--setupBotButtonHeight)));
+  --setupListFilterCont:calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--wmsbarHeight) + var(--setupListHeaderHeight) + var(--zpfilterHeight) + 10px));
+  --allAppsIframeHeight:calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--wmsbarHeight) + var(--setupListHeaderHeight) + 25px));
+  --bizRuleHeight:calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--setupListHeaderHeight) + var(--fs30px) + var(--setupBotButtonHeight) + var(--wmsbarHeight)));
+  --setupHeightPagination: calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--wmsbarHeight) + var(--setupListHeaderHeight) + var(--zpPaginationHeight)));
+  --configConatainerHeight: calc(var(--formContainerHeight) - 204px);
+  --mltHeightNoPage: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight)));
+  --mltHeightNoPagewithFilter: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight) + var(--zpfilterHeight) + 10px));
+  --mltHeight: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight) + var(--zpPaginationHeight) + 5px));
+  --mltHeightwithFilter: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight) + var(--zpfilterHeight) + 11px + var(--zpPaginationHeight)));
+  --bulkupdateTop: var(--zpTableHeader);
+  --bulkupdateGroupTop: calc(var(--zpTableHeader) + var(--zpTableGroupHeader));
+  --bulkupdatewidthDetail: calc(var(--detailpageWidth) - var(--vpLeft) - var(--detailLHSWidth) - 200px);
+  --bulkupdatewidthTasklistDetail: calc(var(--detailpageWidth) - var(--vpLeft) - 75px);
+  --calendarHeight: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight)));
+  --calendarHeightwithFilter: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight) + var(--zpfilterHeight) + 10px));
+  --calendarHeightDay: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight) + 20px));
+  --calendarHeightDaywithFilter: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight) + var(--zpfilterHeight) + 30px));
+  --formContainerHeight:calc(var(--fullvh) - (calc(var(--wmsbarHeight) + var(--slideFormHeaderBand))));
+  --formInnerContentHeight:calc(var(--fullvh) - (calc(var(--wmsbarHeight) + var(--slideFormHeaderBand) + var(--slideFormBottombtn))));
+  --smallformContainerHeight:calc(60vh - var(--slideFormHeaderBand));
+  --smallformInnerContentHeight:calc(60vh - (calc(var(--slideFormHeaderBand) + var(--slideFormBottombtn))));
+  --cfFieldSetHeight: calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--wmsbarHeight) + var(--cflayoutTitleHeight)));
+  --cfFieldSectionHeight: calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--wmsbarHeight) + var(--cflayoutTitleHeight) + var(--cflayoutbuttonHeight)));
+  --kanbanContentwidth: calc(var(--fullvw) - calc(var(--menuPanelWidth) + var(--zpMainPaddingLeft)));
+  --kanbanContentHeight: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--wmsbarHeight) + var(--zpModuleHeader)));
+  --kanbanContentHeightFilter: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--wmsbarHeight) + var(--zpModuleHeader) + var(--zpfilterHeight) + 10px));
+  --knWdL0: calc(var(--kanbanCard) - calc(2 * var(--kanbanPadding)));
+  --knWdL1: calc(var(--kanbanCard) - calc(3 * var(--kanbanPadding)));
+  --knWdL2: calc(var(--kanbanCard) - calc(4 * var(--kanbanPadding)));
+  --knWdL3: calc(var(--kanbanCard) - calc(5 * var(--kanbanPadding)));
+  --knWdL4: calc(var(--kanbanCard) - calc(6 * var(--kanbanPadding)));
+  --knWdL5: calc(var(--kanbanCard) - calc(7 * var(--kanbanPadding)));
+  --knWdL6: calc(var(--kanbanCard) - calc(8 * var(--kanbanPadding)));
+  --knWdL7: calc(var(--kanbanCard) - calc(9 * var(--kanbanPadding)));
+  --knWdL8: calc(var(--kanbanCard) - calc(10 * var(--kanbanPadding)));
+  --knWdL9: calc(var(--kanbanCard) - calc(11 * var(--kanbanPadding)));
+  --knWdL10: calc(var(--kanbanCard) - calc(12 * var(--kanbanPadding)));
+  --knWdL11: calc(var(--kanbanCard) - calc(13 * var(--kanbanPadding)));
+  --knWdL12: calc(var(--kanbanCard) - calc(14 * var(--kanbanPadding)));
+  --mltHdrmileTab:calc(var(--mileHeaderH) + var(--mileDTtabH));
+  --bulkupdateMileTab:calc(var(--mileHeaderH) + var(--mileDTtabH) + var(--zpTableHeader));
+  --miletabContentBudget: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--mileHeaderH) + var(--budgetRowSpec)));
+  --miletabContent: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--mileHeaderH)));
+  --miletabTableContBudget: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--mileHeaderH) + var(--mileDTtabH) + var(--budgetRowSpec) + var(--wmsbarHeight) + 60px));
+  --miletabTableContent: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--mileHeaderH) + var(--mileDTtabH) + var(--wmsbarHeight) + 50px));
+  --miletabMLT: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--mileHeaderH) + var(--mileDTtabH) + var(--wmsbarHeight) + var(--zpPaginationHeight) + 20px));
+  --mileMLTWidth: calc(var(--fullvw) - calc(var(--menuPanelWidth) + var(--fs40px)));
+  --importContainer:calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--setupBotButtonHeight) + var(--wmsbarHeight) + 80px + 2px)); /* margin top bottom 80px and border top bottom 2px */
+  --wlt:calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--setupBotButtonHeight) + var(--wmsbarHeight)));
+  --inProduct3col: calc(calc(var(--fullvw) - calc(var(--menuPanelWidth) + 25px + var(--zpMainPaddingLeft) + 75px + var(--workplaceRHS, 0px))) / 3);
+  --resNameRange:calc(var(--resNamePanel) + var(--resRangePanel));
+  --resDayBgGrdnt: calc(2 * var(--resCellD));
+  --resWeekBgGrdnt: calc(2 * var(--resCellW));
+  --resContH: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + 2px + var(--wmsbarHeight)));
+  --resContHwithFilter: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight) + var(--zpfilterHeight) + 15px));
+  --ganttPanelHeight: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--resNaviBarH) + var(--ganttTitleBar) + var(--wmsbarHeight)));
+  --ganttPanelHeightFilter: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--resNaviBarH) + var(--ganttTitleBar) + var(--zpfilterHeight) + 10px + var(--wmsbarHeight)));
+  --feedLRGutter: calc(calc(100vw - calc(var(--menuPanelWidth) + var(--zpfeed) + var(--vpLeft))) / 2);
+  --feedRGutter: calc(100vw - calc(var(--menuPanelWidth) + var(--zpfeed) + var(--vpLeft) + 10px));
+  --existingUserHeight: calc(100vh - var(--slideFormHeaderBand) - var(--slideFormBottombtn) - 180px);
+  --zpGReportDataWidth:calc(var(--fullvw) - calc(var(--menuPanelWidth) + var(--zpGReportLHS)));
+  --zpBannerBottom: calc(var(--wmsbarHeight) + 10px);
+  --dashboardFullWidget:calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--wmsbarHeight) + 170px));
+  --exportStatusHeight:calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--wmsbarHeight) + 5px));
+  --userHierarchyWidget:calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--wmsbarHeight) + var(--setupListHeaderHeight)));
+  --PortalUserWithPagination: calc(var(--setupHeightPagination) - (var(--zpfilterHeight) + var(--fs45px) + 11px));
+}
+body .detail-container[isMarketplaceStrip=false] {
+  --dtMpExpand: calc(100% - var(--mp-extn-detailpanel));
+  --dtMpPanelExpand: var(--mp-extn-detailpanel);
+}
+
+.zps-module-list-container {
+  --gridLineHeight: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--zpModuleHeader) + var(--zpPaginationHeight) + var(--wmsbarHeight) + var(--zpTableHeader) + calc(var(--zpTableHeader) / 1.85)));
+}
+.zps-module-list-container[pagination=off] {
+  --gridLineHeight: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--zpModuleHeader) + var(--wmsbarHeight) + var(--zpTableHeader) + calc(var(--zpTableHeader) / 2.2)));
+}
+
+@-moz-document url-prefix() {
+  body {
+    --mltHeight: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight) + var(--zpPaginationHeight) + 2px));
+  }
+}
+body[dir=rtl] {
+  --mltHeight: calc(var(--fullvh) - calc(var(--topHeaderHeight) + var(--topHeaderHeightAddOn) + var(--zpModuleHeader) + var(--wmsbarHeight) + var(--zpPaginationHeight) + 5px));
+}
+
+/* issue tracker setting inside project template */
+.zps-main-content {
+  --setupInnerHeight:calc(var(--productInnerHeight) - calc(var(--setupheaderHeight)));
+  --setupContainerHeight:calc(var(--productInnerHeight) - var(--setupheaderHeight));
+  --setupHeightforbuttonNoTab: calc(var(--productInnerHeight) - calc(var(--setupheaderHeight) + var(--setupBotButtonHeight)));
+  --setupHeightforbutton: calc(var(--productInnerHeight) - calc(var(--setupheaderHeight) + var(--setupTabHeaderHeight) + var(--setupBotButtonHeight)));
+  --setupHeightGenbutton: calc(var(--productInnerHeight) - calc(var(--setupheaderHeight) + var(--setupListHeaderHeight) + var(--setupBotButtonHeight)));
+  --setupTabContentHeight:calc(var(--productInnerHeight) - calc(var(--setupheaderHeight) + var(--setupTabHeaderHeight)));
+  --setupListContentHeight:calc(var(--productInnerHeight) - calc(var(--setupheaderHeight) + var(--setupListHeaderHeight)));
+  --setupListHeightforbutton: calc(var(--productInnerHeight) - calc(var(--setupheaderHeight) + var(--setupListHeaderHeight) + var(--setupBotButtonHeight)));
+  --setupListFilterCont:calc(var(--productInnerHeight) - calc(var(--setupheaderHeight) + var(--setupListHeaderHeight) + var(--zpfilterHeight) + 10px));
+}
+
+.setup-data-parent {
+  --mltHeight: calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--setupListHeaderHeight) + var(--wmsbarHeight) + var(--zpPaginationHeight) + var(--fs10px)));
+  --mltHeightwithFilter: calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--setupListHeaderHeight) + var(--wmsbarHeight) + var(--zpPaginationHeight) + var(--zpfilterHeight) + 10px + var(--fs10px)));
+}
+
+body[project-select=true] {
+  --setupHeightforbuttonNoTab: calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--setupSelProjHeight) + var(--wmsbarHeight) + var(--setupBotButtonHeight)));
+  --setupHeightGenbutton: calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--setupSelProjHeight) + var(--wmsbarHeight) + var(--setupListHeaderHeight) + var(--setupBotButtonHeight)));
+  --setupListContentHeight:calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--setupSelProjHeight) + var(--wmsbarHeight) + var(--setupListHeaderHeight)));
+  --setupListHeightforbutton: calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--setupSelProjHeight) + var(--wmsbarHeight) + var(--setupListHeaderHeight) + var(--setupBotButtonHeight)));
+  --bizRuleHeight:calc(var(--fullvh) - calc(var(--setupheaderHeight) + var(--setupSelProjHeight) + var(--setupListHeaderHeight) + var(--fs30px) + var(--setupBotButtonHeight) + var(--wmsbarHeight)));
+}
+
+body[ext-frame=crmplus] {
+  --inProduct3col: calc(calc(var(--fullvw) - calc(25px + var(--zpMainPaddingLeft) + 75px)) / 3);
+  --feedLRGutter: calc(calc(var(--fullvw) - var(--zpfeed)) / 2);
+}
+
+body.ganttmax {
+  --topHeaderHeight: 0px;
+  --zpModuleHeader: 0px;
+  --wmsbarHeight: 0px;
+  --menuPanelWidth: 0px;
+  --leftMenuWidth: 0px;
+  --innerHeight: 100vh;
+  --productInnerWidth: var(--fullvw);
+  --ganttPanelHeight: calc(var(--fullvh) - calc(var(--resNaviBarH) + var(--ganttTitleBar)));
+  --gridLineHeight: calc(var(--fullvh) - calc(var(--zpTableHeader) / 2.2));
+}
+
+body.ganttmax.need-topbar {
+  --zpModuleHeader: var(--fs55px);
+}
+
+body[ext-frame=msteam] aside#zohohc-asap-web-helper-main {
+  --zohohc_asap_web_layout_width: 100% !important;
+}
+
+.reports-layout-panel[config-panel=false] {
+  --zpGReportRHS: 0px;
+}

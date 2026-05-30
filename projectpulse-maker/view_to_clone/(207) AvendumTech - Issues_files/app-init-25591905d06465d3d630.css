@@ -1,0 +1,1333 @@
+/* Default theme imported */
+/*	Icon Colors */
+/* Loading theme in configuration */
+/* Themes of components */
+/* Loading custom themes */
+/* import theme overrides */
+/* import custom css */
+/* Default theme imported */
+/* Loading theme in configuration */
+/* rtl files loading */
+.bodyWrapper {
+  overflow: hidden;
+}
+.lytePopoverWrapper {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1040;
+  position: fixed;
+  pointer-events: none;
+}
+.lytePopoverVisibilityHidden {
+  visibility: hidden;
+}
+.lytePopoverElement {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: #e0e0e0;
+  box-shadow: 0 0 4px 1px rgba(0, 0, 0, 0.1);
+  position: absolute;
+  z-index: calc(1040 + 10);
+  opacity: 0;
+  border-radius: 3px;
+  transition: opacity ease 0.4s;
+  box-sizing: border-box;
+  font-family: 'LatoRegular', 'Open Sans', sans-serif;
+  pointer-events: auto;
+}
+.lytePopoverYield {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  overflow: auto;
+}
+.lytePopoverFadeAnimation .lytePopoverElement {
+  opacity: 1;
+}
+.lytePopoverWrapper lyte-popover-freeze {
+  opacity: 0.5;
+  pointer-events: auto;
+  transition: opacity 0.4s ease;
+}
+.lytePopoverPop .lytePopoverElement,
+.lytePopoverZoom .lytePopoverElement {
+  transition: transform 0.4s ease, opacity 0.4s ease;
+  transform: scale(0);
+}
+.lytePopoverPopAnimation .lytePopoverElement,
+.lytePopoverZoomAnimation .lytePopoverElement.lyteZoom {
+  transform: scale(1);
+  opacity: 1;
+}
+.lytePopoverPop .lytePopoverLeft {
+  transform-origin: top right;
+}
+.lytePopoverPop .lytePopoverLeftCenter {
+  transform-origin: center right;
+}
+.lytePopoverPop .lytePopoverLeftBottom {
+  transform-origin: bottom right;
+}
+.lytePopoverPop .lytePopoverTopLeft {
+  transform-origin: bottom left;
+}
+.lytePopoverPop .lytePopoverTop {
+  transform-origin: bottom center;
+}
+.lytePopoverPop .lytePopoverTopRight {
+  transform-origin: bottom right;
+}
+.lytePopoverPop .lytePopoverRight {
+  transform-origin: top left;
+}
+.lytePopoverPop .lytePopoverRightCenter {
+  transform-origin: center left;
+}
+.lytePopoverPop .lytePopoverRightBottom {
+  transform-origin: bottom left;
+}
+.lytePopoverPop .lytePopoverBottom {
+  transform-origin: top center;
+}
+.lytePopoverPop .lytePopoverBottomLeft {
+  transform-origin: top left;
+}
+.lytePopoverPop .lytePopoverBottomRight {
+  transform-origin: top right;
+}
+.lytePopoverWrapper.scrollable {
+  overflow: hidden;
+}
+.lytePopoverWrapper.scrollable .lytePopoverContent {
+  overflow: auto;
+}
+.lytePopoverWrapper.scrollable .lytePopoverElement {
+  max-height: 100%;
+}
+lyte-popover-header {
+  font-family: 'LatoBold', 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #222;
+}
+lyte-popover-header,
+lyte-popover-content,
+lyte-popover-footer {
+  display: block;
+  box-sizing: border-box;
+  padding: 15px 30px;
+}
+lyte-popover-content {
+  overflow: auto;
+}
+lyte-popover-freeze {
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  height: auto;
+  background: #000;
+  display: block;
+  opacity: 0;
+  transition: opacity ease 0.15s;
+  transform: translate3d(0, 0, 0);
+}
+.lytePopoverClose {
+  background-image: url(../../images/sprite_lyte-d9a1561.svg);
+  background-position: -52px 0px;
+  width: 13px;
+  height: 13px;
+  opacity: 0.5;
+  cursor: pointer;
+  position: absolute;
+  right: 20px;
+  top: 14px;
+  display: block;
+  transform: scale(1.3);
+  z-index: 5;
+}
+.lytePopoverClose:hover {
+  opacity: 1;
+}
+lyte-popover-footer.left {
+  text-align: left;
+}
+lyte-popover-footer.center {
+  text-align: center;
+}
+lyte-popover-footer.right {
+  text-align: right;
+}
+lyte-popover-footer lyte-button {
+  margin-left: 7px;
+}
+lyte-popover-footer lyte-button:first-child {
+  margin-left: 0;
+}
+.lytePopoverArrowIcon {
+  width: 11px;
+  height: 11px;
+  position: absolute;
+  background: #fff;
+  transform: rotate(45deg);
+  display: block;
+}
+.lytePopoverArrowIcon.lytePopoverArrowTop {
+  box-shadow: -1px -1px 0 0 #e0e0e0;
+  top: -5px;
+}
+.lytePopoverArrowIcon.lytePopoverArrowBottom {
+  box-shadow: 1px 1px 0 0 #e0e0e0;
+  bottom: -5px;
+}
+.lytePopoverArrowIcon.lytePopoverArrowRight {
+  box-shadow: 1px -1px 0 0 #e0e0e0;
+  right: -5px;
+}
+.lytePopoverArrowIcon.lytePopoverArrowLeft {
+  box-shadow: -1px 1px 0 0 #e0e0e0;
+  left: -5px;
+}
+.lytePopoverHeaderDraggable {
+  cursor: move;
+  touch-action: none;
+}
+.lyteStopBodyScrolling {
+  overflow: hidden;
+}
+.lytePopoverVisible {
+  opacity: 1;
+}
+.lytePopoverHide,
+.lytePopoverDispNone {
+  display: none;
+}
+
+i.clear-icon{color:rgb(var(--zpWarning));font-size:var(--fs10px);cursor:var(--cursorPointer)}i.search-icon{color:rgb(var(--zpPrimary));font-size:var(--fs12px);cursor:var(--cursorPointer)}i.close-icon{color:rgb(var(--zpOnDataLight));font-size:var(--fs10px);cursor:var(--cursorPointer)}
+/* lyte-calendar overwrites */
+
+.lyteCalDiffMonth {color:rgba(var(--zpOnDataLight), 0.5);}
+lyte-calendar {letter-spacing: 0px;}
+.lyteDateRangePickerRow .lyteCalTableContainer{padding-top: 5px;}
+.lyteCalWeekendHeader{ color: rgb(var(--zpOnData)) !important; }
+.lyteCalWeekend.lyteDateRPTempSelected ,
+.lyteCalWeekend.lyteDateRPMonthStartDate{color:rgb(var(--zpPrimary));}
+.lyteDateRPStringHeader{padding:3px 10px 3px 10px !important;--navHeight:var(--fs43px);height:var(--navHeight);}
+.lyteDrillCalYearView .lyteCalTableCell,
+.lyteDrillCalMonthView .lyteCalTableCell{height:var(--fs35px);}
+.lyteDrillCalMonthView ,
+.lyteDrillCalYearView ,
+.lyteCalMonthSelType ,
+.lyteCalYearSelType{padding: 0px 40px;margin-top: 0px;}
+.lyteCalOtherDecadeCell{color: rgba(var(--zpOnDataLight),0.5) !important;}
+.lyteCalTableRowGroup .lyteWeekNumberGrid:hover:before{opacity:1;}
+.lyteCalTableRowGroup .lyteWeekNumberGrid:before {content: "Week Number";position: absolute;background: rgb(var(--zpTooltip));color: rgb(var(--zpOnTooltip));padding: 4px;border-radius: 3px;z-index: 3;font-size: var(--fs11px);bottom: var(--fs2px);transition: .2s all linear;transform: scale(0.8);margin: auto;opacity: 0;pointer-events: none;width: 90px;}
+body:not([dir="rtl"]) .lyteCalTableRowGroup .lyteWeekNumberGrid:before{ left: var(--fs25px); }
+body[dir="rtl"] .lyteCalTableRowGroup .lyteWeekNumberGrid:before{ right: var(--fs25px); }
+body[dir="rtl"].lyteDateRPFirstDateSelected.lyteDateRPMonthStartDate, body:not([dir="rtl"]) .lyteCalTableCell.lyteDateRPTempLastDateSelected:hover{border-radius: 0 50% 50% 0 !important;}
+body:not([dir="rtl"]) .lyteDateRPFirstDateSelected.lyteDateRPMonthStartDate, body[dir="rtl"] .lyteCalTableCell.lyteDateRPTempLastDateSelected:hover{border-radius: 50% 0 0 50% ;}
+body:not([dir="rtl"]) .lyteDateRPLastDateSelected.lyteDateRPMonthEndDate{ border-radius: 0 50% 50% 0; }
+body[dir="rtl"] .lyteDateRPLastDateSelected.lyteDateRPMonthEndDate{ border-radius: 0 50% 50% 0; }
+.lyteCalCdate.user-holiday, .lyteCalCdate.user-weekend{ position: relative; }
+.lyteCalCdate.user-holiday::before, .lyteCalCdate.user-weekend::before{ content: ""; position: absolute; width: calc(100% + 2px); height: calc(100% + 2px); border: rgb(var(--zpProjectHoliday)) solid 1px; border-radius: 6px; top: -2px; left: -2px; pointer-events: none; }
+.lyteDateRangePickerRow .lyteCalWeekend.lyteCalSel{ background-color: rgb(var(--zpPrimary),0.1); border: unset; }
+html[zp-fontsize="11"] body:not([dir="rtl"]) .lyteDateRangePickerRow .lyteWeekNumContainer .lyteCalTableContainer::before{ left: calc(1px + var(--fs4px)) !important; }
+html:is([zp-fontsize="13"], [zp-fontsize="15"], [zp-fontsize="16"]) body:not([dir="rtl"]) .lyteDateRangePickerRow .lyteWeekNumContainer .lyteCalTableContainer::before{ left: calc(1px + var(--fs3px)) !important; }
+html[zp-fontsize="17"] body:not([dir="rtl"]) .lyteDateRangePickerRow .lyteWeekNumContainer .lyteCalTableContainer::before{ left: calc(1px + var(--fs6px)) !important; }
+html[zp-fontsize="11"] body[dir="rtl"] .lyteDateRangePickerRow .lyteWeekNumContainer .lyteCalTableContainer::before{ right: calc(1px + var(--fs4px)) !important; }
+html:is([zp-fontsize="13"], [zp-fontsize="15"], [zp-fontsize="16"]) body[dir="rtl"] .lyteDateRangePickerRow .lyteWeekNumContainer .lyteCalTableContainer::before{ right: calc(1px + var(--fs3px)) !important; }
+html[zp-fontsize="17"] body[dir="rtl"] .lyteDateRangePickerRow .lyteWeekNumContainer .lyteCalTableContainer::before{ right: calc(1px + var(--fs6px)) !important; }
+body:not([dir="rtl"]) .lyteCalTableCellHeader.lyteWeekNumberGrid{ padding-right: 0px; }
+body[dir="rtl"] .lyteCalTableCellHeader.lyteWeekNumberGrid{ padding-left: 0px; }
+.lyteDateRangePickerRow .lyteDrillCalYearView .lyteCalTableCell,
+.lyteDateRangePickerRow .lyteDrillCalMonthView .lyteCalTableCell{ width: var(--fs36px) !important; height: var(--fs33px) !important; }
+.lyteDateRangePickerRow .lyteDateRPLeftNav, .lyteDateRangePickerRow .lyteDateRPRightNav{ top: calc(var(--fs43px) / 2); transform: translateY(calc(var(--fs8px) * -1)); }
+.hoverCardWrapper {padding:8px 0;min-width:200px }
+.lyteWeekNumContainer .lyteCalTableContainer{ padding: 0px var(--fs20px); }
+.lyteDateRangePickerRow .lyteWeekNumContainer .lyteCalTableContainer, .calendar-header + ruc-calendar .lyteWeekNumContainer .lyteCalTableContainer{ padding: 0px !important; }
+body:not([dir="rtl"]) .calendar-header + ruc-calendar .lyteWeekNumContainer .lyteCalTableContainer::before{ left: var(--fs4px); }
+body[dir="rtl"] .calendar-header + ruc-calendar .lyteWeekNumContainer .lyteCalTableContainer::before{ right: var(--fs4px); }
+.lyteCalTableContainer{width: 90% !important;}
+.subject-placeholder > ruc-input{ height: calc(100% - 2px) !important; border: unset !important; border-radius: unset !important; }
+.subject-placeholder > ruc-input input{ height: 100% !important; }
+
+.lytePopover {
+    & .zdate-span-data {
+        height: 270px;
+        & > img { margin-top: 15px; }
+    }
+}
+.lyteCalWeekSelType .lyteCalToday.lyteCalWeekSel:before,
+.lyteCalWeekSelType .lyteCalTableRow:hover .lyteCalToday:before,
+.lyteCalToday.lyteDateRPTempSelected:before{content:'';position:absolute;top: -1px;left: -1px;border-radius:50%;border: rgb(var(--zpPrimary)) 1px solid;width: var(--fs22px);height: var(--fs21px);}
+
+.calendar-header + ruc-calendar {
+    &, & > lyte-calendar {
+        display: block;
+        margin: auto;
+    }
+    & .lyteCalendarPopup, .lyteDateRangePickerRow {
+        [zp-fontsize="11"] &{ height: 220px !important; }
+        [zp-fontsize="13"] &{ height: 240px; }
+        [zp-fontsize="15"] &{ height: 260px; }
+        [zp-fontsize="16"] &{ height: 280px; }
+        [zp-fontsize="17"] &{ height: 290px; }
+    }
+}
+.zp-lyte-inline-date{ padding: 5px 0 !important; }
+.zp-lyte-inline-date .lyteCalTableContainer{ margin: -5px 0 0; }
+body:not([dir=rtl])  .zp-lyte-inline-date  .range-picker-btn .range-left-pos{ margin-left:auto; margin-right:10px; }
+body[dir=rtl] .zp-lyte-inline-date  .range-picker-btn .range-left-pos{ margin-right:auto; margin-left:10px; }
+
+.lyteDrillCalYearView,
+.lyteDrillCalMonthView,
+.lyteCalYearSelType,
+.lyteCalMonthSelType {
+    [zp-fontsize="11"] & { border-spacing: 3px; }
+    [zp-fontsize="13"] & { border-spacing: 7px; }
+    [zp-fontsize="15"] & { border-spacing: 10px; }
+    [zp-fontsize="16"] & { border-spacing: 12px; }
+    [zp-fontsize="17"] & { border-spacing: 14px; }
+}
+
+/* Custom view popover */
+.popoverWrapper.custom-view .lytePopover{padding:0 !important;}
+.popoverWrapper.custom-view .hoverCardWrapper{padding:0;}
+
+.popoverflowunset .lytePopoverYield{
+    overflow: unset !important;
+}
+
+/* lyte-table overwrites */
+.zps-CMLT-container > zp-table > lyte-table lyte-tr:hover lyte-td,
+.zps-CMLT-container > zp-table > lyte-table lyte-tr:focus-within lyte-td{ background-color: rgb(var(--zpPrimaryHover)); }
+.zps-CMLT-container > zp-table > lyte-table lyte-tr:hover lyte-td .zps-mlt-rowaction > i,
+.zps-CMLT-container > zp-table > lyte-table lyte-tr:focus-within lyte-td .zps-mlt-rowaction > i{visibility: visible;}
+lyte-tr:hover lyte-td .zps-mlt-rowaction > i{ visibility: visible; }
+
+.lytetimePickerIncButton:hover .lyteTimePickerIncIcon,
+.lytetimePickerDecButton:hover .lyteTimePickerDecIcon{ background-color: rgb(var(--zpPrimary)); }
+.setup-main-panel lyte-td .mlt-app-itemname{ display:inline; padding:2px 5px !important; }
+.setup-main-panel lyte-tr:hover lyte-td .mlt-app-itemname{ border-color: rgb(var(--mltHeaderBdr)); background-color: rgb(var(--zpSurface)); cursor: var(--cursorText); border-radius: 2px 4px 4px 2px; min-width:50px; }
+.setup-list-container lyte-tr lyte-td .zoho-mlt-arrow{ visibility: hidden; }
+.setup-list-container lyte-tr:hover lyte-td .zoho-mlt-arrow{ visibility: visible; }
+.zps-CMLT-container > zp-table > lyte-table > .lyteTableScroll{ max-height: auto; height: calc(var(--setupListContentHeight) - 5px); }
+.zps-CMLT-container > zp-table > lyte-table > .lyteTableScroll lyte-table-structure{ height: 100% !important; }
+.fieldLeftTab lyte-td{ text-wrap: balance; }
+
+/* lyte-calendar overwrites */
+body[dir="rtl"] .lyteCalyearNavLft { transform: rotate(0deg); }
+body:not([dir="rtl"]) .lyteCalyearNavRgt{ margin-right: calc(var(--fs15px) - 10px); }
+body[dir="rtl"] .lyteCalyearNavRgt{ margin-left: calc(var(--fs15px) - 10px); }
+body[dir="rtl"] .lytetimePickerIncButton, 
+body[dir="rtl"] .lytetimePickerDecButton{ border-left: unset; border-right: 1px solid rgb(var(--zpFormElementBdr)); }
+.lyteCalyearNavLft::before, .lyteCalyearNavRgt::before,
+.lyteCaldLft::before, .lyteCaldRgt::before{ font-family: 'zohoproj' !important; font-style: normal; font-weight: normal; font-variant: normal; text-transform: none; line-height: 1; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; width: unset; height: unset; top: unset; left: unset; font-size: var(--fs13px); }
+.lyteCalyearNavLft::before{ content: "\eb1a"; }
+.lyteCalyearNavRgt::before{ content: "\eb4f"; }
+.lyteCaldLft::before{ content: "\edfa"; }
+.lyteCaldRgt::before{ content: "\edfb"; }
+body[dir="rtl"] .lyteCalyearNavLft::before{ transform: rotate(-90deg) !important; }
+.lyteCalDiffMonth.lyteCalWeekendHeader, .lyteCalWeekSelType .lyteCalTableRow:hover .lyteCalDiffMonth.lyteCalHoliday, 
+.lyteCalWeekSelType .lyteCalTableRow:hover .lyteCalDiffMonth.lyteCalWeekend, 
+.lyteCalDiffMonth.lyteCalHoliday, .lyteCalDiffMonth.lyteCalWeekend{ color: rgb(var(--zpUserHolidayOther)) !important; }
+.lyteTimePickerField{ width: var(--fs100px); height: var(--fs28px); }
+.lyteTimePickerField .lyteTimePickerInput{ width: calc(100% - var(--fs22px)); font-size: var(--fs12px); }
+.lyteTimePickerField, .lyteTimePickerField .lyteTimePickerInput{ border-radius: 6px !important; }
+.lyteTimePickerField .lyteTimePickerInput + .lytetimePickerCounterButtons{ width: var(--fs22px); }
+.lyteDateRPLeftNav, .lyteDateRPRightNav{ display: flex; }
+
+/* Lyte Color Picker */
+.lyteColorPicker--advanced { width: 270px; }
+input[type="text"] {
+    lyte-input & { height: auto; }
+    .showValue .lyteField & { border: 0 !important; }
+}
+.lyteCP__transparentbg{ width: 32px; height: 32px; }
+#lyteCPShowValue { width: 100px !important; }
+.lyteColorPicker__navigatable:hover .lyteColorPicker__text { color: rgb(var(--zpPrimary)); }
+.lyteColorPicker__previewDiv .selectFormat { display: none !important; }
+.lyteColorPicker__previewDiv .showValue { width: 100%; }
+.lyteColorPicker__previewDiv .showValue .lyteInputBox.vertical { display: inline-flex; }
+.lyteColorPicker__previewDiv .lyteCPHexText .lyteColorPicker_alpha { padding-top: 5px; display: inline-block; }
+body[dir="rtl"]  .lyteColorPicker__previewDiv .lyteCPHexText .lyteColorPicker_alpha { margin-left: unset; margin-right: 10px; }
+colorpicker-ui .lyteColorPicker__default .lyteColorPicker__palettecontainer.LCP_DefaultColorCont.default_color { display: flex; align-items: center; padding: 10px 15px 10px; }
+body:not([dir="rtl"]) .lyteColorPicker__default .lyteColorPicker__palettecontainer.LCP_DefaultColorCont.default_color .lyteColorPicker__palette{ margin-right: 5px; }
+body[dir="rtl"] .lyteColorPicker__default .lyteColorPicker__palettecontainer.LCP_DefaultColorCont.default_color .lyteColorPicker__palette{ margin-left: 5px; }
+body:not([dir="rtl"]) .lyteColorPicker__sliderDiv .lyteCP_PreviewWrapper { margin-left: 5px; }
+body[dir="rtl"] .lyteColorPicker__sliderDiv .lyteCP_PreviewWrapper { margin-right: 5px; }
+.lyteColorPicker__palette .standard__colors, .lyteColorPicker__shades { letter-spacing: normal !important; }
+.lyteColorPicker__opacityslider { display: none !important; }
+.lyteColorPicker--advanced .colorSlider_hue { margin-top: 13px; margin-bottom: unset !important; }
+.lyteColorPicker--advanced .lyteColorPicker__sliderDiv { margin: 5px 0 !important; }
+.lyteColorPicker--advanced .cpValFormatIp lyte-tr:first-child lyte-td:last-child,
+.lyteColorPicker--advanced .cpValFormatIp lyte-tr.lyteCPHexText { display: none !important; }
+.lyteColorPicker__colorpan.lyteColorPickerAccentColor[data-color="#FFFFFF"].lyteCPSelectedColor::before { border-left: 1px solid #000; border-bottom: 1px solid #000; }
+
+custom-view {
+    display: block;
+    background-color: rgb(var(--zpData));
+    width: 100%;
+    height: 100%;
+
+    & .slideFormHeaderBand {
+        height: var(--zpModuleHeader);
+        padding: 0 var(--zpMainPaddingRight) 0 var(--zpMainPaddingLeft);
+        background-color: rgb(var(--zpData));
+    }
+    & .accordion-body {
+        width: calc(var(--productInnerWidth) / 1.75) !important;
+        margin-bottom: 15px;
+
+        & .zps-form-field{
+            width: calc(var(--productInnerWidth) / 1.75);    
+        }
+        & zp-criteria {
+            display: block;
+            width: calc(var(--productInnerWidth) - 200px);
+            .customviewForm & {
+                width: calc(var(--productInnerWidth) / 1.75);
+
+                & > criteria-group {
+                    width: calc(100% + 119px);
+                }
+            }
+        }
+    }
+}
+/*should be removed*/
+.lyteMIDropdown{
+    width: 300px;
+}
+
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) {
+  box-shadow: -2px 0 15px rgba(0, 0, 0, 0.14);
+  transition: var(--zpTransition200ms);
+  display: block;
+  background-color: rgba(var(--zpDetailpageBG));
+}
+body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) {
+  left: calc(100% - var(--zpFormWidth));
+  transform: translateX(var(--zpFormWidth));
+}
+body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) {
+  right: calc(100% - var(--zpFormWidth));
+  transform: translateX(calc(var(--zpFormWidth) * -1));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]):not(.hide) {
+  transform: translateX(0) !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-lhs {
+  display: none;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs {
+  padding: 0 15px 15px !important;
+  height: 100%;
+  background-color: inherit;
+}
+[day-mode=true] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .detail-main-header tr > td:first-child {
+  background-color: inherit;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .detail-main-header .zp-stauts-section {
+  margin-top: 0px !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .userpg {
+  border-radius: var(--fs10px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .detail-header-sticky {
+  padding-bottom: 15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .detail-header-sticky .detail-updates .detail-navi-sec {
+  display: none;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .detail-header-sticky .detail-title-action {
+  padding-left: 0px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .detail-header-sticky > .module-update-block {
+  margin-top: 15px !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .module-update-block .module-budget {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--fs40px);
+  justify-content: flex-start;
+  width: 100vw;
+  padding-bottom: 18px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .module-update-block .module-budget:last-child {
+  padding-bottom: 15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .module-update-block .module-budget > .module-component {
+  padding-left: 0px;
+  margin-left: 0px;
+}
+body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .userteam-detail-rhs .detail-action-section {
+  right: 15px;
+}
+body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .userteam-detail-rhs .detail-action-section {
+  right: calc(var(--zpFormWidth) - 120px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .module-update-block:not(.zp-stauts-section) {
+  height: auto;
+  margin-top: 0 !important;
+  padding: 15px 20px 5px 22px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .module-update-block:not(.zp-stauts-section).mT20 {
+  margin-top: 20px !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zp-stauts-section {
+  display: flex !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .progress-ring {
+  top: 25px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .comnpgRightpg .progress-ring {
+  top: unset;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) zps-hmb {
+  display: none;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-tabcontent-button {
+  bottom: -15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container[detail-for=tasklist] .detail-quick-link > .enitity-milestone {
+  display: flex;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container[data-event-id=detail-global] .detail-container .progress-ring {
+  top: 20px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container[data-event-id=detail-global] .detail-container .module-id-holder {
+  --prefixLeft: 22px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container[data-event-id=detail-global] .detail-container .detail-title-plain {
+  padding: var(--fs6px) var(--fs10px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container[detail-for=tasklist] .detail-title-container.active > textarea.detail-title-name {
+  padding: var(--fs6px) var(--fs10px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container[detail-for=tasklist] .detail-title-container .detail-title-plain {
+  padding: var(--fs6px) var(--fs10px) !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-detail.detail-container {
+  height: 100% !important;
+  width: 100% !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-container[marketplace-panel=expand], .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-detail.detail-container[marketplace-panel=expand] {
+  width: calc(100% - var(--fs48px));
+}
+body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-container[marketplace-panel=expand] .detail-action-section, body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-detail.detail-container[marketplace-panel=expand] .detail-action-section {
+  right: calc(15px + var(--detailPageExtnPanelWidth));
+}
+body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-container[marketplace-panel=expand] .detail-action-section, body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-detail.detail-container[marketplace-panel=expand] .detail-action-section {
+  left: calc(100% - var(--zpFormWidth) + var(--detailPageExtnPanelWidth));
+  right: unset;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-container[ismarketplacestrip][marketplace-panel=strip], .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-detail.detail-container[ismarketplacestrip][marketplace-panel=strip] {
+  width: calc(100% - var(--fs48px));
+}
+body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-container[ismarketplacestrip][marketplace-panel=strip] .detail-action-section, body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-detail.detail-container[ismarketplacestrip][marketplace-panel=strip] .detail-action-section {
+  right: calc(15px + var(--detailPageExtnPanelWidth));
+}
+body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-container[ismarketplacestrip][marketplace-panel=strip] .detail-action-section, body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-detail.detail-container[ismarketplacestrip][marketplace-panel=strip] .detail-action-section {
+  left: calc(100% - var(--zpFormWidth) + var(--detailPageExtnPanelWidth));
+  right: unset;
+}
+body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-container:not([marketplace-panel=strip], [marketplace-panel=expand]) .detail-action-section, body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-detail.detail-container:not([marketplace-panel=strip], [marketplace-panel=expand]) .detail-action-section {
+  right: 15px;
+}
+body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-container:not([marketplace-panel=strip], [marketplace-panel=expand]) .detail-action-section, body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-detail.detail-container:not([marketplace-panel=strip], [marketplace-panel=expand]) .detail-action-section {
+  left: calc(100% - var(--zpFormWidth));
+  right: unset;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-container[isMarketplaceStrip][marketplace-panel=strip] + .detail-marketplace-panel, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-mp-rightpanel {
+  backdrop-filter: blur(10px);
+}
+[day-mode=true] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-container[isMarketplaceStrip][marketplace-panel=strip] + .detail-marketplace-panel, [day-mode=true] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-mp-rightpanel {
+  border-left: 1px solid #DAE1EB;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .module-field-container > .detail-field-item[multiline=no] {
+  width: 100%;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) table.detail-main-container > tbody.detail-main-header > tr:not(:first-child) > td {
+  position: unset;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-quick-link > .entity-project, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container .zps-panel-trigger {
+  display: none;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .tasklist-dt-budget, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-inline-popup, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-quick-acc-drop {
+  z-index: 10;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-inline-popup .popup-button-sticky {
+  bottom: -15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-cell-title {
+  left: unset;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-cell-th.zps-cell-prefix {
+  z-index: 12;
+  border-right: 1px solid rgba(var(--sheetTableBdr));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-cell-th.zps-cell-checkbox {
+  z-index: 13;
+  border-right: 1px solid rgba(var(--sheetTableBdr));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-cell-td.zps-cell-prefix {
+  z-index: 4;
+  border-right: 1px solid rgba(var(--sheetTableBdr));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-cell-td.zps-cell-checkbox {
+  border-right: 1px solid rgba(var(--sheetTableBdr));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-cell-th.zps-cell-more {
+  z-index: 12;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-cell-td.zps-cell-more {
+  z-index: 4;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .mlt_in_milestone .zps-MLT-sheet .bulkupdate-frame > .bulkupdate-container, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-MLT-sheet .bulkupdate-frame > .bulkupdate-container.bulkbar-in-detail {
+  width: calc(var(--zpFormWidth) - var(--mltFirstCell) - 40px) !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .mlt-in-detailtab .pagination {
+  gap: 0 20px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-tabinner-content .activity-particular {
+  width: 100%;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) tbody:not(.detail-main-content) .module-update-block:before {
+  content: unset;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container:is([detail-module=task]) .detail-tab-holder {
+  margin-top: 10px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container:is([detail-module=task]) .detail-title-container.active > textarea.detail-title-name {
+  padding-left: 20px !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container:is([detail-module=bug]) .detail-tab-holder {
+  top: calc(var(--dtTitleHeight) + var(--dtQuicklinkHeight) + var(--fs40px));
+  margin-top: 10px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container:is([detail-module=bug]) .detail-title-container.active > textarea.detail-title-name {
+  padding-left: 20px !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container:is([detail-module=task]) .detail-tab-holder {
+  top: calc(var(--dtTabHeaderTop) - var(--fs70px));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container:is([detail-for=tasklist]) .detail-tab-holder {
+  margin-top: 0px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container .detail-container[marketplace-panel=expand] ~ .detail-marketplace-panel {
+  box-shadow: -2px 0 15px rgba(0, 0, 0, 0.14);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container .detail-marketplace-panel {
+  position: absolute;
+}
+body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container .detail-marketplace-panel {
+  left: 0;
+}
+body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container .detail-marketplace-panel {
+  right: 0;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-detail-container .zps-cell-td.zps-cell-title {
+  z-index: 2;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-tab-viewhdr.subtask-hdr, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .mlt-in-detailtab .zps-module-list-scroll-area, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .status-timeline-header {
+  border-radius: var(--fs10px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .status-timeline-header {
+  top: calc(var(--dtTabHeaderTop) - 30px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .status-timeline-container > .zp-status-timeline-scrollarea, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .status-timeline-container > .zps-module-list-scroll-area {
+  height: calc(var(--dtTabContent) - var(--fs80px));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .pagination {
+  bottom: 0px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .prefix-shape {
+  font-size: var(--fs13px);
+  padding: 14px 17px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .prefix-shape > i {
+  font-size: var(--fs13px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .prefix-shape.parent-id {
+  max-width: var(--fs200px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .search-content-mainpanel {
+  padding-inline: 15px;
+  width: 100%;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-block-area:not(.module-tab-content) {
+  border-radius: var(--fs10px);
+  display: block;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-sections .detail-block-area:first-of-type {
+  margin-top: 15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .chartboxtop {
+  margin: 0 0 0 var(--fs13px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .rl_bdr {
+  width: 100%;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-title-content {
+  width: 95%;
+  margin-top: 10px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-container .detail-title-plain {
+  padding-left: 20px !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-container .zps-milestone-container .detail-title-plain {
+  padding: var(--fs6px) var(--fs10px) !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-title-container.active > textarea.detail-title-name {
+  padding: var(--fs6px) var(--fs10px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-milestone-container .detail-title-container.active > textarea.detail-title-name {
+  padding: var(--fs6px) var(--fs10px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-milestone-container .mile-det-header {
+  padding: 25px 20px 15px;
+  padding-left: calc(15px + var(--fs20px));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-parentmodule {
+  padding-left: 15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-parentmodule .tasklist-dt-budget .dt-budget-row {
+  margin-bottom: 10px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) #tlistbudgetdetails.mt20.tasklist-dt-budget {
+  margin-top: 5px !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-timelog-segment:first-child .dt-timelog-widget > i {
+  display: none;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-timelog-segment:last-child .dt-timelog-widget > i {
+  display: none;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .miledetail-content {
+  height: calc(var(--detailpageHeight) - (var(--mileHeaderH) - 20px));
+  padding: 0 15px 15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .miledetail-content .dt-budget-row {
+  margin-bottom: 10px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-budget-row {
+  height: auto;
+  border-radius: var(--fs10px);
+  min-height: var(--fs70px);
+  padding: var(--fs12px) var(--fs20px) 0 var(--fs20px);
+  display: block;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-budget-row > div.flex {
+  padding-bottom: 18px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-budget-row .multicurncy-select {
+  border-right: 0px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-budget-row .multicurncy-select::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 1px;
+  background: rgb(var(--zpFormElementBdr));
+}
+body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-budget-row .multicurncy-select::before {
+  left: -21px;
+}
+body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-budget-row .multicurncy-select::before {
+  right: -21px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-budget-row > .dt-budget-block > .budget-container {
+  gap: 0 var(--fs15px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-budget-row > .dt-budget-block > .budget-container > .field-budget {
+  margin-right: var(--fs15px);
+  margin-bottom: var(--fs15px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-budget-row > .dt-budget-block > .budget-container > .field-budget .budgfld-value {
+  font-family: var(--fontsemibold);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-budget-row .field-budget .budgfld-title {
+  padding-top: 7px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-updates {
+  padding-left: 21px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .module-update-block > .dt-budget-row {
+  padding: 0px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .budget-type-select:after {
+  content: unset;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-tab-holder {
+  top: calc(var(--dtTitleHeight) + var(--dtQuicklinkHeight) + var(--fs40px));
+  z-index: 5;
+  margin-top: 10px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .mile-detail-tabdata-wrapper {
+  height: calc(100% - (var(--fs45px) + 10px));
+  z-index: 4;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .releasenotes .zps-setup-infonote {
+  width: 95%;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .budgetsynctime {
+  position: absolute;
+  align-items: center;
+  flex-direction: row;
+  height: unset;
+  top: 12px;
+  padding-right: 10px;
+  border: 0;
+  color: rgba(var(--zpOnData), 0.7) !important;
+}
+body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .budgetsynctime {
+  right: var(--fs10px);
+}
+body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .budgetsynctime {
+  left: var(--fs10px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .budgetsynctime > div.syncdt {
+  width: auto;
+  padding-top: 1px;
+  border-right: 1px solid rgb(var(--separatorBdr));
+  margin-right: 5px;
+  padding-right: 5px;
+  font-size: var(--fs11px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .budgetsynctime > div:last-child {
+  padding-top: 0;
+  flex: 1;
+  color: rgba(var(--zpOnData), 0.7) !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .budgetsynctime > div:last-child {
+  text-transform: capitalize;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .budgetsynctime > div:last-child > i {
+  font-size: var(--fs12px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .entity-project > a, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .entity-project > span {
+  max-width: var(--fs220px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .mile-det-header {
+  padding: 25px 20px 10px var(--fs20px);
+  z-index: 12;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .mile-det-header > .flex.aic {
+  align-items: flex-start;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-datacontainer {
+  border-radius: var(--fs10px);
+  background: transparent;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-datacontainer .detail-tab-holder {
+  margin-top: 0px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-datacontainer .zps-module-header {
+  border-radius: var(--fs10px) var(--fs10px) 0 0;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-datacontainer .mile-detail-tabscroll {
+  background-color: rgb(var(--zpSurface));
+  border-radius: 0 0 var(--fs10px) var(--fs10px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-datacontainer .mile-detail-tabdata[active-tab=fields] .mile-detail-tabscroll, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-datacontainer .mile-detail-tabdata[active-tab=chartview] .mile-detail-tabscroll, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-datacontainer .mile-detail-tabdata[active-tab=statustimeline] .mile-detail-tabscroll, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-datacontainer .mile-detail-tabdata[active-tab=activity] .mile-detail-tabscroll {
+  border-radius: var(--fs10px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-datacontainer .project-bottom-fix, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-datacontainer .pagination {
+  border-radius: 0 0 var(--fs10px) var(--fs10px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-datacontainer .mile-detail-tabdata[active-tab=releaseNotes], .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-datacontainer .mile-detail-tabdata[active-tab=comments] {
+  border-radius: var(--fs10px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-chartview .dash_box {
+  width: 100%;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-chartview .dash_box:after {
+  height: 1px !important;
+  width: 100% !important;
+  bottom: 0px;
+  top: unset !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-chartview .dash_box:nth-child(odd):after {
+  content: unset;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-chartview .dash_box:nth-child(2) {
+  position: relative;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-chartview .dash_box:nth-child(2):before {
+  content: "";
+  position: absolute;
+  background-color: rgb(var(--zpSecondaryBdr));
+  bottom: unset;
+  top: -10px !important;
+  height: 1px !important;
+  width: 100% !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .milestone-chartview .dash_box:not(:nth-child(-n+1)) {
+  margin-top: 10px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-timelog-container {
+  height: 120px;
+  margin-top: 0;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-timelog-container .dtloghrtxt {
+  font-size: var(--fs25px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-timelog-container .dt-timelog-widget > .tmlog-title {
+  font-size: var(--fs14px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-timelog-container .dt-timelog-widget > .tmlog-label {
+  font-size: var(--fs11px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-timelog-container .dt-timelog-widget > .tmlog-label:not(:empty) {
+  margin-bottom: 4px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-timelog-container > .dt-timelog-segment:first-child {
+  margin-right: 15px;
+  width: var(--fs200px);
+  flex: unset;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-timelog-container > .dt-timelog-segment:first-child .dt-timelog-widget {
+  padding-left: 22px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-timelog-container > .dt-timelog-segment:last-child {
+  justify-content: unset;
+  gap: 0 15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-timelog-container > .dt-timelog-segment:last-child .dt-timelog-widget {
+  height: calc(50% - 8px);
+  padding-left: 22px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-timelog-container > .dt-timelog-segment:last-child .dt-timelog-widget:nth-child(1), .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-timelog-container > .dt-timelog-segment:last-child .dt-timelog-widget:nth-child(2) {
+  margin-bottom: 15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-budget-block .multicurncy-select {
+  padding-top: 0px;
+  border-right: 0px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) > draft-view {
+  width: 100%;
+  height: 100%;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-timesheet-container .detail-updates > .detail-quick-link {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-timesheet-container .detail-updates > .detail-quick-link .ts-custom-filter, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-timesheet-container .detail-updates > .detail-quick-link .ts-btn-group {
+  margin-right: 10px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-timesheet-container .zps-wlt[table-module=mytimesheet] tr > .wlt-lg-cell:nth-of-type(3), .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-timesheet-container .zps-wlt[table-module=mytimesheet] tr > .wlt-lg-cell:nth-of-type(4) {
+  position: relative;
+  left: unset !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-timesheet-container .zps-wlt.zps-timesheet-approval-table[table-module=mytimesheet] tr .wlt-lg-cell:nth-of-type(2) {
+  z-index: 6 !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-timesheet-container .ts-custom-filter > span.ml10 {
+  display: none;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail {
+  padding: 0px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .detail-leftpanel-forum {
+  display: none;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .detail-maincontent {
+  background-color: unset;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .detail-maincontent .detail-maincontent-forum {
+  padding: 0 15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .detail-maincontent .detail-maincontent-forum .forum-nav-icons {
+  display: none;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .detail-maincontent .detail-maincontent-forum .forum-popup-main {
+  padding-right: 65px;
+  padding-left: 65px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .detail-maincontent .detail-maincontent-forum .forum-float-section {
+  left: 15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .detail-maincontent .detail-maincontent-forum .detail-header-forum {
+  padding-inline: 15px;
+  padding-bottom: 20px;
+  min-height: unset;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .detail-maincontent .detail-maincontent-forum .forum-author-subtext-container > .forum-project-name {
+  display: none;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .detail-maincontent .detail-maincontent-forum .forum-popup-main-container .email-container {
+  margin-left: 70px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .detail-maincontent .detail-maincontent-forum .forum-popup-main-container .zps-cell-title {
+  left: var(--mltFirstCell);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .detail-maincontent .detail-main-header .detail-header-forum {
+  background-color: unset;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .detail-maincontent .forum-popup-main-container {
+  background-color: rgb(var(--zpSurface));
+  border-radius: 10px;
+  padding-top: 15px;
+  margin-bottom: 15px;
+  min-height: calc(var(--detailpageHeight) - (40px + var(--fs80px)));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .forum-list-item-right > .cvbtncvr > .cvdropdown {
+  right: 0px !important;
+  left: unset !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .forum-list-item-right > .cvbtncvr > .cvdropdown::before {
+  left: unset;
+  right: 15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .forum-detail .forum-author-subtext:not(:last-child) {
+  --zpFormElementBdr: 220, 220, 230;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .usergrp-team-user-sec {
+  width: 50%;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .projsum-container {
+  position: relative;
+  flex-flow: wrap;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .projsum-container > div {
+  width: 100%;
+  border-left: 0px;
+  padding: 0;
+  position: relative;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .projsum-container > div.middlebar {
+  border-top: 1px dashed rgb(var(--zpBorderGrey), 0.1);
+  padding-top: 10px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .teams-proj-asso {
+  width: var(--fs260px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .logdetail_section_container {
+  border-radius: var(--fs10px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .user-activity-cont .logdetail_section_container {
+  border-radius: 0 0 var(--fs10px) var(--fs10px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .user-activity-cont .zps-setup-projlist {
+  border-radius: var(--fs15px) var(--fs15px) 0 0;
+  box-shadow: 3px 4px 7px rgba(var(--zpShadow), 0.05);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .activity-particular {
+  width: 100%;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .entity-slider-user-info {
+  display: none;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-navi-sec {
+  display: none;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-action-section {
+  position: fixed !important;
+  top: 12px;
+  margin-top: 0px !important;
+  z-index: 8;
+}
+body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-action-section {
+  right: 15px;
+}
+body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-action-section {
+  left: 15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .module-chart-container .chartboxobject {
+  width: 100%;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .module-chart-container .chartboxobject:not(:nth-child(1))::before {
+  width: 100%;
+  height: 1px;
+  top: 0;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .module-chart-container .chartboxobject:nth-child(1)::before {
+  content: unset;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .module-chart-container .chartboxobject:not(:first-of-type) {
+  padding-top: 10px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .module-update-block .module-component + .module-budget {
+  margin-left: 15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) #m-projects-detail-contianer .module-update-block {
+  min-height: var(--fs90px);
+  padding: var(--fs18px) var(--fs20px) var(--fs5px) var(--fs20px);
+  margin-bottom: 20px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) #m-projects-detail-contianer .module-update-block .budgetsynctime {
+  top: -3px;
+  right: 0px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) #m-projects-detail-contianer .module-update-block > .dt-budget-row {
+  min-height: var(--fs75px);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) #m-projects-detail-contianer .module-update-block > .dt-budget-row[type=overrun] {
+  padding-bottom: 10px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) #m-projects-detail-contianer .module-update-block > .dt-budget-row::before {
+  inset: -20px -20px -5px -22px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) #m-projects-detail-contianer textarea.detail-title-name {
+  padding-left: 20px !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) #m-projects-detail-contianer .detail-header-sticky {
+  padding-left: calc(28px + var(--fs20px));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) #m-projects-detail-contianer .detail-sections > .module-content-area:first-child {
+  margin-top: 0px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .userteam-detail-data {
+  height: auto;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-emptystate-button > .dt-emptypop {
+  left: -85px;
+}
+[dark-mode=true] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dash_innerbox {
+  box-shadow: unset;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .budget-status-dtcnt {
+  bottom: 2px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .userteam-detail-title .detail-title-content .detail-updates {
+  padding-left: 0px !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .legendarea .legendgroup {
+  width: 200px !important;
+  max-width: unset !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .legendarea .legendgroup .zc-legend-legseries {
+  width: 100% !important;
+  max-width: unset !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-cell-left4 {
+  left: var(--stickCol3);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .visibletags-holder > .zps-tags {
+  max-width: 110px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .dt-tabdocuments-container .status-timeline-header {
+  height: var(--fs55px);
+  top: calc(var(--fs20px) * -1);
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .activity-container .activity-placeholder-sticky + .activity-data activity-date {
+  top: 0;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-milestone-container .activity-container .activity-placeholder-sticky {
+  top: -10px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zps-milestone-container .activity-container .activity-placeholder-sticky + .activity-data activity-date {
+  top: 10px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .activity-container .activity-placeholder-sticky {
+  top: 0px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .module-tab-content .detail-tabinner-content .zp-activity-stream {
+  height: calc(var(--dtTabContent) - var(--fs10px));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .module-tab-content .detail-tabinner-content .zp-activity-stream .activity-container.activity-print {
+  overflow: auto;
+  height: 100%;
+}
+body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .bulkUpdate {
+  left: unset;
+}
+body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .bulkUpdate {
+  right: unset;
+}
+body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .bulkUpdate {
+  right: -40px;
+}
+body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .bulkUpdate {
+  left: -40px;
+}
+body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .bulkUpdate .pop-arw {
+  left: unset !important;
+}
+body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .bulkUpdate .pop-arw {
+  right: unset !important;
+}
+body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .bulkUpdate .pop-arw {
+  right: 47px;
+}
+body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .bulkUpdate .pop-arw {
+  left: 47px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .emptyscreen-h4 {
+  width: auto;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .module-tab-content .detail-tabinner-content > .zp-attachment-div {
+  height: calc(100% - var(--fs48px));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .module-tab-content .detail-tabinner-content .dt-tabdocuments-container {
+  height: calc(var(--detailpageHeight) - (var(--dtTabHeaderTop) + var(--fs15px) + var(--fs20px)));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .module-tab-content .detail-tabinner-content.bus-detail-subtab-container .zps-module-list-container {
+  height: calc(var(--dtTabContent) + var(--fs50px));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .module-tab-content .detail-tabinner-content.bus-detail-subtab-container .zps-module-list-container + .pagination {
+  bottom: -15px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail_rhs .module-tab-content .mlt-in-detailtab .zps-module-list-scroll-area {
+  height: 100%;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-field-item[data-subid=ISRECURRINGSET] .detail-inline-popup[with-picker=yes] {
+  width: calc(300px - (var(--fs23px) * -8 - var(--negativeVal) * -1));
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .detail-inline-popup[with-picker=yes] .recurrence-inline-pop .recur-cal-container .recurrence-popcal-container .recurrence-pop-container {
+  width: 300px !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .recurr-manage-fields .recurFldSelectionPOP .move-task-pop, .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .pending-trans-pop {
+  width: 300px !important;
+}
+body:not([dir=rtl]) .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .recurrence-pop-container .recurrence-endAfter {
+  margin-left: -122px;
+}
+body[dir=rtl] .zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .recurrence-pop-container .recurrence-endAfter {
+  margin-right: -122px;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .slider-additional-info {
+  display: contents;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .zp-full-screen-info {
+  display: none;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .module-update-block > .module-component.zps-module-status-name {
+  max-width: 30%;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .bus-detail-subtab-container activity-date {
+  top: calc(var(--dtTabHeaderTop) - 10px) !important;
+}
+.zps-detail-base[full-view=no]:not([forced-full-view=yes], [only-full-view=yes]) .bus-detail-subtab-container .activity-placeholder-sticky {
+  top: calc(var(--dtTabHeaderTop) - var(--fs22px)) !important;
+}
+.zps-detail-base[full-view=yes] table.detail-main-container > tbody.detail-main-header, .zps-detail-base[forced-full-view=yes] table.detail-main-container > tbody.detail-main-header, .zps-detail-base[only-full-view=yes] table.detail-main-container > tbody.detail-main-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+.zps-detail-base[full-view=yes] .entity-slider-user-info, .zps-detail-base[forced-full-view=yes] .entity-slider-user-info, .zps-detail-base[only-full-view=yes] .entity-slider-user-info {
+  display: flex;
+}
+.zps-detail-base[full-view=yes] .entity-slider-user-info > .entity-section, .zps-detail-base[forced-full-view=yes] .entity-slider-user-info > .entity-section, .zps-detail-base[only-full-view=yes] .entity-slider-user-info > .entity-section {
+  position: relative;
+  padding-right: 20px;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+.zps-detail-base[full-view=yes] .zp-full-screen-info, .zps-detail-base[forced-full-view=yes] .zp-full-screen-info, .zps-detail-base[only-full-view=yes] .zp-full-screen-info {
+  display: flex;
+}
+.zps-detail-base[full-view=yes].zps-detail-active::after, .zps-detail-base[forced-full-view=yes].zps-detail-active::after, .zps-detail-base[only-full-view=yes].zps-detail-active::after {
+  content: "";
+  position: absolute;
+  width: 98vw;
+  height: 93vh;
+  background-color: rgba(var(--zpDetailpageBG));
+  z-index: 1;
+  border-radius: var(--detailBaseRadius);
+}
+.zps-detail-base:not(.hide) ~ .zps-detail-resizer[full-view=no] {
+  display: block;
+}
+.zps-detail-base[forced-full-view=yes] .zps-detail-fullscreen, .zps-detail-base[only-full-view=yes] .zps-detail-fullscreen {
+  display: none;
+}
+
+.zps-detail-resizer[full-view=no] {
+  left: calc(100% - (var(--zpFormWidth) - 2px));
+  position: absolute;
+  height: 100%;
+  width: 5px;
+  display: none;
+  z-index: 15;
+}
+.zps-detail-resizer[full-view=no]:hover {
+  visibility: visible;
+  cursor: col-resize;
+}
+
+.zps-detail-base[full-view=no].timelogs-grid-view {
+  left: calc(100% - 60vw);
+}
+.zps-detail-base[full-view=no].timelogs-grid-view .detail-container[view-mode=collapse] > .detail-lhs {
+  display: flex !important;
+  --detailLHSWidth: 18%;
+}
+.zps-detail-base[full-view=no].timelogs-grid-view .detail-container > .zps-panel-trigger {
+  display: flex !important;
+  --dtHamburgerColp: 14%;
+}
+.zps-detail-base[full-view=no].timelogs-grid-view .detail-container > .detail-lhs .detail-list-item {
+  padding: 10px 10px;
+}
+.zps-detail-base[full-view=no].timelogs-grid-view .detail-container > .detail-lhs .detail-list-item .list-item-spElem .module-id {
+  display: none;
+}
+.zps-detail-base[full-view=no].timelogs-grid-view .detail-container > .detail-lhs > .dlhs-group-title {
+  display: none;
+}
+.zps-detail-base[full-view=no].timelogs-grid-view .detail-container > .detail-lhs .detail-lhs-list {
+  margin-top: 50px;
+}
+.zps-detail-base[full-view=no].timelogs-grid-view .detail-container > .detail-lhs .detail-lhs-list .detail-list-item > .list-item-subtext {
+  display: none;
+}
+.zps-detail-base[full-view=no].timelogs-grid-view .detail-container > .detail-lhs .detail-lhs-list .detail-list-item .list-item-name, .zps-detail-base[full-view=no].timelogs-grid-view .detail-container > .detail-lhs .detail-lhs-list .detail-list-item .list-item-spElem > .zps-status-label {
+  display: none;
+}
+.zps-detail-base[full-view=no].timelogs-grid-view .detail-container > .detail-lhs .detail-lhs-list .detail-list-item .list-item-spElem {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+.zps-detail-base[full-view=no].timelogs-grid-view .detail-container > .detail-lhs .detail-lhs-list .detail-list-item .list-item-spElem > .dt-tslist-hrscount {
+  margin: 0;
+}
+.zps-detail-base[full-view=no].timelogs-grid-view .detail-container > .detail-lhs .detail-lhs-list .detail-list-item .list-item-spElem > .zps-status-label {
+  margin-left: auto;
+}
+
+.zps-detail-active {
+  transform: translateX(0) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.zps-detail-active .loading {
+  display: none;
+}
+.zps-detail-active::before {
+  content: "";
+  width: 24px;
+  height: 24px;
+  display: inline-block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  animation: spin var(--zpAnimation1000ms) infinite linear;
+  border: 0.25rem solid rgba(var(--zpPrimary), 0.6);
+  border-top-color: rgb(var(--zpData));
+  z-index: 2;
+}
+
+.full-view-more-info-pop .slider-additional-info {
+  display: none;
+}
+
+.zps-content-product .zps-main-panel .zps-main-content[entity-slider=no] .zoho-view-details {
+  display: none;
+}
+
+/*# sourceMappingURL=app-init-25591905d06465d3d630.css.map*/

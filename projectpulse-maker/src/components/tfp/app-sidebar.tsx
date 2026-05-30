@@ -48,12 +48,13 @@ export function AppSidebar() {
   const workItems = isSuperAdmin ? [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   ] : [
-    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+    { title: "Home", url: "/home", icon: LayoutDashboard },
+    { title: "Dashboard", url: "/dashboard", icon: Activity },
     { title: "Projects", url: "/projects", icon: FolderKanban },
     { title: "Tasks", url: "/tasks", icon: ListChecks },
     { title: "Calendar", url: "/calendar", icon: CalendarDays },
     { title: "Sprints", url: "/sprints", icon: CalendarRange },
-    { title: "Incidents", url: "/incidents", icon: AlertOctagon },
+    { title: "Issues", url: "/incidents", icon: AlertOctagon },
   ];
 
   const opsItems = isSuperAdmin ? [] : [

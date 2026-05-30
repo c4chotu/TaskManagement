@@ -1,0 +1,1910 @@
+//$Id$
+var GlobalAdd = {}
+
+GlobalAdd.CallFrom = {
+	GA: 'no',	//no i18n
+	Leftpanel: false,
+	Calendar: false
+}
+
+GlobalAdd.States = {
+	Project: {
+		id: '0',
+		name: getI18nValue('zp.general.gotoproj') //NO I18N 
+	},
+	ProjectId: '0',
+	AddData: {},
+}
+
+GlobalAdd.Constants = {
+	_TASK: 'Task', //NO I18N
+	_BUG: 'Issues', //NO I18N
+	_TIMESHEET: 'Timesheet', //NO I18N
+	_PROJECT: 'Project', //NO I18N
+	_USER: 'Users', //NO I18N
+	_MILESTONE: 'Milestone', //NO I18N
+	_TASKLIST: 'TaskList', //NO I18N
+	_FORUM: 'Forum', //NO I18N
+	_EVENT: 'Event', //NO I18N
+	_DOCUMENT: 'Document', //NO I18N
+	_TIMEOFF: 'TimeOff', //NO I18N
+	_ZOHOMEETING: 'ZohoMeeting', //NO I18N
+	_LOADING: 'Loading', //NO I18N
+	ImportSet: new Set(['TaskImport', 'IssueImport', 'JiraImport', 'BasecampImport', 'ImportFromOtherSource']), //NO I18N
+	WPExcludeModules: new Set(['JiraImport', 'BasecampImport', 'ImportFromOtherSource']), //No i18n
+	Container: 'globalAddDiv', //NO I18N
+	ContainerSelector: '#globalAddDiv',//NO I18N
+	isGAPublicProject: false,
+}
+   if (Utils.isTabMigrated) {
+	    GlobalAdd.Constants.ModuleSet = new Set(['Task', 'Issue', 'Timesheet', 'Project', 'Users', 'Milestone', 'TaskList', 'Forum', 'Event', 'Documents', 'TimeOff', 'Loading', 'TaskImport', 'IssueImport', 'JiraImport', 'BasecampImport', 'ImportFromOtherSource']); //NO I18N
+		GlobalAdd.Constants.ViewerHdnModuleSet = new Set(['Issue', 'Timesheet', 'Milestone']); //NO I18N
+	} else {
+	    GlobalAdd.Constants.ModuleSet= new Set(['Task', 'Issues', 'Timesheet', 'Project', 'Users', 'Milestone', 'TaskList', 'Forum', 'Event', 'Document', 'TimeOff', 'Loading', 'TaskImport', 'IssueImport', 'JiraImport', 'BasecampImport', 'ImportFromOtherSource']); //NO I18N
+		GlobalAdd.Constants.ViewerHdnModuleSet= new Set(['Issues', 'Timesheet', 'Milestone']); //NO I18N
+	}
+
+GlobalAdd.Observers = {
+	LoadingObserver: function (mutationRecords) {
+		const globalAddElement = document.getElementById(GlobalAdd.Constants.Container)
+
+		// Multiple cancel buttons are possible
+		const cancelElements = globalAddElement.querySelectorAll('.cancel-button') //NO I18N
+		cancelElements.forEach(function (cancelElement) {
+			cancelElement.addEventListener('click', GlobalAdd.Events.close)
+		})
+
+		if (globalAddElement.childElementCount == 0) {
+			GlobalAdd.Utils.showLoading()
+		} else {
+			GlobalAdd.Utils.hideLoading()
+		}
+	}
+}
+
+const _GLOBAL_ADD_OBSERVER = new MutationObserver(GlobalAdd.Observers.LoadingObserver)
+
+GlobalAdd.Actions = {
+	/**
+	 * directOpen will open the global add form if the user has permission to 
+	 * add the module data in that project
+	 * 
+	 * If the user doesn't have permission, there'll be no UI reflection
+	 */
+	directOpen: function (moduleToLoad) {
+		if (Utils.isVcrmPartnerOrClient || moduleToLoad == undefined || !GlobalAdd.Constants.ModuleSet.has(moduleToLoad)) {
+			return
+		}
+
+		// If the user is NOT inside a project and the project Id in the state is different
+		// Set that projectId
+		// For calendar always set the current project Id as 0
+
+		let currentProjectId = '0'
+		if (ProjectConstants.get('projectStatus') == 'active') {
+			currentProjectId = ProjectConstants.get('_currentProjectID') || '0'
+		}
+		if (currentProjectId == '0' && GlobalAdd.States.Project.id != '0') {
+			currentProjectId = GlobalAdd.States.Project.id
+		}
+
+		GlobalAdd.Utils.getEnabledModules(currentProjectId)
+			.then(function (moduleSet) {
+				if (!moduleSet.has(moduleToLoad)) {
+					return
+				}
+
+				GlobalAdd.Utils.constructMenu(moduleSet)
+
+				const iconElement = document.getElementById('global-menu-icon')
+				iconElement.addEventListener('mouseover', GlobalAdd.Events.showMenu)
+
+				const formElement = document.getElementById(GlobalAdd.Constants.Container)
+				formElement.addEventListener('mouseover', GlobalAdd.Events.hideMenu)
+
+				// In CRMPlus, both forms can be open at a time, so therefore closing the
+				// normal form before loading the global add form
+				UI.Utils.unloadForm()
+
+				UI.Utils.addClass('#global-add-container', 'show-main-form')
+				UI.Utils.empty(GlobalAdd.Constants.ContainerSelector)
+				UI.Utils.freezeScreen(true)
+
+				const globalAddElement = document.getElementById(GlobalAdd.Constants.Container)
+				_GLOBAL_ADD_OBSERVER.observe(globalAddElement, { childList: true, subtree: true })
+
+				GlobalAdd.CallFrom.GA = 'yes' //NO I18N
+
+				GlobalAdd.Utils.loadModule(moduleToLoad)
+			})
+	},
+	open: function (moduleToLoad, showMenu, fromCalendar = false, dateObject) {
+		GlobalAdd.Utils.showLoading()
+		// Global add is not available for VCRM
+		if (!fromCalendar && Utils.isVcrmPartnerOrClient) {
+			return
+		}
+		showMenu = (showMenu !== undefined) ? showMenu : true
+
+		let currentProjectId = '0'
+		if (ProjectConstants.get('projectStatus') == 'active') {
+			currentProjectId = ProjectConstants.get('_currentProjectID') || '0'
+		}
+		//To add mics entry for the number of clicks
+		LayoutUtils.logRecentAccess(undefined, "Global_add"); //NO I18N
+		// If the user is NOT inside a project and the project Id in the state is different
+		// Set that projectId
+		// For calendar always set the current project Id as 0
+		if (!fromCalendar && currentProjectId == '0' && GlobalAdd.States.Project.id != '0') {
+			currentProjectId = GlobalAdd.States.Project.id
+		}
+
+		if (fromCalendar) {
+			GlobalAdd.CallFrom.Calendar = true
+		}
+
+		// In CRMPlus, both forms can be open at a time, so therefore closing the
+		// normal form before loading the global add form
+		UI.Utils.unloadForm()
+
+		// Open the form immediately, let the user know that the form is loading
+		UI.Utils.addClass('#global-add-container', 'show-main-form')
+		UI.Utils.empty(GlobalAdd.Constants.ContainerSelector)
+		UI.Utils.freezeScreen(true)
+
+		GlobalAdd.Utils.getEnabledModules(currentProjectId)
+			.then(function (moduleSet) {
+				if (showMenu) {
+					GlobalAdd.Utils.constructMenu(moduleSet)
+
+					const iconElement = document.getElementById('global-menu-icon')
+					iconElement.addEventListener('mouseover', GlobalAdd.Events.showMenu)
+					iconElement.addEventListener('click', GlobalAdd.Events.showMenu)
+
+					const formElement = document.getElementById(GlobalAdd.Constants.Container)
+					formElement.addEventListener('mouseover', GlobalAdd.Events.hideMenu)
+
+					UI.Utils.removeClass('#global-menu-icon', 'hide')
+				} else {
+					UI.Utils.addClass('#global-menu-icon', 'hide')
+				}
+
+				// Take the first module in the module set. Entries in the set is returned 
+				// in a defined order. See the method getEnabledModules() for the order
+				moduleToLoad = (moduleToLoad) ? moduleToLoad : moduleSet.values().next().value
+				if (moduleToLoad == undefined || moduleSet.size == 0 || !moduleSet.has(moduleToLoad)) {
+					UI.Utils.showError({ message: 'zp.ajaxjs.perdenied' }) //NO I18N
+					GlobalAdd.Actions.close()
+					return
+				}
+
+				const globalAddElement = document.getElementById(GlobalAdd.Constants.Container)
+				_GLOBAL_ADD_OBSERVER.observe(globalAddElement, { childList: true, subtree: true })
+
+				GlobalAdd.CallFrom.GA = 'yes' //NO I18N
+
+				if (dateObject && dateObject.startDate) {
+					globalAddElement.setAttribute('data-start-date', dateObject.startDate)
+					globalAddElement.setAttribute('data-start-date-time', dateObject.startDateWithTime)
+					globalAddElement.setAttribute('data-end-date', dateObject.endDate)
+					globalAddElement.setAttribute('data-end-date-time', dateObject.endDateWithTime)
+					let startDateTime = moment(dateObject.startDateWithTime, Utils.moment.datetimeformat.replace('aaa', 'a')).toDate();
+					let endDateTime = moment(dateObject.endDateWithTime, Utils.moment.datetimeformat.replace('aaa', 'a')).toDate();
+					if ((endDateTime - startDateTime) / (1000 * 60 * 60 * 24) === 1) {
+						endDateTime.setMinutes(-1);
+					}
+					let modifiedEnd = formatDate(endDateTime, Utils.datetimeformat.replace('aaa', 'a'));
+					if (Utils.timeformat.endsWith('aaa')) {
+						globalAddElement.setAttribute('timer-extra-data', "(" + moment(dateObject.startDateWithTime, Utils.moment.datetimeformat).format("hh:mm A") + " - " + moment(modifiedEnd, Utils.moment.datetimeformat).format("hh:mm A") + ")");
+					}
+					else {
+						globalAddElement.setAttribute('timer-extra-data', "(" + moment(dateObject.startDateWithTime, Utils.moment.datetimeformat).format(Utils.timeformat) + " - " + moment(modifiedEnd, Utils.moment.datetimeformat).format(Utils.timeformat) + ")");
+					}
+				}
+				GlobalAdd.Utils.loadModule(moduleToLoad)
+				GlobalAdd.Utils.hideLoading()
+			})
+			.catch(function (error) {
+				UI.Utils.showError()
+				console.error(error)
+			})
+
+	},
+	openProjectFromTgallery: function () {
+		let moduleName = 'Project' //NO I18N
+		if (document.getElementById("empty_timer_log_form") != null && document.getElementById("editlogHours") == null) {
+			document.getElementById("empty_timer_log_form").remove();
+		}
+		GlobalAdd.Utils.loadModule(moduleName)
+	},
+	close: function () {
+		const globalAddElement = document.getElementById(GlobalAdd.Constants.Container)
+		globalAddElement.removeAttribute('data-current-module')
+		globalAddElement.removeAttribute('data-start-date')
+		globalAddElement.removeAttribute('data-start-date-time')
+		globalAddElement.removeAttribute('data-end-date')
+		globalAddElement.removeAttribute('data-end-date-time')
+		GlobalAdd.CallFrom.GA = 'no' //NO I18N
+		GlobalAdd.CallFrom.Calendar = false
+		_GLOBAL_ADD_OBSERVER.disconnect()
+		UI.Utils.empty(GlobalAdd.Constants.ContainerSelector)
+		UI.Utils.freezeScreen(false)
+		UI.Utils.removeClass('#global-add-container', 'show-main-form')
+		document.getElementById("zpsPopDefault").setAttribute("isonga", false);
+	}
+}
+
+GlobalAdd.Events = {
+	open: function (event) {
+		if (zpApp.$router.getRouteInstance().routeName == 'wildcard') {
+			modifyURLNoHistory(zpApp.$router.location.url.split('#')[1] + '?global_view=add');	//no i18n
+		} else {
+			zpApp.$router.getRouteInstance().setQueryParams({ global_view: 'add' });	//no i18n
+		}
+	},
+	close: function (event) {
+		GlobalAdd.Actions.close();
+
+		if (zpApp.$router.getRouteInstance().routeName == 'wildcard') {	//no i18n
+			let urlQp = zpApp.$router.location.url.split('?')[1];	//no i18n
+			modifyURLNoHistory(zpApp.$router.location.url.split('#')[1].replace('?' + urlQp, ''));	//no i18n
+		} else if(zpApp.$router.location.url.contains('global_view=add')){	//no i18n
+			let qPObj = zpApp.$router.getRouteInstance().getQueryParams();
+			zpApp.$router.getRouteInstance().setQueryParams({...qPObj, ...{ global_view : undefined, module : undefined }});
+		}
+	},
+	showMenu: function (event) {
+		GlobalAdd.Utils.showMenu()
+	},
+	hideMenu: function (event) {
+		GlobalAdd.Utils.hideMenu()
+	},
+	menuClick: function (event) {
+		let target = event.target
+		target = target.closest('.global-items') //NO I18N
+		if (target == undefined) {
+			return
+		}
+		const moduleName = target.getAttribute('global-add-module')
+		GlobalAdd.Utils.hideMenu()
+
+		if (document.getElementById("empty_timer_log_form") != null && document.getElementById("editlogHours") == null) {
+			document.getElementById("empty_timer_log_form").remove();
+		}
+
+		GlobalAdd.Utils.loadModule(moduleName)
+	},
+	onProjectChange: function (event, data) {
+		let projectId = data.value
+		let projectName
+		let globalAddDiv = document.getElementById('globalAddDiv')
+		let moduleName = globalAddDiv.getAttribute('data-current-module')
+		let module = GlobalAdd.Utils.getModule(moduleName)
+
+		if (projectId == "" || projectId == '0' || projectId == '-1') {
+			projectId = '0'
+			projectName = getI18nValue('zp.general.gotoproj') //NO I18N 
+			data.optionData = {
+				id: projectId,
+				name: projectName
+			}
+			jQuery(data.element).val('0')
+		} else {
+			projectName = data.optionData.name
+		}
+		GlobalAdd.Utils.setProject(projectId, projectName)
+		module.onProjectChange && module.onProjectChange(data.optionData, event, data)
+	},
+	viewLinkClick: function (event) {
+		if (GlobalAdd.States.AddData != undefined) {
+			let moduleName = event.target.getAttribute('data-current-module')
+			const module = GlobalAdd.Utils.getModule(moduleName)
+			module.viewEntity && module.viewEntity(GlobalAdd.States.AddData)
+			GlobalAdd.Events.closeSuccessMessage()
+		}
+	},
+	getEntityUrl: function (moduleName, data) {
+		const module = GlobalAdd.Utils.getModule(moduleName);
+		if (module && module.getLink) {
+			const link = module.getLink(data);
+			if (link) {
+				let location = zpApp.$router.location;
+				return location.origin + location.pathname + "#" + link; //NO I18N
+			}
+		}
+		return null;
+	},
+	closeSuccessMessage: function () {
+		UI.Utils.closeToast('success'); //NO I18N
+		GlobalAdd.States.AddData = {}
+	}
+}
+
+GlobalAdd.Utils = {
+	loadProjectBar: function (selectElementId, moduleName, userId) {
+		let module = GlobalAdd.Utils.getModule(moduleName)
+		if (selectElementId == undefined || module == undefined || document.getElementById(selectElementId) == undefined) {
+			console.error('select element and module name is mandatory')  //NO I18N
+		}
+		let permissionName = module.getPermissionName()
+		let selectedProject = GlobalAdd.Utils.getProject()
+//		moduleName == 'Issues' ? selectedProject =  : '';
+		zpselectcomponent.destroy(document.getElementById(selectElementId))
+		zpselectcomponent.init(document.getElementById(selectElementId), selectedProject, {
+			selectOptions: {
+				placeholder: getI18nValue('zp.general.gotoproj'), //NO I18N
+				change: function (event, data) {
+					GlobalAdd.Events.onProjectChange(event, data)
+				},
+			},
+			providerWrapper: ProviderRepository.getNamedProviderWrapper('GLOBAL_ADD_PROJECT_' + moduleName, projectsProviderConstants.PROJECTS,  //NO I18N
+				{ module: permissionName, permission: 'create' }, { range: 100 }), //NO I18N
+			customContent: projectCustomContent,
+		})
+	},
+	showMenu: function () {
+		UI.Utils.addClass('#global-menu', 'gform-menu-show')
+	},
+	hideMenu: function () {
+		UI.Utils.removeClass('#global-menu', 'gform-menu-show')
+	},
+	showLoading: function () {
+		UI.Utils.removeClass('#global-loading', 'hide')
+	},
+	hideLoading: function () {
+		UI.Utils.addClass('#global-loading', 'hide')
+	},
+	getModule: function (moduleName) {
+		return GlobalAdd.Modules[moduleName]
+	},
+	getStartDate: function () {
+		const globalAddElement = document.getElementById(GlobalAdd.Constants.Container)
+		return globalAddElement.getAttribute('data-start-date')
+	},
+	getStartDateWithTime: function () {
+		const globalAddElement = document.getElementById(GlobalAdd.Constants.Container)
+		return globalAddElement.getAttribute('data-start-date-time')
+	},
+	getEndDate: function () {
+		const globalAddElement = document.getElementById(GlobalAdd.Constants.Container)
+		return globalAddElement.getAttribute('data-end-date')
+	},
+	getEndDateWithTime: function () {
+		const globalAddElement = document.getElementById(GlobalAdd.Constants.Container)
+		return globalAddElement.getAttribute('data-end-date-time')
+	},
+	getProject: function () {
+		let projectId = ProjectConstants.get('_currentProjectID')
+		let projectName = ProjectConstants.get('_currentProjectName')
+		if (GlobalAdd.Constants.isGAPublicProject) {
+			projectId = '0';
+			projectName = undefined;
+		}
+		// The user is in home page, but has already chosen a project
+		// If the user is in a project page, that takes precedence
+		if ((!projectId || projectId == '0') && GlobalAdd.States.Project.id != undefined && GlobalAdd.States.Project.name != undefined) {
+			return GlobalAdd.States.Project
+		}
+		if (ProjectConstants.get('projectStatus') != 'active' || projectId == undefined || projectId == '0' || projectName == undefined) {
+			projectId = '0'
+			projectName = getI18nValue('zp.general.gotoproj') //NO I18N 
+		}
+		GlobalAdd.States.ProjectId = projectId
+		GlobalAdd.States.Project.id = projectId
+		GlobalAdd.States.Project.name = projectName
+		return GlobalAdd.States.Project
+	},
+	setProject: function (projectId, projectName, force) {
+		force = (force == undefined) ? false : force
+		if (!force && GlobalAdd.CallFrom.GA != 'yes') {
+			return
+		}
+		// It's the same we're not updating it
+		if (GlobalAdd.States.ProjectId == projectId) {
+			return
+		}
+		GlobalAdd.States.ProjectId = (projectId) ? projectId : '0'
+		GlobalAdd.States.Project.id = projectId
+		GlobalAdd.States.Project.name = projectName
+		GlobalAdd.Utils.loadMenu(GlobalAdd.States.ProjectId)
+	},
+	entityUpdated: function (data) {
+		// Close the form
+		GlobalAdd.Actions.close();
+		const module = GlobalAdd.Utils.getModule(data.module)
+		let responseForCalendar = module.formatResponseForCalendar(data.data)
+		updateEntityToCalendar('edit', responseForCalendar)//No i18n
+	},
+	entityAdded: function (data) {
+		const module = GlobalAdd.Utils.getModule(data.module)
+
+		GlobalAdd.CallFrom.Calendar ? calendarCallback(data) : normalCallback(data)
+
+		let closeForm = (data.close == undefined) ? true : data.close
+		if (closeForm) {
+			// Close the form
+			GlobalAdd.Actions.close()
+			GlobalAdd.Events.close();
+		}
+
+
+		function calendarCallback(data) {
+			
+
+			let successMessage = module.getSuccessMessage(data);
+			// This is to ensure that last character of the success message
+			// is a full stop. Certain i18n text may not have a full stop
+			if (successMessage.charAt(successMessage.length - 1) != '.') {
+				successMessage += '.'
+			}
+			const spanFragment = document.createDocumentFragment();	
+
+			const spanElement = createAndSetAttributes('span') //NO I18N
+			spanElement.textContent = successMessage
+			spanFragment.appendChild(spanElement)
+			GlobalAdd.States.AddData = data
+
+			if (module.viewEntity) {
+				const linkElement = createAndSetAttributes('a', { class: 'zps-success-link', 'data-current-module': data.module }) //NO I18N
+				linkElement.textContent = getI18nValue('zp.general.viewnow') //NO I18N
+				linkElement.addEventListener('click', GlobalAdd.Events.viewLinkClick)
+				spanFragment.appendChild(linkElement)
+			}
+
+			if (module.viewEntity && module.getLink && module.getLink(data)) {
+				spanFragment.appendChild(UI.Utils.createCopyLinkIcon(function () { return GlobalAdd.Events.getEntityUrl(data.module, data) }));
+			}
+
+			UI.Utils.showSuccess({ message: spanFragment, time: 6000 });
+			sharedBasicCalendarView.refreshCalendarOnEntityUpdate(data.module);
+		}
+
+		function normalCallback(data) {
+
+			const spanFragment = document.createDocumentFragment();	
+				
+			let successMessage = module.getSuccessMessage(data)
+			// This is to ensure that last character of the success message
+			// is a full stop. Certain i18n text may not have a full stop
+			if (successMessage.charAt(successMessage.length - 1) != '.') {
+				successMessage += '.'
+			}
+			const spanElement = createAndSetAttributes('span') //NO I18N
+			spanElement.textContent = successMessage
+			spanFragment.appendChild(spanElement)
+			GlobalAdd.States.AddData = data
+
+			if (module.viewEntity) {
+				const linkElement = createAndSetAttributes('a', { class: 'zps-success-link', 'data-current-module': data.module }) //NO I18N
+				linkElement.textContent = getI18nValue('zp.general.viewnow') //NO I18N
+				linkElement.addEventListener('click', GlobalAdd.Events.viewLinkClick)
+				spanFragment.appendChild(linkElement)
+			}
+
+			if (module.getLink && module.getLink(data)) {
+				spanFragment.appendChild(UI.Utils.createCopyLinkIcon(function () { return GlobalAdd.Events.getEntityUrl(data.module, data) }));
+			}
+
+			UI.Utils.showSuccess({ message: spanFragment, time: 6000 });
+		}
+	},
+	highlightModule: function (module) {
+		const menuList = document.getElementById('global-menu')
+		const existingActiveElement = menuList.querySelector('.global-items.active') //NO I18N
+		if (existingActiveElement) {
+			existingActiveElement.classList.remove('active') //NO I18N
+		}
+		const futureElement = menuList.querySelector('.global-items[global-add-module="' + module + '"]') // NO I18N
+		if (futureElement) {
+			futureElement.classList.add('active') //NO I18N
+		}
+		const displayName = GlobalAdd.Utils.getModule(module).getDisplayName()
+		document.getElementById('global-current-module').textContent = displayName
+	},
+	loadModule: function (moduleName) {
+		const moduleObject = GlobalAdd.Utils.getModule(moduleName)
+		if (moduleObject == undefined || moduleName === GlobalAdd.Constants._LOADING || (moduleName == "Timesheet" && Utils.timeLogConfig.logType == 1)) {
+			return
+		}
+
+		if(moduleName == 'ImportFromOtherSource'){
+			moduleObject.load()
+			return;
+		}
+
+		let data = {}
+		data.projectId = GlobalAdd.Constants.isGAPublicProject ? '0' : GlobalAdd.Utils.getProject().id // get the project Id
+		data.containerName = GlobalAdd.Constants.Container
+		data.containerSelector = GlobalAdd.Constants.ContainerSelector
+
+		GlobalAdd.CallFrom.GA = 'yes' //NO I18N
+
+		const globalElement = document.getElementById(data.containerName)
+		if (GlobalAdd.CallFrom.Calendar) {
+			data.callFromCalendar = true
+			data.startDate = globalElement.getAttribute('data-start-date')
+			data.startDateWithTime = globalElement.getAttribute('data-start-date-time')
+			data.endDate = globalElement.getAttribute('data-end-date')
+			data.endDateWithTime = globalElement.getAttribute('data-end-date-time')
+		} else {
+			data.callFromCalendar = false
+		}
+
+		globalElement.setAttribute('data-current-module', moduleName)
+
+		UI.Utils.empty(data.containerSelector)
+		moduleObject.load(data)
+		findSticky(".slideFormBottombtn") //NO I18N
+		zpPopup.closePopup();
+		GlobalAdd.Utils.highlightModule(moduleName)
+	},
+	loadMenu: function (projectId) {
+		if (GlobalAdd.CallFrom.GA != 'yes') {
+			return
+		}
+		GlobalAdd.Utils.getEnabledModules(projectId)
+			.then(function (moduleSet) {
+				GlobalAdd.Utils.constructMenu(moduleSet)
+				let globalAddElement = document.getElementById(GlobalAdd.Constants.Container)
+				let moduleName = globalAddElement.getAttribute('data-current-module')
+				GlobalAdd.Utils.highlightModule(moduleName)
+			})
+			.catch(function (error) {
+				console.error(error)
+			})
+	},
+	constructMenu: function (moduleSet) {
+		let menuList = document.getElementById('global-menu-list')
+		let importMenuList = document.getElementById('global-menu-list-imports')
+		menuList.innerHTML = '';importMenuList.innerHTML = '';
+		let fragment = document.createDocumentFragment(); let fragmentImport = document.createDocumentFragment();
+		let importsplit = document.getElementById('global-menu-importsplit');  
+		importsplit.classList.contains('hide') ? importsplit.classList.remove('hide') : '';//NO I18N
+		moduleSet.forEach(function (moduleName) {
+			if (Utils.profileType == Utils.PROFILE_READONLY) {
+				return
+			}
+
+			if((moduleName == "Issues" || moduleName=="Issue") && !Utils.bugVisibility){
+				moduleSet.delete("IssueImport")//NO I18N
+				return;
+			}else if(moduleName == "Milestone" && !Utils.milestoneVisibility){//NO I18N
+				return;
+			}else if(moduleName == "Timesheet" && !Utils.timesheetVisibility){	//no i18n
+				return;
+			}else if(Utils.isSandboxPortal && moduleName == "JiraImport" ){//NO I18N
+				return;
+			}else if(Utils.isSandboxPortal && moduleName == "BasecampImport" ){//NO I18N
+				return;
+			}else if(Utils.isSandboxPortal && moduleName == "ImportFromOtherSource" ){//NO I18N
+				return;
+			}
+
+			if(IsWPloaded && GlobalAdd.Constants.WPExcludeModules.has(moduleName)) {
+				return;
+			}
+			
+
+			const moduleObject = GlobalAdd.Utils.getModule(moduleName)
+			let menuElement = createAndSetAttributes('span', { class: 'global-items', 'data-zpqa': 'global_add_' + moduleName , 'tabindex': 0}) //NO I18N
+
+			if(moduleName == 'ImportFromOtherSource'){
+				menuElement.classList.add('import-others-pmapp');//NO I18N
+			}
+
+			if (moduleName == "Timesheet" && Utils.timeLogConfig && Utils.timeLogConfig.logType == 1) {	//no i18n
+				menuElement.setAttribute("disabled", true);
+				menuElement.setAttribute("data-tooltip", getI18nValue('zp.timesheet.addLogDisabled.msg'))
+			}
+
+			if (GlobalAdd.Constants._LOADING === moduleName) {
+				let textElement = createAndSetAttributes('span', { class: 'loading' }); //NO I18N
+				menuElement.setAttribute('loading', 'true')
+				menuElement.appendChild(textElement);
+			} else {
+				let textElement = createAndSetAttributes('span', { class: 'global-item-name', 'data-tooltip': moduleObject.getDisplayName(), 'long-tooltip': 'true' }) //NO I18N
+				let keyboardShortcut = createAndSetAttributes('tooltip-content');//NO I18N
+				let shorcutKey = createAndSetAttributes('span', { class: 'zps-tooltip-shortcut' }); //NO I18N
+				keyboardShortcut.textContent = moduleObject.getDisplayName()
+				if (moduleObject.getkey() && moduleObject.getkey() != '') {
+					keyboardShortcut.appendChild(shorcutKey);
+				}
+				shorcutKey.textContent = moduleObject.getkey()
+				textElement.textContent = moduleObject.getDisplayName()
+				if(moduleObject.getIcon()){
+					menuElement.appendChild(createAndSetAttributes('i', { class: moduleObject.getIcon() })) //NO I18N
+				}else{
+					menuElement.appendChild(createAndSetAttributes('IMG', { src: moduleObject.getImgUrl() })) //NO I18N
+				}
+				
+				menuElement.appendChild(textElement)
+				textElement.appendChild(keyboardShortcut)
+			}
+
+			menuElement.setAttribute('global-add-module', moduleName)
+ 			if(GlobalAdd.Constants.ImportSet.has(moduleName)){
+                fragmentImport.appendChild(menuElement)
+            }else{              
+                fragment.appendChild(menuElement)
+            }
+		})
+		menuList.appendChild(fragment)
+		importMenuList.appendChild(fragmentImport)
+
+		const newMenuList = menuList.cloneNode(true);
+		menuList.parentNode.replaceChild(newMenuList, menuList);
+		const newImportMenuList = importMenuList.cloneNode(true);
+		importMenuList.parentNode.replaceChild(newImportMenuList, importMenuList);
+		newImportMenuList.addEventListener('click', GlobalAdd.Events.menuClick);
+		newMenuList.addEventListener('click', GlobalAdd.Events.menuClick);
+		importMenuList.childNodes.length == 0 ? importsplit.classList.add('hide') : '';//NO I18N
+	},
+	getEnabledModules: function (projectId) {
+		return new Promise(function (resolve, reject) {
+			GlobalAdd.Data.EnabledModules(projectId)
+				.then(function (response) {
+					response = response.data
+					let moduleSet = new Set()
+
+					const canNewProjectBeCreated = response.ISNEWPROJ
+					const tabSet = new Set(Object.keys(response.ENATABOBJ))
+					response.ISPUBLICPROJECT ? projectId = '0' : undefined;
+					GlobalAdd.Constants.isGAPublicProject = response.ISPUBLICPROJECT;
+
+					// It has to be set first, before the enable checks are done
+					GlobalAdd.Modules.TimeOff.peopleUrl = (response.PEOPLEURL) ? response.PEOPLEURL : undefined
+
+					GlobalAdd.Constants.ModuleSet.forEach(function (moduleName) {
+						const module = GlobalAdd.Utils.getModule(moduleName)
+						if (module && module.enabled(projectId, tabSet) && (!GlobalAdd.Constants.isGAPublicProject || (GlobalAdd.Constants.isGAPublicProject && !GlobalAdd.Constants.ViewerHdnModuleSet.has(moduleName)))) {
+							moduleSet.add(moduleName)
+						}
+					})
+
+					!(Utils.servicedomain == "projects" && Utils.isOwner) ? moduleSet.delete('BasecampImport'): undefined;//NO I18N
+					!(Utils.servicedomain == "projects" && Utils.isOwner) ? moduleSet.delete('ImportFromOtherSource'): undefined;//NO I18N
+					!permissions.portal_setting.permission.other_import ? moduleSet.delete('JiraImport'): undefined;//NO I18N
+					!permissions.bug.permission.import ? moduleSet.delete('IssueImport'): undefined;//NO I18N
+
+					// If the portal has reached the maximum number of projects that can 
+					// be created, this wil be false
+					if (canNewProjectBeCreated != undefined && !canNewProjectBeCreated) {
+						moduleSet.delete(GlobalAdd.Constants._PROJECT)
+					}
+
+					if (Utils.isZohoMeetingAvailable && permissions.event.permission.create) {
+						moduleSet.add(GlobalAdd.Constants._ZOHOMEETING)
+					}
+
+					resolve(moduleSet)
+				})
+				.catch(function (error) {
+					reject(new Set())
+					console.error(error)
+				})
+		})
+	}
+}
+
+GlobalAdd.Modules = {}
+
+GlobalAdd.Modules.Project = {
+	getDisplayName: function () {
+		return getI18nValue('zp.home.project') //NO I18N
+	},
+	getIcon: function () {
+		return 'zoho-projects' //NO I18N	
+	},
+	getkey: function () {
+		return 'C + P' //NO I18N
+	},
+	load: function (data) {
+		showProjectForm('active', _ADDFORM, data.containerName) //NO I18N
+	},
+	enabled: function (projectId, tabSet) {
+		return !GlobalAdd.CallFrom.Calendar && getPermission('0').project.permission.create
+	},
+	getSuccessMessage: function () {
+		return getI18nValue(getI18nValue('zp.projcal.addsucc').replace("{0}",getI18nValue('zp.home.project'))) //NO I18N
+	},
+	getLink: function (data) {
+		return 'project/' + data.entityId //NO I18N
+	},
+	formatResponseForCalendar: undefined,
+	getPermissionName: function () {
+		return 'project' //NO I18N
+	},
+	viewEntity: function (data) {
+		const projectTabs = new ProjectTabs({ isProjectTabsVisible: true, projectId: data.projectId, niceURLFromPage: 'dashboard' }) // NO I18N
+		projectTabs.makeAjaxCalls()
+		constructProjDisplayPage(data.projectId)
+	}
+}
+
+GlobalAdd.Modules.Milestone = {
+	getDisplayName: function () {
+		return getMileRepValue('zp.milestones.milestone', 'single') //NO I18N
+	},
+	getIcon: function () {
+		return Utils.milestoneIconClass
+	},
+	getkey: function () {
+		return 'C + M' //NO I18N
+	},
+	load: function (data) {
+		let fromPage = addMilestoneFormObj.fromPage.GLOBALADD
+		if (data.callFromCalendar) {
+			fromPage = addMilestoneFormObj.fromPage.MYCALENDAR
+		}
+		addMilestoneFormObj.renderAddMileForm({ PROJID: data.projectId, FROM: fromPage, DIVID: data.containerName, FORMTYPE: addMilestoneFormObj.formType.top })
+		// jsonConstuctPage(Utils.contPath + '/constquickaddmile.do', 'projId=0&modtype=tasks&pagefor=home&'+getZPCSRF(), 'newmilestone', 'html', data.containerName, '', '0') //NO I18N
+	},
+	enabled: function (projectId, tabSet) {
+		return Utils.milestoneVisibility && ((projectId == '0' || tabSet.has('Milestone')) && (getPermission(projectId).milestone.permission.create === true || projectId == '0'))
+	},
+	getSuccessMessage: function () {
+		return getMileRepValue('zp.projcal.addsucc','single') //NO I18N
+	},
+	getLink: function (data) {
+		return 'zp/milestone-detail/' + data.entityId + '?projectId=' + data.projectId //NO I18N
+	},
+	formatResponseForCalendar: function (response) {
+		let mapping = { "MID": "id", "MTITLE": "title", "MORGSTDATE": "comp_sd", "MORGENDATE": "comp_ed", "MILETYPE": "status" };//NO I18N
+		response = changeFormatOfEventJSON(mapping, response);
+		response.edITTYPE = "SINGLE";//NO I18N
+		if (!response.hasOwnProperty("sd")) {
+			response.sd = convertDateFormat(response.comp_sd, Utils.dateformat, "dd/MM/yyyy");//no I18n
+		}
+		if (!response.hasOwnProperty("ed")) {
+			response.ed = convertDateFormat(response.comp_ed, Utils.dateformat, "dd/MM/yyyy");//no I18n
+		}
+		if (response.hasOwnProperty("MZUID") && response.hasOwnProperty("MOWN")) {
+			response.owner = [{ id: response.MZUID, name: response.MOWN }];
+		}
+		return response;
+	},
+	getPermissionName: function () {
+		return 'milestone' //NO I18N 
+	},
+	viewEntity: function (data) {
+		milestoneDetail.openDetailPage(data.projectId, data.entityId)
+	},
+	onProjectChange: function (projectData, event, data) {
+		var projectId = projectData.id
+		UI.Utils.focus('#name') //NO I18N
+		ajaxRequest({
+			url: Utils.contPath + '/constquickaddmile.do', //NO I18N
+			type: _POST,
+			args: {
+				projId: projectId,
+				modtype: 'tasks', //NO I18N
+				pagefor: 'home', //NO I18N
+			},
+			restAPI: false
+		}).then(function (response) {
+			let data = response.data
+			globalMileProjChange(data)
+		}).catch(function (error) {
+			UI.Utils.showError()
+			console.error(error)
+		})
+		findSticky(".slideFormBottombtn") //NO I18N
+	},
+}
+
+GlobalAdd.Modules.TaskList = {
+	getDisplayName: function () {
+		return getI18nValue('zp.profileform.tasklist') //NO I18N
+	},
+	getIcon: function () {
+		return 'zoho-tasklist' //NO I18N	
+	},
+	getkey: function () {
+		return 'C + A' //NO I18N
+	},
+	load: function (data) {
+		const params = 'projId=' + data.projectId + '&pagefor=home&mileId=0&' + getZPCSRF() //NO I18N
+		ajaxRender(Utils.contPath + '/constaddlistglobal.do', params, 'addTaskListTemp', 'html', data.containerName, 'addtasklist', '0') //NO I18N		
+	},
+	enabled: function (projectId, tabSet) {
+		return !Utils.isBugPortal && Utils.taskVisibility && (!GlobalAdd.CallFrom.Calendar && (projectId == '0' || tabSet.has('Task')) && (getPermission(projectId).tasklist.permission.create === true || projectId == '0'))
+	},
+	getSuccessMessage: function () {
+		return getI18nValue(getI18nValue('zp.projcal.addsucc').replace("{0}",getI18nValue('zp.task.tasklist'))) //NO I18N
+	},
+	getLink: function (data) {
+		return 'zp/tasklist-detail/'  + data.entityId //NO I18N
+	},
+	getPermissionName: function () {
+		return 'tasklist' //NO I18N
+	},
+	onProjectChange: function (projectData, event, data) {
+		var projectId = projectData.id
+		TaskList.addForm.onChangingProject(projectId, 0);
+	},
+	viewEntity: function (data) {
+		UI.Utils.unloadForm();
+		task_utility.openTaskListDetailPage(data.entityId,{projectId:data.projectId,isMyTask:"home"==isHomeOrProject()});//no i18n												         		
+	}
+}
+
+GlobalAdd.Modules.Task = {
+	getDisplayName: function () {
+		return Utils.taskSingularValue;
+	},
+	getIcon: function () {
+		return Utils.taskIconClass;
+	},	
+	getkey: function () {
+		return 'C + T' //NO I18N
+	},
+	load: function (data) {
+		const urlParams = 'projid=0&pagefor=home&mileId=0&' + getZPCSRF() //NO I18N
+		var startDate = Utils.taskinhr == "true" ? data.startDateWithTime : data.startDate;
+		var endDate = Utils.taskinhr == "true" ? data.endDateWithTime : data.endDate;
+		addTaskObj.loadAddTaskForm({ FORMDIVID: data.containerName, FORMTYPE: addTaskObj.formType.top, SUBMODULE: 'calendarview', PARAMS: urlParams, PROJID: 0, STARTDATE: startDate, ENDDATE: endDate }) //NO I18N
+	},
+	enabled: function (projectId, tabSet) {
+		return !Utils.isBugPortal && Utils.taskVisibility && ((projectId == '0' || tabSet.has('Task')) && (getPermission(projectId).task.permission.create === true || projectId == '0'))
+	},
+	getSuccessMessage: function () {
+		return getI18nValueWithModule('zp.projcal.addsucc',  Utils.taskSingularValue) //NO I18N
+	},
+	getLink: function (data) {
+		return 'zp/task-detail/' + data.entityId //NO I18N
+	},
+	formatResponseForCalendar: function (response) {
+		let mapping = { "titleUpdated": "title", "ID": "id" };//NO I18N
+		response = changeFormatOfEventJSON(mapping, response);
+		response.edITTYPE = "SINGLE";//NO I18N
+		return response;
+	},
+	getPermissionName: function () {
+		return 'task' //NO I18N
+	},
+	onProjectChange: function (projectData, event, data) {
+		let projectId = projectData.id
+		let params = 'projid=' + projectId + '&pagefor=home&' + getZPCSRF() //NO I18N
+		let formJson = jQuery(GlobalAdd.Constants.ContainerSelector).data('FORMJSON') //NO I18N
+		formJson.SELECTEDPROJECT = projectId
+		delete formJson.SELECTEDTASKLIST
+		formJson.PARAMS = params
+		addTaskObj.loadFormOnProjectSelect(formJson)
+	},
+	viewEntity: function (data) {
+		task_utility.openDetailPage(data.entityId)		
+	}
+}
+
+GlobalAdd.Modules.TaskImport = {
+	getDisplayName: function () {
+		return Utils.taskSingularValue;
+	},
+	getIcon: function () {
+		return Utils.taskIconClass; //NO I18N
+	},  
+	getkey: function () {
+		return '' //NO I18N
+	},
+	load: function (data) {
+		GlobalAdd.Import.constructImportForms(GlobalAdd.Constants._TASK, data.projectId);
+	},
+	enabled: function (projectId) {
+		return ( !Utils.isBugPortal && !Utils.isBundledPortal && Utils.taskVisibility && getUserPermission(projectId).task.permission.import && isTemplate()=="false")
+	},
+	getSuccessMessage: function () {
+		return getI18nValue('zp.bug.importscheduled'); //NO I18N
+	},
+	getLink: function (data) {
+		return ''//NO I18N
+	},
+	formatResponseForCalendar: function (response) {
+		let mapping = {"titleUpdated":"title","ID":"id"};//NO I18N
+		response = changeFormatOfEventJSON(mapping,response);
+		response.edITTYPE = "SINGLE";//NO I18N
+		return response;
+	},
+	getPermissionName: function () {
+		return 'task' //NO I18N
+	},
+	onProjectChange: function (projectData, event, data) {
+		let projectId = projectData.id
+		let params = 'projid=' + projectId + '&pagefor=home&' + getZPCSRF() //NO I18N
+		let formJson = jQuery(GlobalAdd.Constants.ContainerSelector).data('FORMJSON') //NO I18N
+		formJson.SELECTEDPROJECT = projectId
+		fetchProjectUsers(1, projectId);
+		let projInput = document.getElementById("import_files_selected_project");
+		projInput != null ? projInput.setAttribute("value", projectId) : '';
+		delete formJson.SELECTEDTASKLIST
+		formJson.PARAMS = params
+		addTaskObj.loadFormOnProjectSelect(formJson)
+	}
+}
+
+GlobalAdd.Modules.JiraImport = {
+	getDisplayName: function () {
+		return getI18nValue('zp.jiraimport.jira') //NO I18N
+	},
+	getIcon: function () {
+		return 'DA-import-logo DA-import-logoform import-jira' //NO I18N    
+	},
+	getkey: function () {
+		return ''
+	},
+	load: function (data) {
+		GlobalAdd.Import.constructImportForms('Jira');//NO I18N
+	},
+	enabled: function (projectId, tabSet) {
+		return (!Utils.isBundledPortal && (projectId == '0' || (tabSet.has('Issues')|| tabSet.has('Issue'))) && (getPermission(projectId).bug.permission.create === true || projectId == '0')) //NO I18N
+	},
+	getSuccessMessage: function () {
+		return getBugRepValue('zp.ajaxjs.addbugsuc','single') //NO I18N
+	},
+	getLink: function (data) {
+		return 'buginfo/' + data.projectId + '/' + data.entityId //NO I18N
+	},
+	formatResponseForCalendar: function (response) {
+		let mapping = {"BUGID": "id", "BUG_TITLE": "name", "status_id": "issue_status_id"};//NO I18N
+		response = changeFormatOfEventJSON(mapping,response);
+		response.edITTYPE = "SINGLE";//NO I18N
+		if(response.hasOwnProperty("assigned_to") && response.hasOwnProperty("assigned_to_zuid"))
+		{
+			response.owner=[{id: response.assigned_to_zuid, name: response.assigned_to}];                
+		}
+		return response;
+	},
+	getPermissionName: function () {
+		return 'bug' //NO I18N
+	},
+	viewEntity: function (data) {
+		const navigationObject = zpApp.$router.$service.getCurrentNavigationState();
+		zpApp.$router.$service.navigateToDetail('issuedetail', data.entityId).transitionParams = {projID: data.projectId, viewFrom: IssueDetailViewFrom.SEARCH, navigationObject};//no i18n
+	}
+}
+
+GlobalAdd.Modules.BasecampImport = {
+	getDisplayName: function () {
+		return getI18nValue('zp.imports.basecamp') //NO I18N
+	},
+	getIcon: function () {
+		return 'DA-import-logo import-basecamp' //NO I18N   
+	},
+	getkey: function () {
+		return ''
+	},
+	load: function (data) {
+		GlobalAdd.Import.constructImportForms('Basecamp');//NO I18N
+	},
+	enabled: function (projectId, tabSet) {
+		return (!Utils.isBundledPortal &&(projectId == '0' || tabSet.has('Issues') || tabSet.has('Issue')) && (getPermission(projectId).bug.permission.create === true || projectId == '0')) //NO I18N
+	},
+	getSuccessMessage: function () {
+		return getBugRepValue('zp.ajaxjs.addbugsuc','single') //NO I18N
+	},
+	getLink: function (data) {
+		return 'buginfo/' + data.projectId + '/' + data.entityId //NO I18N
+	},
+	formatResponseForCalendar: function (response) {
+		let mapping = {"BUGID": "id", "BUG_TITLE": "name", "status_id": "issue_status_id"};//NO I18N
+		response = changeFormatOfEventJSON(mapping,response);
+		response.edITTYPE = "SINGLE";//NO I18N
+		if(response.hasOwnProperty("assigned_to") && response.hasOwnProperty("assigned_to_zuid"))
+		{
+			response.owner=[{id: response.assigned_to_zuid, name: response.assigned_to}];                
+		}
+		return response;
+	},
+	getPermissionName: function () {
+		return 'bug' //NO I18N
+	},
+	viewEntity: function (data) {
+		const navigationObject = zpApp.$router.$service.getCurrentNavigationState();
+		zpApp.$router.$service.navigateToDetail('issuedetail', data.entityId).transitionParams = {projID: data.projectId, viewFrom: IssueDetailViewFrom.SEARCH, navigationObject}//no i18n
+	}
+}
+
+GlobalAdd.Modules.Issues = {
+	getDisplayName: function () {
+		return Utils.bugReplaceValue
+	},
+	getIcon: function () {
+		return Utils.bugClass
+	},
+	getkey: function () {
+		return 'C + B' //NO I18N
+	},
+	load: function (data) {
+		let fromPage = "web_global_addbug";//no i18n
+		let prefilledFormData ={}
+		if (data.callFromCalendar) {
+			fromPage = "web_calender_addbug";//no i18n
+			prefilledFormData.due_date = GlobalAdd.Utils.getEndDateWithTime();
+		}
+		LoadGlobalForm.issueAdd({fromPage: fromPage, projectId: data.projectId, prefilledFormData},`#${data.containerName}`,{
+			methods: {
+				onAfterSubmit: function({recently_added_issues, issue_id}){
+				},
+				onIssueFormCancel: function(){
+					GlobalAdd.Events.close();
+				}
+			}
+		});
+	},
+	enabled: function (projectId, tabSet) {
+		return Utils.bugVisibility && ((projectId == '0' || (tabSet.has('Issues')|| tabSet.has('Issue'))) && (getPermission(projectId).bug.permission.create === true || projectId == '0')) //NO I18N
+	},
+	getSuccessMessage: function () {
+		return getBugRepValue('zp.projcal.addsucc','single') //NO I18N
+	},
+	getLink: function (data) {
+		return 'zp/issue-detail/' + data.entityId //NO I18N
+	},
+	formatResponseForCalendar: function (response) {
+
+		const dueDate = convertDateFormat(formatISODateString(response.due_date, DateTypes.DATE_ONLY), Utils.dateformat, "dd/MM/yyyy");//no i18n
+		let calResponse = {
+			abbrivation: 'B', bcolor:'blue', bhex:'#9f7d3e',//no i18n
+			comp_ed: formatISODateString(response.due_date, DateTypes.DATE_TIME),
+			comp_sd: formatISODateString(response.due_date, DateTypes.DATE_TIME),
+			duration:"1",//no i18n
+			ed: dueDate,
+			id:response.id,
+			is_bug_tab_enabled:true,
+			issue_status_id: response.status.id,
+			owner: [{name:response.assignee.name, id: response.assignee.zuid}],
+			parent_id:"",//no i18n
+			
+			project_id: response.project.id,
+			project_name: response.project.name,
+			sd: dueDate,
+			status:"open",//no i18n
+			title:response.name,
+			edITTYPE: "SINGLE",//NO I18N
+			type:'bug',//no i18n
+			addmore: response.addmore,
+		}
+		let index = response.prefix.indexOf("-I") > 0 ? response.prefix.indexOf("-I")+2 : response.prefix.indexOf("-")+1;
+		if(index>0){
+			calResponse.proj_bug_prefix = {[response.project.id]: response.prefix.slice(0, index)};
+			calResponse.bug_key= response.prefix.slice(index)
+		}
+		return calResponse;
+	},
+	getPermissionName: function () {
+		return 'bug' //NO I18N
+	},
+	viewEntity: function (data) {
+		zpApp.$router.$service.navigateToDetail('issuedetail', data.entityId).transitionParams = { projID: data.projectId, viewFrom: IssueDetailViewFrom.SEARCH, navigationObject: zpApp.$router.$service.getCurrentNavigationState() };//no i18n
+	}
+}
+GlobalAdd.Modules.Issue = {
+	getDisplayName: function () {
+		return Utils.bugReplaceValue
+	},
+	getIcon: function () {
+		return Utils.bugClass
+	},
+	getkey: function () {
+		return 'C + B' //NO I18N
+	},
+	load: function (data) {
+		let fromPage = "web_global_addbug";//no i18n
+		let prefilledFormData ={}
+		if (data.callFromCalendar) {
+			fromPage = "web_calender_addbug";//no i18n
+			prefilledFormData.due_date = GlobalAdd.Utils.getEndDateWithTime();
+		}
+		LoadGlobalForm.issueAdd({fromPage: fromPage, projectId: data.projectId, prefilledFormData},`#${data.containerName}`,{
+			methods: {
+				onAfterSubmit: function({recently_added_issues, issue_id}){
+				},
+				onIssueFormCancel: function(){
+					GlobalAdd.Events.close();
+				}
+			}
+		});
+	},
+	enabled: function (projectId, tabSet) {
+		return Utils.bugVisibility && ((projectId == '0' || (tabSet.has('Issues')||tabSet.has('Issue'))) && (getPermission(projectId).bug.permission.create === true || projectId == '0')) //NO I18N
+	},
+	getSuccessMessage: function () {
+		return getBugRepValue('zp.projcal.addsucc','single') //NO I18N
+	},
+	getLink: function (data) {
+		return 'zp/issue-detail/' + data.entityId //NO I18N
+	},
+	formatResponseForCalendar: function (response) {
+
+		const dueDate = convertDateFormat(formatISODateString(response.due_date, DateTypes.DATE_ONLY), Utils.dateformat, "dd/MM/yyyy");//no i18n
+		let calResponse = {
+			abbrivation: 'B', bcolor:'blue', bhex:'#9f7d3e',//no i18n
+			comp_ed: formatISODateString(response.due_date, DateTypes.DATE_TIME),
+			comp_sd: formatISODateString(response.due_date, DateTypes.DATE_TIME),
+			duration:"1",//no i18n
+			ed: dueDate,
+			id:response.id,
+			is_bug_tab_enabled:true,
+			issue_status_id: response.status.id,
+			owner: [{name:response.assignee.name, id: response.assignee.zuid}],
+			parent_id:"",//no i18n
+			
+			project_id: response.project.id,
+			project_name: response.project.name,
+			sd: dueDate,
+			status:"open",//no i18n
+			title:response.name,
+			edITTYPE: "SINGLE",//NO I18N
+			type:'bug',//no i18n
+			addmore: response.addmore,
+		}
+		let index = response.prefix.indexOf("-I") > 0 ? response.prefix.indexOf("-I")+2 : response.prefix.indexOf("-")+1;
+		if(index>0){
+			calResponse.proj_bug_prefix = {[response.project.id]: response.prefix.slice(0, index)};
+			calResponse.bug_key= response.prefix.slice(index)
+		}
+		return calResponse;
+	},
+	getPermissionName: function () {
+		return 'bug' //NO I18N
+	},
+	viewEntity: function (data) {
+		zpApp.$router.$service.navigateToDetail('issuedetail', data.entityId).transitionParams = { projID: data.projectId, viewFrom: IssueDetailViewFrom.SEARCH, navigationObject: zpApp.$router.$service.getCurrentNavigationState() };//no i18n
+	}
+}
+
+
+GlobalAdd.Modules.IssueImport = {
+    getDisplayName: function () {
+        return Utils.bugReplaceValue
+    },
+    getIcon: function () {
+       return Utils.bugClass; //NO I18N
+    },
+    getkey: function () {
+        return '' //NO I18N
+    },
+    load: function (data) {
+        GlobalAdd.Import.constructImportForms('IssueImport'); //NO I18N
+    },
+    enabled: function (projectId, tabSet) {
+        return (!Utils.isBundledPortal && Utils.bugVisibility && (projectId == '0' || (tabSet.has('Issues') || tabSet.has('Issue'))) && (getPermission(projectId).bug.permission.create === true || projectId == '0') && (Utils.isBugPortal || (!Utils.isBugPortal && permissions.bug.permission.import))) //NO I18N
+    },
+	getSuccessMessage: function () {
+		return getI18nValue('zp.bug.importscheduled'); //NO I18N
+    },
+    getLink: function (data) {
+        return 'buginfo/' + data.projectId + '/' + data.entityId //NO I18N
+    },
+    formatResponseForCalendar: function (response) {
+        let mapping = {"BUGID": "id", "BUG_TITLE": "name", "status_id": "issue_status_id"};//NO I18N
+        response = changeFormatOfEventJSON(mapping,response);
+        response.edITTYPE = "SINGLE";//NO I18N
+        if(response.hasOwnProperty("assigned_to") && response.hasOwnProperty("assigned_to_zuid"))
+        {
+            response.owner=[{id: response.assigned_to_zuid, name: response.assigned_to}];                
+        }
+        return response;
+    },
+    getPermissionName: function () {
+        return 'bug' //NO I18N
+    },
+    onProjectChange: function (projectData, event, data) {      
+        GlobalAdd.States.Project.id = projectData.id;
+    }
+}
+
+GlobalAdd.Modules.Timesheet = {
+	getDisplayName: function () {
+		return getI18nValue('zp.tab.timelog') //NO I18N
+	},
+	getIcon: function () {
+		return 'zoho-timesheet' //NO I18N	
+	},
+	getkey: function () {
+		return 'C + L' //NO I18N
+	},
+	load: function (data) {
+		LoadGlobalForm.timelogAdd(data);
+	},
+	enabled: function (projectId, tabSet) {
+		let normalChecks = ((projectId == '0' || tabSet.has('Timesheet')) && (getPermission(projectId).timesheet.permission.create === true || projectId == '0') && ((Utils.servicedomain == 'projects' && Utils.orgLicencePlan != 'Free') || (Utils.servicedomain == 'bugs' && Utils.bugPlan != 'Free')))
+		let clientChecks = true
+		if (Utils.isClient && projectId == '0') {
+			clientChecks = getPermission(projectId).timesheet.permission.create
+		}
+		return Utils.timesheetVisibility && normalChecks && clientChecks
+	},
+	getSuccessMessage: function (data) {
+		let successMessage = data.isDraft ? "zp.timesheet.draft.submit.success" : getI18nValue(getI18nValue('zp.projcal.addsucc').replace("{0}",getI18nValue('zp.module.timelog'))); //NO I18N
+		return getI18nValue(successMessage);
+	},
+	getLink: function (data) {
+		return 'zp/projects/' + data.projectId + '/timelog-detail/' + data.entityId + '?type=' + data.logType //NO I18N
+	},
+	getPermissionName: function () {
+		return 'timesheet' //NO I18N
+	},
+	onProjectChange: function (projectData, event, data) {
+		let projectId = projectData.id
+		let customdate = document.getElementById('customdate') != null ? (document.getElementById('customdate').value) : ""
+		document.getElementById(addTimesheetObj.formData.divId).innerHTML = '';
+		addTimesheetObj.renderAddTimeSheetForm({ PROJID: projectId, FORMTYPE: "add", custom_date: customdate, DIVID: addTimesheetObj.formData.divId, from: 'mytimesheet' }); // No I18N
+	},
+	viewEntity: function (data) {
+		zpApp.$router.$service.navigateToDetail('timelogdetail', data.entityId, { type : data.logType }).transitionParams = { from : 'globaladd', project_id : data.projectId  };	//no i18n
+	}
+}
+
+GlobalAdd.Modules.Forum = {
+	getDisplayName: function () {
+		return getI18nValue('zp.audit.filter.forum') //NO I18N
+	},
+	getIcon: function () {
+		return 'zoho-forums' //NO I18N	
+	},
+	getkey: function () {
+		return 'C + F' //NO I18N
+	},
+	load: function (data) {
+		LoadGlobalForm.forumAdd(data);
+	},
+	enabled: function (projectId, tabSet) {
+		return !GlobalAdd.CallFrom.Calendar && (projectId == '0' || tabSet.has('Forum') && getPermission(projectId).forum.permission.create === true || projectId == '0')
+	},
+	getSuccessMessage: function () {
+		return getI18nValue(getI18nValue('zp.projcal.addsucc').replace("{0}",getI18nValue('zp.forum.tab'))) //NO I18N
+	},
+	getLink: function (data) {
+		return 'zp/forum-detail/' + data.entityId //NO I18N
+	},
+	getPermissionName: function () {
+		return 'forum' //NO I18N
+	},
+	viewEntity: function (data) {
+		zpApp.$router.$service.navigateToDetail('forumdetail', data.entityId, {}).transitionParams = { project_id : data.projectId, fromPage : 'global_add' }; //no i18n
+	},
+	onProjectChange: function (projectData, event, data) {
+		Promise.all([
+			import('/asset/forums/forum-util.js'),	//no i18n
+			import('/asset/forums/forum-categories')	//no i18n
+		])
+		.then((modules) => {
+			let [ForumUtils, Category] = [modules[0].ForumUtils, modules[1].Category];
+			var projectId = projectData.id
+
+			// Change the project in the form
+			document.getElementById('forum-add-form').setAttribute('data-project-id', projectId)
+
+			// Set projectId and render attachment bar
+			let attachmentBar = TSG.jQuery.tmpl('attachmentPopup', {//NO I18N
+				'comp': 'attachment_bar',//NO I18N
+				'popup_location': Attachments.Locations._forumAttachments, //NO I18N
+				project_id: projectId
+			})
+
+			jQuery('#forumAttachmentContainer').html(attachmentBar)
+
+			if (projectId == '0') {
+				zpselectcomponent.init(document.getElementById('forum-category'), data[0], {
+					selectOptions: {
+						placeholder: getI18nValue('zp.taskdetforum.selectforum'), //NO I18N
+						disabled: true,
+					},
+				})
+			} else {
+				// Change the categories based on forum
+				Category.Utils.getLatestCategory(projectId).then(function (data) {
+					zpselectcomponent.init(document.getElementById('forum-category'), data[0], {
+						selectOptions: {
+							placeholder: getI18nValue('zp.taskdetforum.selectforum'), //NO I18N
+						},
+						providerWrapper: ProviderRepository.getNamedProviderWrapper("forum_category_filter", //NO I18N
+							ForumConstants.Category, {
+							projectId: projectId
+						}, {
+							range: 100
+						})
+					})
+				})
+			}
+
+			// Change @mention users in the editor
+			if (Utils.editorObj['forum-editor']) {
+				getAndSetMentionData('forum-editor', projectId, 'forums', true) //NO I18N
+			}
+
+			// Change users in the bottom bar
+			ForumUtils.initUsersBar(projectId, 'forum-users', [Utils.zuid + ""]) //NO I18N
+
+			// Focus the title
+			UI.Utils.focus('#forum-title') //NO I18N
+		});
+	}
+}
+
+GlobalAdd.Modules.Event = {
+	getDisplayName: function () {
+		return getI18nValue('zp.notification.event') //NO I18N
+	},
+	getIcon: function () {
+		return 'zoho-events' //NO I18N	
+	},
+	getkey: function () {
+		return 'C + E' //NO I18N
+	},
+	load: function (data) {
+		if (GlobalAdd.CallFrom.Calendar && caldetails.viewtype === "month") {
+			if (data.startDateWithTime == null || data.startDateWithTime == undefined) {
+				const eventDateObj = ZPDateTime.now();
+				data.startDate = eventDateObj.formatted_date
+				data.startDateWithTime = eventDateObj.formatted_date_time
+			} else {
+				data.startDateWithTime = Events.Utils.fixMMMMDateTimeFormatFromCalendar(data.startDateWithTime);
+				data.endDateWithTime = Events.Utils.fixMMMMDateTimeFormatFromCalendar(data.endDateWithTime);
+				data.startDate = Events.Utils.fixMMMMDateFormatFromCalendar(data.startDate);
+				data.endDate = Events.Utils.fixMMMMDateFormatFromCalendar(data.endDate);
+			}
+		}
+		Events.addForm({ projId: data.projectId, divId: data.containerName, frompage: 'addevent', additionalInfo: data }); //No i18n
+	},
+	enabled: function (projectId, tabSet) {
+		return (projectId == '0' || tabSet.has('Calendar') && getPermission(projectId).event.permission.create === true || projectId == '0')
+	},
+	getSuccessMessage: function () {
+		return getI18nValue(getI18nValue('zp.projcal.addsucc').replace("{0}",getI18nValue('zp.meetings.meeting'))) //NO I18N
+	},
+	getLink: function (data) {
+		return 'zp/collaboration/calendar/events/' + data.entityId //NO I18N
+	},
+	formatResponseForCalendar: function (response) {
+		const calJSON = response
+		if (response.hasOwnProperty('project_id')) {
+			calJSON.allow_edit = getPermission(response.project_id).event.permission.edit
+			calJSON.allow_drag = getPermission(response.project_id).event.permission.edit
+			calJSON.allow_delete = getPermission(response.project_id).event.permission.delete
+			calJSON.abbrivation = 'E' // No i18n
+			calJSON.type = 'meeting'
+			calJSON.bhex = '#916aa3' // No i18n
+			calJSON.bcolor = 'violet' // No i18n
+			calJSON.ISRECADJUSTED = false
+			calJSON.status = response.is_open ? 'Open' : 'Closed' // No i18n
+			calJSON.start_date_long = ZPDateTime.toMillis(response.starts_at)
+			calJSON.due_date_long = ZPDateTime.toMillis(response.ends_at)
+			calJSON.comp_sd = ZPDateTime.format(response.starts_at, Utils.dateformat)
+			calJSON.comp_ed = ZPDateTime.format(response.ends_at, Utils.dateformat)
+			calJSON.sd = ZPDateTime.format(response.starts_at, 'dd/MM/yyyy') // No i18n
+			calJSON.ed = ZPDateTime.format(response.ends_at, 'dd/MM/yyyy') // No i18n
+			calJSON.start_time = ZPDateTime.format(response.starts_at, 'HH:mm') // No i18n
+			calJSON.end_time = ZPDateTime.format(response.ends_at, 'HH:mm') // No i18n
+			calJSON.title = response.title
+			calJSON.project_name = response.project_name != undefined ? response.project_name : GlobalAdd.States.Project.name
+			calJSON.project_id = response.project_id
+			calJSON.id = response.id
+			calJSON.parent_id = ''
+			calJSON.CREATED_BY = response.created_by.id
+			calJSON.owner = response.attendees
+			calJSON.duration = `${Math.floor(parseInt(response.duration.duration_milli) / 1000 / 60 / 60) + 1}`
+			// calJSON.durp_disp = response.duration.duration
+			// calJSON.dur_mins = `${Math.floor(parseInt(response.duration.duration_milli) / 1000 / 60)}`
+
+		}
+		return calJSON
+	},
+	getPermissionName: function () {
+		return 'event' //NO I18N
+	},
+	viewEntity: function (data) {
+		Events.detail({ eventId: `${data.entityId}` })
+	},
+	onProjectChange: function (projectData, event, data) {
+		const project_id = `${projectData.id}`
+		jQuery("#projectId").val(project_id)
+		if (project_id == '0') {
+			dispNone('participantsDiv') //NO I18N
+			jQuery('#events-attachment-bar').addClass('hide')
+		} else {
+			dispBlock('participantsDiv') //NO I18N
+			document.getElementById('participants') != null && Events.Utils.loadAttendees(document.getElementById('participants'), `${project_id}`, [{ name: Utils.myDispName, id: Utils.zpuid }]);
+			jQuery('#events-attachment-bar').removeClass('hide').html(jQuery.tmpl('attachmentPopup', { 'comp': 'attachment_bar', popup_location: Attachments.Locations._eventAttachments, project_id })) //No i18n
+		}
+		Events.addFormDetails(project_id)
+		UI.Utils.focus('#newmeeting') //NO I18N
+	}
+}
+
+GlobalAdd.Modules.Document = {
+	getDisplayName: function () {
+		return getI18nValue('zp.sswinteg.cnewdoc') //NO I18N
+	},
+	getIcon: function () {
+		return 'zoho-documents' //NO I18N	
+	},
+	getkey: function () {
+		return 'C + D' //NO I18N
+	},
+	load: function (data) {
+		addGlobalDocs(data.projectId, data.containerName)
+	},
+	enabled: function (projectId, tabSet) {
+		return !GlobalAdd.CallFrom.Calendar && (projectId == '0' || (tabSet.has('Document') || tabSet.has('Documents'))&& getPermission(projectId).document.permission.create === true || projectId == '0')
+	},
+	getSuccessMessage: function () {
+		return getI18nValue(getI18nValue('zp.projcal.uploadsucc').replace("{0}",getI18nValue('zp.sswinteg.cnewdoc'))) //NO I18N
+	},
+	getLink: function (data) {
+		return 'documents/' + data.projectId //NO I18N
+	},
+	getPermissionName: function () {
+		return 'document' //NO I18N
+	},
+	onProjectChange: function (projectData, event, data) {
+		var projectId = projectData.id
+		jQuery('#projectId').val(projectId);
+		loadDocumentFolders(projectId);
+	}
+}
+
+GlobalAdd.Modules.Documents = {
+	getDisplayName: function () {
+		return getI18nValue('zp.sswinteg.cnewdoc') //NO I18N
+	},
+	getIcon: function () {
+		return 'zoho-documents' //NO I18N	
+	},
+	getkey: function () {
+		return 'C + D' //NO I18N
+	},
+	load: function (data) {
+		addGlobalDocs(data.projectId, data.containerName)
+	},
+	enabled: function (projectId, tabSet) {
+		return !GlobalAdd.CallFrom.Calendar && (projectId == '0' || (tabSet.has('Document') || tabSet.has('Documents')) && getPermission(projectId).document.permission.create === true || projectId == '0')
+	},
+	getSuccessMessage: function () {
+		return getI18nValue(getI18nValue('zp.projcal.uploadsucc').replace("{0}",getI18nValue('zp.sswinteg.cnewdoc'))) //NO I18N
+	},
+	getLink: function (data) {
+		return 'documents/' + data.projectId //NO I18N
+	},
+	getPermissionName: function () {
+		return 'document' //NO I18N
+	},
+	onProjectChange: function (projectData, event, data) {
+		var projectId = projectData.id
+		jQuery('#projectId').val(projectId);
+		loadDocumentFolders(projectId);
+	}
+}
+
+GlobalAdd.Modules.Users = {
+	getDisplayName: function () {
+		return getI18nValue('zp.general.user') //NO I18N
+	},
+	getIcon: function () {
+		return 'zoho-users' //NO I18N	
+	},
+	getkey: function () {
+		return 'C + U' //NO I18N
+	},
+	load: function (data) {
+		LoadGlobalForm.userAdd(data);
+	},
+	enabled: function (projectId, tabSet) {
+		return (Utils.isAccountsConfirmed && (!GlobalAdd.CallFrom.Calendar && (projectId == '0' || tabSet.has('Users')) && !Utils.isClient && (getPermission(projectId).project_user.permission.associate === true || projectId == '0')))
+	},
+	getSuccessMessage: function () {
+		return getI18nValue('zp.customize.people.addusersucess') //NO I18N
+	},
+	getLink: function (data) {
+		return null
+	},
+	getPermissionName: function () {
+		return 'project_user' //NO I18N
+	},
+	onProjectChange: function (projectData, event, data) {
+		var projectId = projectData.id
+		if (projectId != '-1') {
+			userForms.addUser(projectId, 'gadd') //NO I18N
+		}
+		findSticky(".slideFormBottombtn") //NO I18N
+	}
+}
+
+GlobalAdd.Modules.ZohoMeeting = {
+	getDisplayName: function () {
+		return getI18nValue('zp.meeting.meeting') //NO I18N
+	},
+	getIcon: function () {
+		return 'zoho-meeting-integ' //NO I18N	
+	},
+	getkey: function () {
+		return '' //NO I18N
+	},
+	load: function (data) {
+		const formData = (data.startDate == undefined) ? { project_id: data.projectId } : { project_id: data.projectId, DATES: { SD: data.startDate, SDWITHTIME: data.startDateWithTime, ED: data.endDate, EDWITHTIME: data.endDateWithTime } }
+		meeting.showForm('add', formData, data.containerName) //NO I18N
+	},
+	enabled: function (projectId, tabSet) {
+		return (Utils.isZohoMeetingAvailable && permissions.event.permission.create)
+	},
+	getSuccessMessage: function () {
+		return getI18nValue(getI18nValue('zp.projcal.addsucc').replace("{0}",getI18nValue('zp.meeting.meeting'))) //NO I18N
+	},
+	getLink: function (data) {
+		return 'mymeetings' //NO I18N
+	},
+	formatResponseForCalendar: function (response) {
+		var meetData = {
+			allow_delete: true,
+			allow_edit: true,
+			bcolor: "red",//no I18n
+			bhex: "#FFFFFF",//no I18n
+			is_recurring: false,
+			duration: 1,
+			type: "zohomeeting"//no I18n
+		};
+		meetData.comp_sd = response.start_date;
+		meetData.created_by = response.presenter;
+		meetData.durp_disp = response.duration * 60000;
+		meetData.sd = convertDateFormat(response.start_date, Utils.dateformat, "dd/MM/yyyy");//no I18n
+		meetData.ed = convertDateFormat(response.start_date, Utils.dateformat, "dd/MM/yyyy");//no I18n
+		meetData.id = response.meeting_id;
+		meetData.owner = [];
+		var attendees = response.internal_participants;
+		for (var i = 0; i < attendees.length; i++) {
+			meetData.owner.push({ 'id': attendees[i].id, 'name': attendees[i].name });
+		}
+		meetData.project_id = response.project_id;
+		meetData.project_name = response.project_name;
+		meetData.start_time = response.start_time;
+		meetData.end_time = response.end_time;
+		meetData.status = response.status;
+		meetData.title = response.topic;
+		meetData.allow_drag = true;
+		return meetData;
+	},
+	getPermissionName: function () {
+		return 'event' //NO I18N
+	},
+	viewEntity: function (data) {
+		meeting.showForm('details', { project_id: data.projectId, meeting_id: data.entityId }) //NO I18N
+	},
+	onProjectChange: function (projectData, event, data) {
+		var projectId = projectData.id
+		if (projectId == "" || projectId == '-1' || projectId == '0') {
+			dispNone('zohomeetingparticipantcontainer') //NO I18N
+		} else {
+			dispBlock('zohomeetingparticipantcontainer') //NO I18N
+			let providerWrapper = ProviderRepository.getProviderWrapper(userList.entitytype.projectfullusers.key, { iszuidprimary: true, isactive: true, isconfirmeduser: true, projectid: projectId });
+			zpselectcomponent.init(document.getElementById('meeting_user_list'), undefined, {
+				selectOptions: { placeholder: getI18nValue('zp.explogs.seluser') },//No I18n
+				providerWrapper: providerWrapper,
+				customContent: userCustomContent,
+				isParentCustomContent: true,
+				isIDSearchAvailable: true
+			});
+		}
+		UI.Utils.focus('#topic') //NO I18N
+	}
+}
+
+GlobalAdd.Modules.TimeOff = {
+	// Set via a call 
+	peopleUrl: undefined,
+	getDisplayName: function () {
+		return getI18nValue('zp.people.timeoff') //NO I18N
+	},
+	getIcon: function () {
+		return 'zoho-user-absent' //NO I18N	
+	},
+	getkey: function () {
+		return + 'C + G' //NO I18N
+	},
+	load: function (data) {
+		let element = document.getElementById(data.containerName)
+		let peopleDomain = Integrations.people.domain;
+		let headerElement = createAndSetAttributes('div', { class: 'slideFormHeaderBand' }) //NO I18N
+		let textElement = createAndSetAttributes('div', { class: 'slideFormName' }) //NO I18N
+		textElement.textContent = getI18nValue('zp.timeoff.title') //NO I18N
+		let iconElement = createAndSetAttributes('i', { class: 'zoho-close cta fs10px mLauto' }) //NO I18N
+		iconElement.addEventListener('click', GlobalAdd.Modules.TimeOff.close)
+		headerElement.appendChild(textElement)
+		headerElement.appendChild(iconElement)
+		let formContainerElement = createAndSetAttributes('div', { class: 'zps-form-container' }) //NO I18N
+
+		//For uncompressed build append origin with css path 
+		if (GlobalAdd.Modules.TimeOff.peopleUrl.split("csspath=")[1].startsWith("..")) {
+			var uncompressedUrl = GlobalAdd.Modules.TimeOff.peopleUrl.split("../..");
+			GlobalAdd.Modules.TimeOff.peopleUrl = uncompressedUrl[0] + window.origin + uncompressedUrl[1];
+		}
+		let iframeElement = createAndSetAttributes('iframe', { //NO I18N
+			class: 'people-integ-iframe',  //NO I18N
+			name: 'invIFrame', //NO I18N
+			id: 'invIFrame', //NO I18N
+			frameborder: '0', //NO I18N
+			scrolling: '', //NO I18N
+			fpage: 'invDetailPage', //NO I18N
+			projId: data.projectId,
+			eType: 12,
+			src: GlobalAdd.Modules.TimeOff.peopleUrl,
+			onload: "changeIframeTheme(id)", //NO I18N
+			'target-origin': peopleDomain, //NO I18N
+			'integration-iframe': true //NO I18N
+		})
+		formContainerElement.appendChild(iframeElement)
+
+		element.appendChild(headerElement)
+		element.appendChild(formContainerElement)
+	},
+	enabled: function (projectId, tabSet) {
+		return (GlobalAdd.Modules.TimeOff.peopleUrl != undefined)
+	},
+	getSuccessMessage: function () {
+		return getI18nValue('zp.meeting.addsuccess') //NO I18N
+	},
+	getLink: function (data) {
+		return null
+	},
+	close: function () {
+		if (GlobalAdd.CallFrom.Calendar) {
+			if (caldetails.viewtype === 'month') {
+				loadMonthData(caldetails.selmonth, caldetails.selyear)
+			}
+		}
+		GlobalAdd.Events.close()
+	},
+	formatResponseForCalendar: function (response) {
+		return response
+	},
+	getPermissionName: function () {
+		return 'invoice' //NO I18N
+	}
+}
+
+GlobalAdd.Modules.ImportFromOtherSource = {
+	getDisplayName: function () {
+		return getI18nValue('zp.imports.importfromothers') //NO I18N
+	},
+	getImgUrl: function () {
+		return getCdnUrl("img","images/svg/coloredicons/Import-other-source.svg") //NO I18N
+	},
+	load: function (data) {
+		GlobalAdd.Import.openOtherImports();
+		onCloseBann("import_from_other_PM_softwares", undefined, undefined, "import_from_other_PM_softwares"); //NO I18N
+	},
+	getkey: function () {
+		return ''
+	},
+	getIcon: function () {
+		return ''
+	},
+	enabled: function (projectId, tabSet) {
+		return (!Utils.isBundledPortal &&(projectId == '0' || (tabSet.has('Issues')||tabSet.has('Issue'))) && (getPermission(projectId).bug.permission.create === true || projectId == '0')) //NO I18N
+	},
+	getPermissionName: function () {
+		return ''
+	}
+}
+
+GlobalAdd.Modules.Loading = {
+	getDisplayName: function () {
+		return ''
+	},
+	getIcon: function () {
+		return ''
+	},
+	getkey: function () {
+		return ''
+	},
+	load: function (data) {
+
+	},
+	getkey: function () {
+		return ''
+	},
+	enabled: function (projectId, tabSet) {
+		return (!isPostLoadingPopulateVariablesLoaded)
+	},
+	getSuccessMessage: function () {
+		return null
+	},
+	getLink: function (data) {
+		return '' //NO I18N
+	},
+	formatResponseForCalendar: function (response) {
+		return ''
+	},
+	getPermissionName: function () {
+		return '' //NO I18N
+	},
+	viewEntity: function (data) {
+
+	},
+	onProjectChange: function (projectData, event, data) {
+
+	}
+}
+
+GlobalAdd.Import = {
+    constructImportForms: function (module , projId) {
+        UI.Utils.empty("#globalAddDiv");//NO I18N
+        if(module === GlobalAdd.Constants._TASK){
+            showJsonImportPage(projId,'0',undefined,'viewbygrp','globalAddDiv');
+        }else if(module === "Jira"){//NO I18N
+			import('/asset/setup/data-administration-util').then((mod) => {    //no i18n
+				mod.Imports.jira.setup('#globalAddDiv');  //no i18n
+			});
+        }else if(module === "Basecamp"){//NO I18N
+			import('/asset/setup/data-administration-util').then((mod) => {    //no i18n
+				mod.Imports.baseCamp.setup('#globalAddDiv');   //no i18n
+			});
+        }else if(module === "IssueImport"){//NO I18N
+			importIssueRoute().then(mod => {
+           		GlobalAdd.Import.loadIssueImportForm('bugtracker');//NO I18N
+			});
+        }else if(module === "ImportFromOthers"){//NO I18N
+			// jQuery("#globalAddDiv").html();
+        }
+
+    },
+    
+    openImportedProj: function(projectId){
+		const projectTabs = new ProjectTabs ({isProjectTabsVisible: true, projectId: projectId, niceURLFromPage: 'tasks'}) // NO I18N
+		projectTabs.makeAjaxCalls()
+		constructProjDisplayPage(projectId)	
+		goToSavedTaskView(projectId,getZPCSRF())
+	},
+    
+    loadIssueImportForm: function (module){
+        jQuery("#globalAddDiv").html(jQuery.tmpl("bugimport", {'comp' : "importtemplate"})).show().promise().done(function(){ // no i18n
+    		
+            GlobalAdd.Utils.loadProjectBar('bugImportProj', GlobalAdd.Constants._BUG);// no i18n
+    		
+            jQuery("#bugimport").submit(function(e){
+                return false;
+            });
+            document.getElementById("bug_upload_file").addEventListener('click', function() {
+				var projectId = GlobalAdd.States.Project.id;
+                document.getElementById('bug_upload_file').setAttribute("zps-loader", "yes");
+                if(!jQuery('#uploadfile').val()){
+                    var errorMsg = {'message' : getI18nValue('zp.impmpp.empty')} // no i18n
+                    UI.Utils.showError(errorMsg);
+                    document.getElementById('bug_upload_file').setAttribute("zps-loader", "no");
+                    attentionClick('id','bug_upload_file'); // no i18n
+                    return false;
+				}
+				
+				if(projectId == "0" || projectId == ""){
+					attentionClick("id", "bug_upload_file_cancel");//No I18N                    		
+					UI.Utils.showError({'message':getI18nValue('zp.timesheet.validproject')});//No I18N
+					document.getElementById('bug_upload_file').setAttribute("zps-loader", "no");
+					attentionClick('id','bug_upload_file'); // no i18n
+					return false;			
+				}
+                var selFileName = jQuery("[name='filetype']:checked").val();
+    			
+                var filename = jQuery("#uploadfile").val();
+                var orgFileType = filename.substring(filename.lastIndexOf(".") + 1);
+                if(orgFileType === 'xlsx'){
+                    orgFileType='xls';//no i18n
+                }
+                if(!filename.match(/[.]csv$/i) && !filename.match(/[.]xls$/i) && !filename.match(/[.]xlsx$/i))
+                {
+                    var errorMsg = {'message' : 'zp.files.importxlsandcsvonly'} // no i18n
+                    UI.Utils.showError(errorMsg);
+                    document.getElementById('bug_upload_file').setAttribute("zps-loader", "no");
+                    attentionClick('id','bug_upload_file'); // no i18n
+                    return false;
+                }
+                else if (!(selFileName.toLowerCase() === orgFileType.toLowerCase()))
+                {
+                    if('xls'==orgFileType){
+                        jQuery('#lable_csv').prop("checked",false); // no i18n
+                        jQuery('#lable_xls').prop("checked",true); // no i18n
+                    }else if('csv'==orgFileType){ // no i18n
+                        jQuery('#lable_xls').prop("checked",false); // no i18n
+                        jQuery('#lable_csv').prop("checked",true); // no i18n
+                    }
+                }
+    			
+                var form = jQuery("#bugimport"); 
+                var formData = new FormData(jQuery('#bugimport')[0]);
+                var uploadFileUrl = "/projects/"+projectId+"/bugs/import/uploadfile/"; // no i18n
+    	    	
+                ajaxRequest({url: uploadFileUrl,  type: 'POST', args: formData,processData: false,contentType:false,restAPI: true}).then(function(uploadFileResponseData){ // no i18n
+                    let resp = uploadFileResponseData.data;
+                    if(resp.error_msg!=null){
+                        var errorMsg = {'message' : resp.error_msg} // no i18n
+                        UI.Utils.showError(errorMsg); 
+                        document.getElementById('bug_upload_file').setAttribute("zps-loader", "no");
+                        attentionClick('id','bug_upload_file'); // no i18n
+                        return;
+                    }
+                    document.getElementById('bug_upload_file').setAttribute("zps-loader", "no");
+                    resp.comp = 'field_mapping'; // no i18n
+                    jQuery('#upload_file').addClass('hide');
+                    jQuery('#field_map').html(jQuery.tmpl('bugimport',resp)); // no i18n
+                    jQuery('#field_map').removeClass('hide');
+                    jQuery("#mapbugimportscroll").off("scroll").on("scroll",function(){ // no i18n
+                                    if(jQuery(".zdropdownlist")){
+                                        jQuery(".zdropdownlist").hide();
+                                    }
+                    });
+                    document.getElementById("schedule_import").addEventListener('click', function() {
+                        var projectId = zpselectcomponent.getValue(document.getElementById("bugImportProj"));
+                        document.getElementById('schedule_import').setAttribute("zps-loader", "yes");
+                        var scheduleform = jQuery("#mapbugimportfield"); 
+                        var bugimpformData = new FormData(jQuery('#mapbugimportfield')[0]);
+                        var impScheduleUrl = "/projects/"+projectId+"/bugs/import/schedule/"; // no i18n
+                        ajaxRequest({url: impScheduleUrl,  type: 'POST', args:bugimpformData,processData: false,contentType:false,restAPI: true}).then(function(scheduleImportResponseData){ // no i18n
+                                resp = scheduleImportResponseData.data;
+                                if(resp.error_msg!=null){
+                                    var errorMsg = {'message' : resp.error_msg} // no i18n
+                                    UI.Utils.showError(errorMsg); 
+                                    document.getElementById('schedule_import').setAttribute("zps-loader", "no");
+                                    attentionClick('id','schedule_import'); // no i18n
+                                    return;
+                                }
+                                document.getElementById('schedule_import').setAttribute("zps-loader", "no");
+                                resp.comp = 'bug_imp_status'; // no i18n
+                                jQuery('#upload_file').addClass('hide');
+                                jQuery('#field_map').addClass('hide');
+                                jQuery('#bugimpstatus').html(jQuery.tmpl('bugimport',resp)); // no i18n
+                                jQuery('#bugimpstatus').removeClass('hide');
+                                setTimeout(function(){
+                                     if(GlobalAdd.CallFrom.GA != undefined && GlobalAdd.CallFrom.GA === 'yes'){
+                                         GlobalAdd.Actions.close();
+										 const spanFragment = document.createDocumentFragment();
+                                         const spanElementProj = createAndSetAttributes('span') //NO I18N
+                                         spanElementProj.textContent = getI18nValue('zp.issueimport.successful') //NO I18N
+                                         spanFragment.appendChild(spanElementProj)
+                                         //const linkProj = createAndSetAttributes('a', { class: 'zps-success-link' }) //NO I18N
+                                         //linkProj.textContent = getI18nValue('zp.general.viewnow') //NO I18N
+                                         //linkProj.addEventListener("click", function () { GlobalAdd.Modules.IssueImport.viewEntity(projectId) });
+                                         //spanFragment.appendChild(linkProj);
+                                         
+										 UI.Utils.showSuccess({ message: spanFragment, time: 5000 });
+                                     }
+                                },5000);
+                            }) 
+                    });
+    				
+                    document.getElementById("cancel_import").addEventListener('click', function() {
+                        GlobalAdd.Actions.close();
+                    });
+                })
+            });
+            document.getElementById("bug_upload_file_cancel").addEventListener('click', function() {
+                GlobalAdd.Actions.close();
+            });
+        });
+    },
+
+	openOtherImports: function (){
+		const url = "https://creatorapp.zohopublic.in/uprasanna_zohocorp/data-migration/form-perma/Data_Migration/Hdx5tWHzvhrCaKGkkXKfjesye0XZNreQwnbSWXTjEauj3qkrHngVEsukMVOn2hOuHdMz5zz3znNuYjj118xKQXzkGqKMsUfnpSMv";// no i18n
+		window.open(url, "_blank");
+	}
+
+}
+
+GlobalAdd.Data = {
+	EnabledModules: function (projectId) {
+		return ajaxRequest({
+			url: Utils.contPath + '/dashwizard.do', //NO I18N
+			type: _POST,
+			args: {
+				frompage: 'gadd', //NO I18N
+				projId: projectId
+			},
+			restAPI: false
+		})
+	}
+}
+
+/*
+ * window.GlobalAdd will be removed in future. This is temporarily used to handle the GlobalAdd functions being called from the non-module js files
+ * https://writer.zoho.com/writer/open/58okt1fa4e6c0f45141bdb2674ee15b405e75
+ */
+window.GlobalAdd = GlobalAdd;
+
+export {GlobalAdd};

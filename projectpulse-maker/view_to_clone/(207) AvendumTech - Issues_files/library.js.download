@@ -1,0 +1,146 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(function() { // No I18N
+	// Determine whether zd-library files should be loaded (Skip if its inside an iframe)
+	var isNotInIframe = window.self === window.top;
+
+
+	// --- Set window.ZUnify.serviceData (before static-loader loads any scripts) ---
+	window.ZUnify = window.ZUnify || {}; // No I18N
+	// No-I18N comment code check error is coming when we use it without `out.println` tag
+	var oeServiceData = {"isOneBarEnabled":false,"zaaid":"60032529757","isOEEnabled":false,"appName":"projects","isBundleCase":false,"isNavBarEnabled":false,"isZOBundle":false,"context":"","isOneExperienceEnabled":false,"isBundlePresent":false,"zuid":"60044831901","isLauncherSupported":false};
+
+	oeServiceData.willOneBarLibraryLoad = oeServiceData.isOneBarEnabled && isNotInIframe; // No I18N
+	window.ZUnify.serviceData = oeServiceData; // No I18N
+
+	// Add one_experience class to body early to prevent layout shift (left: 40px space)
+	if (oeServiceData.isOneBarEnabled && oeServiceData.isBundleCase && oeServiceData.isZOBundle && document.body) { // No I18N
+		document.body.classList.add('one_experience'); // No I18N
+	}
+
+	
+
+
+
+
+
+
+
+
+
+
+
+var docHead = document.head || document.getElementsByTagName("head" )[0] || document.documentElement;
+
+function zdLibraryOnLoadHandler() {
+
+	// --- Inject ZUnify.js (always, irrespective of old or new flow) ---
+	
+		if (!(window.ZUnify && window.ZUnify.isZUnifyLibLoaded)) { // No I18N
+			var zunifyScript = document.createElement("script"); // No I18N
+			zunifyScript.src = "https:\/\/static.zohocdn.com\/zunify\/zunify.min.js"; // No I18N
+			zunifyScript.type = "text/javascript"; // No I18N
+			docHead.appendChild(zunifyScript); // No I18N
+		}
+	
+
+	
+};
+
+
+function includeScript(urlObj, callback) { // No I18N
+	var script = document.createElement("script"); // No I18N
+	script.src = urlObj.url; // No I18N
+	script.crossOrigin = "anonymous"; // No I18N
+	var integrityHash = urlObj.hash; // No I18N
+	if (integrityHash && integrityHash.trim() !== "") { // No I18N
+		script.integrity = integrityHash; // No I18N
+	}
+	if (callback) { // No I18N
+		script.onload = script.onreadystatechange = function() {
+			if (!this.readyState || this.readyState === "loaded" || this.readyState === "complete") {
+				callback(); // No I18N
+				script.onload = script.onreadystatechange = null; // To avoid calling repeatedly in IE // No I18N
+			}
+		};
+	}
+	docHead.appendChild(script); // No I18N
+};
+
+if(document.readyState == "complete") { // Call the handler if DOM already loaded.
+	zdLibraryOnLoadHandler(); 
+} else { 
+	// Should not use `window.onload` as it might be overridden by service team
+	if (window.addEventListener) {
+	  window.addEventListener('load', zdLibraryOnLoadHandler, false); 
+	} else if (window.attachEvent)  { 
+	  window.attachEvent('onload', zdLibraryOnLoadHandler); 
+	}
+}
+
+	function onZDLibraryScriptLoad() { // No I18N
+		if (!isNotInIframe) { // No I18N
+			// Don't proceed with initialization if its inside an iframe
+			return; // No I18N
+		}
+
+		// TODO: Once launcher library is moved to ZUnify repo, we can remove this ZDLibrary dependency
+		window.ZDLibrary.serviceData = { // No I18N
+			app_name : oeServiceData.appName, // No I18N
+			org_id : oeServiceData.orgId, // No I18N
+			zaaid : oeServiceData.zaaid, // No I18N
+			zuid: oeServiceData.zuid, // No I18N
+			context : oeServiceData.context, // No I18N
+			isBundle : oeServiceData.isBundleCase, // No I18N
+			isOEEnabled : oeServiceData.isOEEnabled, // No I18N
+			isZOBundle : oeServiceData.isZOBundle, // No I18N
+			home_api_url : "https:\/\/home.zoho.in/api/allapps" // No I18N
+		};
+		
+		
+		
+		
+		
+		window.ZDLibrary.serviceData.faviconUrl = "https:\/\/static.zohocdn.com\/onezoho\/zo\/assets\/zo\/images\/favicon.97a7de530332416b9da3cb487b1dec64.ico"; // No I18N
+		
+		
+		window.ZDLibrary.I18NData = {"oz.zunify.appsmenu.unpin.apps.menu":"Unpin App Menu","oz.zunify.appsmenu.recommended.apps":"Recommended Apps","oz.apps.group.sales":"Sales","oz.apps.group.marketing":"Marketing","oz.general.added":"Added","oz.account.zohoone.display":"Zoho One","oz.general.loading":"Loading...","oz.zdlibrary.added.applications.count":"{0} more application(s) added","oz.apps.group.helpdesk.note":"Be right where your customers are with apps to help your business engage with them. These tools will help you manage every customer request from one place.","oz.oe.marketplace.apps":"Marketplace","oz.spaces.whats.new.popup.cta.primary":"Go to <span style=\"color: #000 !important;>{0}<\/span>","oz.general.open":"Open","oz.zunify.appsmenu.pin.apps.menu":"Pin App Menu","oz.zunify.appsmenu.add.app.sso":"Add app using SSO","oz.general.no.results.found":"No results found","oz.apps.group.hrms.note":"Our modern HR solution blends HR apps with powerful collaboration features to help you build a strong company culture, motivate your employees, and boost workplace innovation.","oz.zdlibrary.my.apps":"My Apps","oz.oe.pending.approval":"Pending Approval","oz.general.try.now":"Try now","oz.apps.group.finance":"Finance","oz.oe.creator.apps":"Creator apps","oz.apps.group.sales.note":"CRM systems can help you build customer relationships, and our powerful sales solution allows you to do even more. It houses all your customer data, documents, and conversations in one place to help you shorten sales cycles, build pipelines faster, generate a 360-degree customer view, and collaborate between teams on deals.","oz.spaces.whats.new.popup.cta.sec":"Dismiss","oz.apps.group.hrms":"Human Resources","oz.spaces.whats.new.popup.title":"Refreshed & Smarter {0} is here!","oz.zdlibrary.more.apps":"More Apps","oz.apps.not.found":"No applications found","oz.general.show":"Show","oz.general.new":"New","oz.general.add":"Add","oz.zunify.appsmenu.my.favourites":"My Favourites","oz.apps.search.modules":"Search Modules","oz.zdlibrary.link.adminpanel":"Admin Panel","oz.apps.group.email.collaboration.note":"Work efficiently with apps that make your daily tasks easier. Use these apps to create documents, manage files, make audio or video calls, host meetings, and more.","oe.my.org.apps.note":"Apps used by your organization","oz.apps.search":"Search applications","oz.oe.all.zoho.apps":"All Zoho apps","oz.zunify.appsmenu.app.catalogue":"App Catalogue","oz.general.request":"Request","oz.apps.group.email.collaboration":"Email and Collaboration","oz.zdlibrary.recommended":"Recommended","oz.zunify.appsmenu.description":"One in five customers also use these apps.","oz.spaces.whats.new.popup.desc":"<ul><li><b>Spaces & Dashboard 2.0<\/b> \u2013 Work in focused zones with personalized dashboards.<\/li><li><b>ZApp & Zia Search<\/b> \u2013 One bar, instant actions, results from 20+ apps.<\/li><li><b>Admin & Security Upgrades<\/b> \u2013 Unified controls, smart groups, and anomaly detection.<\/li><\/ul>","oe.my.org.apps":"My Org Apps","oz.apps.group.business.process":"Business Process","oz.general.app.home":"Home","oz.zdlibrary.other.apps":"Other Apps","oz.apps.group.marketing.note":"Build a website, launch email campaigns, publish posts on social media, and more. Our powerful marketing solution will help you manage marketing projects, create and share collateral with various teams, measure ROI, and increase alignment between sales and marketing teams.","oz.apps.group.business.process.note":"Apps grouped by business process for better discoverability and access.","oz.apps.group.finance.note":"Solve business accounting challenges using our perfect set of finance apps on the cloud. These apps will help you organize your finances, track payables, manage bills, and expenses.","oz.apps.group.helpdesk":"Help Desk and Customer Support"}
+
+		
+		
+		
+		function enableTracking() { // No I18N
+			window.$zoho.salesiq.tracking.on(); // No I18N
+			window.$zoho.salesiq.visitor.info(window.ZDLibrary.infoPropertiesJson); // No I18N
+		} 	
+		
+		const match = document.cookie.split('; ').find(row => row.startsWith(encodeURIComponent('canShowOneBarDemo') + '=')); // No I18N
+    	var canShowOneBarDemo = match ? decodeURIComponent(match.split('=')[1]) : null;	 // No I18N
+		if(canShowOneBarDemo === 'true'){ // No I18N
+			if(window.onZDLibraryReady) { // No I18N
+				window.onZDLibraryReady(); // No I18N
+			}
+		}
+		
+			// Old flow: fire onZDLibraryReady callback
+			if(window.onZDLibraryReady) { // No I18N
+				window.onZDLibraryReady(); // No I18N
+			}
+		
+	}
+})();

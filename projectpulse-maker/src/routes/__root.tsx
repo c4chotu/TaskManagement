@@ -83,7 +83,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <HeadContent />
       </head>
@@ -100,7 +100,7 @@ function RootComponent() {
 
   useEffect(() => {
     const cachedTheme = localStorage.getItem("tfp.theme") || "default";
-    document.documentElement.className = `dark ${cachedTheme === "default" ? "" : `theme-${cachedTheme}`}`;
+    document.documentElement.className = cachedTheme === "default" ? "" : `theme-${cachedTheme}`;
   }, []);
 
   return (

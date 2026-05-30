@@ -1,0 +1,1277 @@
+.zialayout {
+  width: var(--fs420px);
+  bottom: 0 !important;
+  height: 68vh !important;
+  font-size: var(--fs14px) !important;
+  border-radius: var(--fs10px) var(--fs10px) 0px 0px !important;
+  box-shadow: var(--zpDropDownShadow) !important;
+  position: fixed;
+  background: rgb(var(--zpData)) !important;
+  z-index: 7;
+  transition: var(--zpTransition300ms);
+  transform-origin: bottom center;
+  transform: translateY(0);
+  opacity: 1;
+}
+body:not([dir=rtl]) .zialayout {
+  right: var(--fs5px) !important;
+}
+body[dir=rtl] .zialayout {
+  left: var(--fs5px) !important;
+}
+.zialayout.minimized {
+  transform: translateY(100%);
+  opacity: 0;
+}
+.zialayout .lyteMIDropdown {
+  font-family: Lato, "Open Sans", sans-serif;
+  display: none;
+  background: #fff;
+  border: 1px solid rgb(var(--zpSecondaryBdr));
+  position: absolute;
+  z-index: 7 !important;
+  margin-top: -2px;
+  border-radius: 0 0 2px 2px;
+  box-shadow: var(--zpDropDownShadow);
+  color: rgb(var(--zpOnData));
+  box-sizing: border-box;
+  overflow: auto;
+}
+
+.wms-subdiv.closed {
+  box-shadow: var(--zpDropDownShadow);
+  height: calc(var(--wmsbarHeight) + 8px);
+  bottom: 0;
+  animation: closeZia var(--zpTransition300ms) linear forwards;
+}
+
+@keyframes closeZia {
+  0%, 50% {
+    box-shadow: var(--zpDropDownShadow);
+    height: calc(var(--wmsbarHeight) + 8px);
+    bottom: 10px;
+  }
+  100% {
+    box-shadow: unset;
+    height: var(--wmsbarHeight);
+    bottom: 0;
+  }
+}
+.t_header {
+  padding: 8px 20px !important;
+}
+
+.mw135 {
+  max-width: 135px !important;
+}
+
+.bdrlft_f0 {
+  border-left: 1px solid #eef0f0 !important;
+}
+
+body[dir=rtl] .bdrlft_f0 {
+  border-left: unset !important;
+  border-right: 1px solid #eef0f0 !important;
+}
+
+.bdrrgt_f0 {
+  border-right: 1px solid #eef0f0 !important;
+}
+
+body[dir=rtl] .bdrrgt_f0 {
+  border-right: unset !important;
+  border-left: 1px solid #eef0f0 !important;
+}
+
+.bdrbtm_f0 {
+  border-bottom: 1px solid #eef0f0 !important;
+}
+
+.colfa6d52 {
+  color: #fa6d52 !important;
+}
+
+.col57b077 {
+  color: #57b077 !important;
+}
+
+.col1bbc9b {
+  color: #1bbc9b !important;
+}
+
+.tsk_prio {
+  border-left: 2px solid #27b471 !important;
+  padding-left: 10px !important;
+  width: 250px !important;
+}
+
+body[dir=rtl] .tsk_prio {
+  border-left: unset !important;
+  border-right: 2px solid #27b471 !important;
+  padding-left: unset !important;
+  padding-right: 10px !important;
+}
+
+.td_padtskview1 {
+  padding: 12px 20px 10px !important;
+}
+
+.td_padtskview2 {
+  padding: 12px 20px 20px !important;
+}
+
+.td_headerview {
+  padding: 12px 20px !important;
+}
+
+.priority_txt {
+  padding: 1px 6px !important;
+}
+
+.zia-iconbg {
+  width: 30px !important;
+  height: 30px !important;
+  background: #000 !important;
+  border-radius: 50% !important;
+  padding: 6px !important;
+  float: left !important;
+  margin-top: 4px !important;
+  margin-left: 10px !important;
+}
+
+body[dir=rtl] .zia-iconbg {
+  float: right !important;
+  margin-left: unset !important;
+  margin-right: 10px !important;
+}
+
+.zia_icons_bg {
+  background-color: rgb(var(--zpPrimary)) !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 50% !important;
+  position: absolute !important;
+  left: 9px !important;
+  top: 15px !important;
+  padding: 6px !important;
+  padding-top: 7px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 1px 2px 7px 0px rgba(116, 117, 121, 0.36);
+}
+
+body[dir=rtl] .zia_icons_bg {
+  left: unset !important;
+  right: 9px !important;
+  box-shadow: -1px 2px 7px 0px rgba(116, 117, 121, 0.36);
+}
+
+.pd_tf {
+  padding: var(--fs10px) !important;
+}
+
+.note_txt {
+  padding: 12px 15px !important;
+  border: 1px solid transparent !important;
+  background: #f25d70 !important;
+}
+
+.successbg {
+  padding: 12px 15px !important;
+  border: 1px solid transparent !important;
+  background: #00af8e !important;
+}
+
+.info_bg {
+  margin-bottom: 2px;
+  width: 20px !important;
+  height: 20px !important;
+  background: #fff !important;
+  border-radius: 100% !important;
+  z-index: 1 !important;
+  float: left !important;
+  line-height: 20px !important;
+  font-size: 16px !important;
+  margin-top: 1px !important;
+}
+
+body[dir=rtl] .info_bg {
+  float: right !important;
+}
+
+.colec5463 {
+  color: #ec5463 !important;
+}
+
+.col00c099 {
+  color: #00c099 !important;
+}
+
+.info_div {
+  width: var(--fs350px) !important;
+  position: absolute !important;
+  left: calc(var(--fs354px) * -1) !important;
+  background-color: rgb(var(--zpPopupBase)) !important;
+  box-shadow: var(--zpDropDownShadow);
+  border-radius: var(--fs3px);
+}
+
+body[dir=rtl] .info_div {
+  left: unset !important;
+  right: calc(var(--fs354px) * -1) !important;
+}
+
+.info_header {
+  display: flex;
+  align-items: center;
+  height: var(--fs50px);
+  padding: 0 var(--fs20px);
+  background-color: rgb(var(--zpTertiary));
+}
+
+.info_details {
+  padding: var(--fs20px) !important;
+  font-size: var(--fs13-5px) !important;
+  max-height: var(--fs320px);
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.ziaChatPop {
+  font-family: var(--fontregular);
+}
+
+zia-chat-bot .ziaChatPop .askziaheading {
+  display: flex !important;
+  align-items: center;
+}
+
+.ziaChatPop .askziaTit {
+  color: #fff !important;
+  font-size: var(--fs15px) !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  margin-top: 0 !important;
+  margin-left: var(--fs10px) !important;
+  font-family: var(--fontmedium);
+}
+
+body[dir=rtl] .ziaChatPop .askziaTit {
+  margin-left: unset !important;
+  margin-right: 10px !important;
+}
+
+.botSentContainer {
+  padding-left: 59px !important;
+  clear: both !important;
+  box-sizing: border-box !important;
+  position: relative;
+}
+
+body[dir=rtl] .botSentContainer {
+  padding-left: unset !important;
+  padding-right: 59px !important;
+}
+
+.zia_icons_zia_whitebg_small {
+  width: 18px !important;
+  height: 13px !important;
+  position: relative;
+  top: -1px;
+}
+
+.ziaChatPop .botSentText {
+  max-width: calc(100% - 60px) !important;
+  float: left !important;
+  clear: both !important;
+  border-radius: 1px 20px 20px 20px !important;
+  word-wrap: break-word !important;
+  margin-bottom: 15px !important;
+  overflow: hidden !important;
+  padding: 12px 15px !important;
+  margin-top: 15px !important;
+  background-color: rgb(var(--zpData)) !important;
+  position: relative !important;
+  box-shadow: var(--zpDropDownShadow);
+  font-size: var(--fs13px);
+  color: rgb(var(--zpOnData)) !important;
+}
+
+body[dir=rtl] .ziaChatPop .botSentText {
+  float: right !important;
+  border-radius: 20px 1px 20px 20px !important;
+}
+
+.ziaChatPop .showZiaMessage {
+  display: inline !important;
+  margin-top: 5px !important;
+}
+
+.ziaChatPop .userSent {
+  background-color: #728099 !important;
+  font-size: var(--fs13px) !important;
+  color: #fff !important;
+  margin-right: 14px !important;
+  max-width: calc(100% - 80px) !important;
+  float: right !important;
+  padding: 12px 15px !important;
+  margin-top: 15px !important;
+  margin-bottom: 15px !important;
+  box-sizing: border-box !important;
+  border-radius: 20px 2px 20px 20px !important;
+  clear: both !important;
+  word-wrap: break-word !important;
+}
+
+body[dir=rtl] .ziaChatPop .userSent {
+  margin-right: unset !important;
+  margin-left: 14px !important;
+  float: left !important;
+  border-radius: 2px 20px 20px 20px !important;
+}
+
+.zvoice-col-xs-12 {
+  width: 100% !important;
+  float: left !important;
+  padding-left: 26px !important;
+}
+
+body[dir=rtl] .zvoice-col-xs-12 {
+  float: right !important;
+  padding-left: 15px !important;
+  padding-right: 26px !important;
+}
+
+zia-chat-bot .ziaChatPop .chat-text-box lyte-table lyte-td {
+  height: 44px !important;
+  background: rgb(var(--zpFormElement)) !important;
+}
+
+zia-chat-bot .ziaChatPop .chat-text-box lyte-table lyte-td:first-child {
+  width: 37px !important;
+}
+
+.ziaChatPop .home-page-footer {
+  max-height: 80px !important;
+  border-top: 0px solid transparent !important;
+  width: 100% !important;
+  z-index: 10 !important;
+  position: relative;
+  padding: 15px;
+  bottom: 25px;
+}
+
+.chat-text-box textarea {
+  padding-left: 1px !important;
+  border: none !important;
+  width: 100% !important;
+  font-size: var(--fs13px) !important;
+  color: rgb(var(--zpOnData)) !important;
+  resize: none !important;
+  outline: none !important;
+  top: 11px !important;
+  height: 24px !important;
+  line-height: 24px !important;
+}
+
+body[dir=rtl] .chat-text-box textarea {
+  padding-left: unset !important;
+  padding-right: 1px !important;
+}
+
+.ziaChatPop .botSentContainer.noWrapBubbles {
+  white-space: nowrap !important;
+  overflow-x: scroll !important;
+  height: 60px !important;
+  bottom: 50px !important;
+  top: unset !important;
+}
+
+.ziaChatPop .suggestion-item {
+  padding: 5px 10px !important;
+  text-align: center !important;
+  border: 1px solid transparent !important;
+  color: #39a4ff !important;
+  background-color: #fff !important;
+  border-radius: 10px !important;
+  cursor: var(--cursorPointer) !important;
+  margin-right: 10px !important;
+  display: inline-block !important;
+  margin-bottom: 2px !important;
+  box-shadow: 1px 1px 10px #d0d0d0 !important;
+}
+
+body[dir=rtl] .ziaChatPop .suggestion-item {
+  margin-right: unset !important;
+  margin-left: 10px !important;
+  box-shadow: -1px 1px 10px #d0d0d0 !important;
+}
+
+.ziaChatPop .suggestion-item:hover {
+  border: 1px solid #39a4ff !important;
+  color: #39a4ff !important;
+  background-color: #fff !important;
+}
+
+.optionsAction {
+  margin-top: 15px !important;
+}
+
+.ziaChatPop lyte-radiobutton {
+  display: block !important;
+  margin-top: 8px !important;
+  margin-bottom: 8px !important;
+}
+.ziaChatPop lyte-radiobutton .lyteRadioCheck {
+  background-color: #39a4ff !important;
+}
+.ziaChatPop .lyteRadioBtn .lyteRadioLayer {
+  width: 14px !important;
+  height: 13px !important;
+  background: inherit !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  position: relative !important;
+  border: 1px solid rgb(var(--zpPrimary)) !important;
+  box-sizing: border-box !important;
+  border-radius: 50% !important;
+  margin-top: 3px;
+}
+.ziaChatPop .lyteRadioBtn .lyteRadioLayer .lyteRadioCheck, .ziaChatPop .lyteRadioBtn .lyteRadioLayer:after {
+  content: "" !important;
+  border-radius: 50% !important;
+  width: 7px !important;
+  height: 7px !important;
+  border-top: none !important;
+  border-left: none !important;
+  transform: scale(0) !important;
+  -webkit-transform: scale(0) !important;
+  top: 2px !important;
+  left: 2px !important;
+  transform-origin: center !important;
+  -webkit-transform-origin: center !important;
+  position: absolute !important;
+}
+body[dir=rtl] .ziaChatPop .lyteRadioBtn .lyteRadioLayer .lyteRadioCheck, body[dir=rtl] .ziaChatPop .lyteRadioBtn .lyteRadioLayer:after {
+  border-left: unset !important;
+  border-right: none !important;
+  left: unset !important;
+  right: 2px !important;
+}
+.ziaChatPop .lyteRadioBtn .lyteRadioLayer:after {
+  width: 8px !important;
+  height: 8px !important;
+  left: 4px !important;
+  top: 4px !important;
+}
+body[dir=rtl] .ziaChatPop .lyteRadioBtn .lyteRadioLayer:after {
+  left: unset !important;
+  right: 4px !important;
+}
+.ziaChatPop .lyteRadioBtn .lyteRadioLabel {
+  margin-right: 5px !important;
+  cursor: var(--cursorPointer) !important;
+  vertical-align: top !important;
+  width: 100% !important;
+  margin-left: 5px !important;
+  display: inline-block !important;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  font-size: var(--fs13px) !important;
+  text-transform: capitalize;
+}
+body[dir=rtl] .ziaChatPop .lyteRadioBtn .lyteRadioLabel {
+  margin-left: 5px !important;
+  margin-right: 5px !important;
+}
+.ziaChatPop .lyteRadioBtn input[type=radio]:checked + .lyteRadioLayer {
+  border-color: #39a4ff !important;
+}
+.ziaChatPop .lyteRadioBtn input[type=radio]:checked + .lyteRadioLayer .lyteRadioCheck {
+  width: 8px !important;
+  height: 8px !important;
+  left: 4px !important;
+  top: 4px !important;
+  transform: scale(1) !important;
+  -webkit-transform: scale(1) !important;
+  -moz-transform: scale(1) !important;
+  -ms-transform: scale(1) !important;
+}
+body[dir=rtl] .ziaChatPop .lyteRadioBtn input[type=radio]:checked + .lyteRadioLayer .lyteRadioCheck {
+  left: unset !important;
+  right: 4px !important;
+}
+.ziaChatPop .lyteRadioCheck {
+  background-color: #39a4ff !important;
+}
+.ziaChatPop lyte-button {
+  margin-right: 5px !important;
+}
+body[dir=rtl] .ziaChatPop lyte-button {
+  margin-right: unset !important;
+  margin-left: 5px !important;
+}
+.ziaChatPop lyte-button button {
+  display: inline-block !important;
+  border-radius: 2px !important;
+  font-size: 14px !important;
+  padding: 7px 15px !important;
+  cursor: var(--cursorPointer) !important;
+  text-transform: capitalize !important;
+  background: rgb(var(--zpData)) !important;
+  color: rgb(var(--zpPrimary)) !important;
+  border: 1px solid rgb(var(--zpPrimary)) !important;
+}
+.ziaChatPop lyte-button .lytePrimaryBtn {
+  background-color: rgb(var(--zpPrimary)) !important;
+  color: #fff !important;
+  border-radius: 20px !important;
+  border: 1px solid rgb(var(--zpPrimary)) !important;
+}
+
+.optionsAction {
+  margin-top: 20px !important;
+}
+
+.zia_chat_minimize {
+  width: 20px !important;
+  height: 20px !important;
+  display: inline-block !important;
+  cursor: var(--cursorPointer) !important;
+  margin-right: 18px !important;
+  position: absolute !important;
+  top: 12px !important;
+  right: 0px !important;
+}
+
+body[dir=rtl] .zia_chat_minimize {
+  margin-right: unset !important;
+  margin-left: 18px !important;
+  right: unset !important;
+  left: 0px !important;
+}
+
+.zia-detail-wrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  flex: 0 0 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.zia-detail-wrap > .zia-detail-header {
+  height: var(--fs60px);
+  background-color: rgb(var(--zpDetailBase));
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  flex: 0 0 auto;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  padding: 0 var(--fs20px);
+}
+
+.zia-detail-wrap > .zia-detail-content {
+  padding: var(--fs20px);
+  background-color: rgb(var(--zpSurface));
+  position: relative;
+  flex: 1;
+}
+
+.details_sec {
+  background: rgb(var(--zpData)) !important;
+}
+
+.beforeUserSent {
+  display: none;
+}
+
+.userBubble {
+  display: none;
+}
+
+.askziaheading {
+  background-image: linear-gradient(to right, rgb(var(--zpPrimary), 0.8), rgb(var(--zpPrimary))) !important;
+  padding: 14px 20px !important;
+  border-radius: 8px 8px 0px 0;
+  background-color: rgb(var(--zpData)) !important;
+}
+
+body[dir=rtl] .askziaheading {
+  background-image: linear-gradient(to left, rgb(var(--zpPrimary), 0.8), rgb(var(--zpPrimary))) !important;
+}
+
+.botBubble {
+  display: none !important;
+}
+
+.botSentText .noPaddingBotTxt {
+  padding: 0px !important;
+}
+
+zia-chat-bot .ziaChatPop .optionsWrapper {
+  border: 0px !important;
+}
+
+.zvoice-col-xs-9 {
+  width: 100% !important;
+}
+
+.zia_questions {
+  position: absolute;
+  bottom: 23px;
+  font-size: var(--fs13px);
+  z-index: 6;
+  background: rgb(var(--zpFormElement));
+  color: rgb(var(--zpPrimary));
+  cursor: var(--cursorPointer);
+  width: 38px;
+  height: 39px;
+  text-align: center;
+  line-height: 39px !important;
+  left: 16px;
+}
+
+body[dir=rtl] .zia_questions {
+  left: unset;
+  right: 16px;
+}
+
+.zia_questions:hover {
+  color: rgb(var(--zpPrimary));
+}
+
+zia-chat-bot.ziaChatCss .ziaChatPop .optionsWrapper {
+  padding-left: 0px;
+  margin: 0;
+}
+
+body[dir=rtl] zia-chat-bot.ziaChatCss .ziaChatPop .optionsWrapper {
+  padding-left: unset;
+  padding-right: 0px;
+}
+
+zia-chat-bot.ziaChatCss .ziaChatPop .optionsWrapper lyte-radiobutton {
+  padding: 5px 0px !important;
+}
+
+zia-chat-bot.ziaChatCss .ziaChatPop .optionsWrapper lyte-radiobutton .lyteRadioLayer {
+  width: 15px !important;
+  height: 13px !important;
+}
+
+zia-chat-bot .ziaChatPop #paramPromptWrapper .lyteRadioBtn .lyteRadioLayer .lyteRadioCheck {
+  margin-top: -3px !important;
+  margin-left: -3px !important;
+  width: 9px !important;
+  height: 9px !important;
+}
+
+body[dir=rtl] zia-chat-bot .ziaChatPop #paramPromptWrapper .lyteRadioBtn .lyteRadioLayer .lyteRadioCheck {
+  margin-left: unset !important;
+  margin-right: -3px !important;
+}
+
+lyte-radiobutton label {
+  display: flex;
+  align-items: center;
+}
+
+.ziaChatPop_invocationSentenceWrapper .lytePopover {
+  z-index: 6 !important;
+}
+
+.prefix-id {
+  text-decoration: underline;
+  color: rgb(var(--zpPrimary));
+}
+
+.table-title {
+  color: rgb(var(--zpOnData)) !important;
+}
+
+.colzia {
+  color: rgb(var(--zpPrimary));
+}
+
+.colGreyBlue {
+  color: rgb(var(--zpOnDataLight));
+}
+
+zia-chat-bot .ziaChatPop .fs14px {
+  font-size: var(--fs13px) !important;
+  line-height: var(--fs18px);
+}
+
+.hiziapop {
+  background: #fdd85b;
+  padding: 13px 15px;
+  text-align: center;
+  border-radius: 4px;
+  font-family: var(--fontmedium);
+  font-size: var(--fs14px);
+  position: relative;
+  color: rgb(var(--zpOnDataLight));
+}
+
+.hiziapop .zoho-chat-curve {
+  top: 100%;
+  right: var(--fs10px);
+  position: absolute;
+}
+
+body[dir=rtl] .hiziapop .zoho-chat-curve {
+  right: unset;
+  left: var(--fs10px);
+  transform: scaleX(-1);
+}
+
+.ziatab {
+  box-shadow: var(--zpDropDownShadow);
+  background: rgb(var(--zpData));
+  padding: 9px 16px;
+  display: table;
+  border-radius: 3px;
+  font-size: var(--fs13px);
+  clear: both;
+  margin-bottom: 16px;
+  border: 1px solid transparent;
+}
+
+.ziatab:hover {
+  border: 1px solid rgb(var(--zpPrimary));
+}
+
+.ziatab .zoho-gantt {
+  transform: translateX(0px);
+  display: inline-block;
+  transition: var(--zpTransition200ms);
+}
+
+body[dir=rtl] .ziatab .zoho-gantt {
+  transform: translateX(0px) scaleX(-1);
+}
+
+.ziatab:hover .zoho-gantt {
+  transform: translateX(5px);
+}
+
+body[dir=rtl] .ziatab:hover .zoho-gantt {
+  transform: translateX(-5px) scaleX(-1);
+}
+
+zia-chat-bot .ziaChatPop .botSentContainer.lastChild {
+  padding-bottom: 55px;
+}
+
+.listcard:hover .linkincard {
+  color: rgb(var(--zpPrimary));
+}
+
+.zia-status-bg {
+  float: left;
+  color: #fff;
+  padding: 0 var(--fs8px);
+  min-height: var(--fs20px);
+  line-height: var(--fs20px);
+  font-size: var(--fs11px);
+  max-width: 95px;
+  overflow: hidden;
+  border-radius: 2px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: center;
+  border-radius: var(--fs20px);
+}
+
+body[dir=rtl] .zia-status-bg {
+  float: right;
+}
+
+.ziaChatPop_invocationSentenceWrapper .invocationSentencesHeading {
+  font-family: var(--fontmedium) !important;
+  font-size: var(--fs13px) !important;
+}
+
+.ziaChatPop_invocationSentenceWrapper .invocationSentencesList li div {
+  font-family: var(--fontmedium) !important;
+  font-size: var(--fs12px) !important;
+  padding-left: 9px !important;
+  color: rgb(var(--zpPrimary)) !important;
+}
+
+body[dir=rtl] .ziaChatPop_invocationSentenceWrapper .invocationSentencesList li div {
+  padding-left: unset !important;
+  padding-right: 9px !important;
+}
+
+.ziaChatPop_invocationSentenceWrapper .invocationSentencesList li div:hover {
+  background-color: rgb(var(--zpPrimaryHover)) !important;
+}
+
+.ziaChatPop_invocationSentenceWrapper .invocationSentencesList li {
+  padding: 0 !important;
+  border-bottom: 1px solid #f1f1f1 !important;
+}
+
+.ziaChatPop_invocationSentenceWrapper .lytePopover {
+  box-shadow: 0px -7px 11px 0px rgba(0, 0, 0, 0.1490196078) !important;
+  width: 409px !important;
+  margin-left: 15px !important;
+}
+
+body[dir=rtl] .ziaChatPop_invocationSentenceWrapper .lytePopover {
+  margin-left: unset !important;
+  margin-right: 15px !important;
+}
+
+.ziaChatPop_invocationSentenceWrapper .lytePopover {
+  margin-top: 17px;
+  margin-left: -1px;
+}
+
+body[dir=rtl] .ziaChatPop_invocationSentenceWrapper .lytePopover {
+  margin-left: unset !important;
+  margin-right: -1px;
+}
+
+tr.trrow:hover {
+  background: rgb(var(--zpPrimaryHover));
+}
+
+zia-chat-bot .ziaChatPop .lyteMentions {
+  padding-bottom: 0px;
+  padding-left: 0px !important;
+  padding-right: 15px;
+  padding-top: 0px;
+  margin-top: 14px;
+  height: 16px;
+}
+
+body[dir=rtl] zia-chat-bot .ziaChatPop .lyteMentions {
+  padding-left: 15px !important;
+  padding-right: 0px !important;
+}
+
+.zia_questions:hover {
+  color: rgb(var(--zpPrimary)) !important;
+}
+
+zia-chat-bot .col333 {
+  color: rgb(var(--zpOnData)) !important;
+}
+zia-chat-bot.ziaChatCss .ziaChatPop #paramPromptWrapper .lyteRadioBtn .lyteRadioLabel {
+  font-size: 15px !important;
+}
+zia-chat-bot .ziaChatPop #invocationChatBox lyte-td#invocationSentences {
+  background: rgb(var(--zpFormElement)) !important;
+}
+zia-chat-bot .ziaChatPop .chat-text-box {
+  border: rgb(var(--zpFormElementBdr)) solid 1px;
+}
+zia-chat-bot .ziaChatPop .time_separator_inner {
+  background: rgb(var(--zpSecondary)) !important;
+}
+zia-chat-bot .ziaChatPop .time_separator_outer {
+  background: rgb(var(--zpSecondaryBdr));
+}
+zia-chat-bot .ziaChatPop .dateTimeDiv {
+  color: rgb(var(--zpOnDataLight)) !important;
+}
+zia-chat-bot .ziaChatPop .chat-text-box lyte-table lyte-td .ziaComp_textareaWrapper .ziaComp_textareaWrapper_before {
+  background: rgb(var(--zpFormElement));
+}
+zia-chat-bot .ziaChatPop .chat-text-box lyte-table lyte-td textarea {
+  background: rgb(var(--zpFormElement));
+  color: rgb(var(--zpOnData)) !important;
+}
+zia-chat-bot .ziaChatPop .chat-popup-onboarding, zia-chat-bot .ziaChatPop .chat-popup-loading, zia-chat-bot .ziaChatPop .chat-popup-error {
+  background: rgb(var(--zpSecondary)) !important;
+  height: calc(100% - 120px);
+}
+zia-chat-bot .ziaChatPop .chat-text-box lyte-table lyte-td textarea:disabled {
+  background: rgb(var(--zpFormElement));
+}
+zia-chat-bot .ziaChatPop .lyteRadioBtn input[type=radio]:checked + .lyteRadioLayer {
+  border-color: rgb(var(--zpPrimary)) !important;
+}
+zia-chat-bot .ziaChatPop lyte-radiobutton .lyteRadioCheck {
+  background: rgb(var(--zpPrimary)) !important;
+}
+zia-chat-bot .ziaChatPop .chat-text-box lyte-table lyte-td:first-child .action_help_icon {
+  margin-top: 7px;
+}
+
+.zialayout:not(.zia-chat-enable) .home-page-body {
+  background-color: rgb(var(--zpSecondary)) !important;
+  height: calc(100% - 130px) !important;
+}
+
+.zialayout.zia-chat-enable .home-page-body {
+  height: 100%;
+}
+
+.home-page-body-pseudo {
+  background-color: rgb(var(--zpSecondary)) !important;
+}
+
+.ziaChatPop .home-page-footer {
+  background-color: rgb(var(--zpSecondary)) !important;
+}
+
+.trrow:hover .table-title {
+  color: rgb(var(--zpPrimary)) !important;
+}
+
+[zpx-loader=yes] > span.zp-switch {
+  display: none;
+}
+
+.zia-hdrswithCnt {
+  position: absolute;
+  right: 55px;
+  top: 25px;
+  z-index: 4;
+  transform: translateY(-50%);
+  background: rgb(var(--zpOnData), 0.2);
+  padding: 10px 8px 6px;
+  border-radius: 5px;
+}
+.zia-hdrswithCnt[zpx-loader=yes] {
+  padding: 0;
+  height: var(--fs25px);
+  width: var(--fs25px);
+}
+.zia-hdrswithCnt[zpx-loader=yes]:before {
+  content: "";
+  position: absolute;
+  height: var(--fs12px);
+  width: var(--fs12px);
+  border: var(--fs2px) solid rgb(var(--zpSurface), 0.7);
+  border-top-color: rgb(var(--zpPrimary));
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: loaderBtn 1s linear infinite;
+}
+
+@keyframes loaderBtn {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+.zia_icons_feedback_default, .zia_icons_feedback_primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.colgrey {
+  color: rgb(var(--zpOnDisabled), 0.7);
+}
+
+.zp-switch.zia-header-switch [type=checkbox]:checked + label:before {
+  background-color: rgb(var(--zpData));
+}
+
+.zp-switch.zia-header-switch [type=checkbox]:checked + label:after,
+.zp-switch.zia-header-switch [type=checkbox]:not(:checked) + label:after {
+  background-color: rgb(var(--zpPrimary));
+}
+
+.zia_chat_minimize {
+  width: 20px !important;
+  height: 20px !important;
+  display: inline-block !important;
+  cursor: var(--cursorPointer) !important;
+  margin-right: 18px !important;
+  position: absolute !important;
+  top: 17px !important;
+  right: 0px !important;
+  z-index: 8;
+  color: #fff;
+  font-size: 27px;
+  background: unset;
+}
+
+.zia_chat_minimize:after {
+  font-family: "zohoproj" !important;
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.zia_chat_minimize:after {
+  content: "\ee42";
+}
+
+.zp-switch.zia-header-switch [type=checkbox]:not(:checked) + label:before {
+  background-color: rgba(var(--zpData));
+}
+
+.zia-loading-container {
+  width: 31px;
+  display: inline-flex;
+  position: relative;
+  margin-left: -1px;
+}
+
+.zia-loading-container .loading {
+  transform: scale(0.6) translateY(-11px);
+}
+
+.zia-loading-container .loading:before {
+  border-color: rgba(var(--zpPrimary), 1);
+  border-top-color: rgb(var(--zpData));
+}
+
+/* OpenAI Integration */
+.suggestionPOP {
+  background-color: rgba(var(--zpFreeze));
+  position: fixed;
+  z-index: 12;
+  top: 0;
+  right: 0;
+  bottom: var(--wmsbarHeight);
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.06s ease;
+}
+
+.openAI-suggest-imgcnt {
+  position: relative;
+  width: 27px;
+  height: 27px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: var(--cursorPointer);
+  transition: all var(--zpTransition300ms) ease;
+  background-color: #ffd853;
+  border-radius: 4px;
+  color: #000;
+}
+
+.zps-editor-pop .editor-pop-content .ze_SCmb .extra-options {
+  height: 23px;
+}
+
+.chatGPT-sugpophdrtxt {
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgb(var(--zpSecondaryBdr));
+  padding-bottom: 11px;
+  display: flex;
+  align-items: center;
+}
+
+.chatGPT-sugpopeditor {
+  outline: none;
+  max-height: 250px;
+  overflow: auto;
+  font-size: var(--fs13-5px);
+  line-height: var(--fs20px);
+}
+
+.chatgpt-dataprivacy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.chatgpt-dataprivacy-data {
+  background-color: rgba(var(--zpData));
+  width: 630px;
+  border-radius: 8px;
+  position: relative;
+}
+
+.chatgpt-icon > img {
+  width: 85px;
+  height: 65px;
+}
+
+body[dark-mode=true] .chatgpt-icon {
+  filter: invert(1);
+}
+
+.chatgpt-privacy-details {
+  padding-top: 15px;
+  line-height: var(--fs22px);
+}
+
+.chatgpt-privacy-para {
+  font-size: var(--fs14px);
+  padding: 0 60px 0;
+  margin-bottom: 20px;
+}
+
+.chatgpt-privacy-notes {
+  background-color: rgba(var(--zpPrimaryHover));
+  padding: 14px;
+  font-size: var(--fs14px);
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.chatgpt-privacypop-close {
+  position: absolute;
+  top: 20px;
+  right: 25px;
+  font-size: var(--fs13-5px);
+  cursor: var(--cursorPointer);
+  color: rgba(var(--zpPrimary));
+  z-index: 1;
+}
+
+body[dir=rtl] .chatgpt-privacypop-close {
+  right: unset;
+  left: 25px;
+}
+
+.ask-zia-input {
+  position: absolute;
+  width: 100%;
+  top: 40px;
+  left: 0;
+  padding-right: 0;
+}
+.editor-pop-content .ask-zia-input {
+  left: 1px;
+  top: 110px;
+}
+.ask-zia-input[editor-dark-mode=false] > div > input, .ask-zia-input[editor-dark-mode=true] > div .ui-ziagpt-generate-loading {
+  background: #fff;
+  border-color: #ecedee;
+  color: #000;
+}
+.ask-zia-input[editor-dark-mode=false] {
+  background: #fff;
+}
+.ask-zia-input[editor-dark-mode=false] > div .ui-ziagpt-generate-loading {
+  background: #fff;
+  border-color: #333;
+  color: #000;
+}
+.ask-zia-input[editor-dark-mode=false] > div > span {
+  background: rgb(var(--zpPrimary), 0.07);
+}
+.ask-zia-input[editor-dark-mode=true] {
+  background: rgb(var(--zpSurface));
+}
+.ask-zia-input[editor-dark-mode=true] > div > input, .ask-zia-input[editor-dark-mode=true] > div .ui-ziagpt-generate-loading {
+  background: rgb(var(--zpSurface));
+  border-color: #333;
+  color: #bbbbbb;
+}
+.ask-zia-input[editor-dark-mode=true] > div > span {
+  background: #363636;
+}
+.ask-zia-input[editor-dark-mode] input:focus, .ask-zia-input[editor-dark-mode] input:hover {
+  border-color: rgba(var(--zpPrimary), 0.4);
+}
+body:not([dir=rtl]) .ask-zia-input > div > input {
+  padding-right: var(--fs100px);
+}
+body[dir=rtl] .ask-zia-input > div > input {
+  padding-left: var(--fs100px);
+}
+
+.ui-ziagpt-generate-loading {
+  position: absolute;
+  background: rgba(var(--zpData));
+  left: 10px;
+  width: calc(100% - var(--fs100px));
+  height: 2.2rem;
+  line-height: 2.2rem;
+}
+
+body[dir=rtl] .ui-ziagpt-generate-loading {
+  left: unset;
+  right: 10px;
+}
+
+body[dir=rtl] .ui-ziagpt-generate-loading::after {
+  margin-right: 23px;
+}
+
+.ui-ziagpt-generate-loading::after {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 5px;
+  color: rgba(var(--zpPrimary));
+  box-shadow: 4px 0 0 0, 12px 0 0 0, 20px 0 0 0;
+  animation: dot-loading 1s infinite linear;
+}
+
+.content-gentrate-button {
+  position: absolute !important;
+  right: -6px;
+  background: rgb(var(--zpPrimaryHover));
+  border: 0;
+  border-radius: 0;
+  font-family: var(--fontmedium);
+}
+
+body[dir=rtl] .content-gentrate-button {
+  position: absolute !important;
+  right: unset;
+  left: -5px;
+  max-width: var(--fs100px);
+}
+
+.zia-transition {
+  animation: wiggle 2s 1 linear;
+}
+
+.zia-footer-actions {
+  padding: 20px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px 0;
+}
+
+.zia-header {
+  display: flex;
+  margin: 0px 14px 6px;
+  align-items: center;
+  border-bottom: 1px solid rgb(var(--zpSecondaryBdr));
+  align-items: flex-start;
+}
+
+.disable-chatgpt {
+  opacity: 0.6;
+}
+
+.extroptions-backg[ziaenabled=true]:before {
+  right: 194px;
+}
+
+.extroptions-backg[ziaenabled=true] .extraoption-btn {
+  margin-right: 106px;
+  margin-top: 18px;
+  display: none;
+}
+
+.zps-editor-pop .editor-pop-content .ze_SCmb .extra-options#editorpreview {
+  right: 219px;
+}

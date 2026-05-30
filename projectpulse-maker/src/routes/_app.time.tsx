@@ -148,7 +148,6 @@ function TimesheetCalendarPage() {
 
             <Button
               size="sm"
-              className="bg-gradient-to-r from-primary to-violet-600 text-white shadow"
               onClick={handleSave}
               disabled={saving || bulkLog.isPending}
             >

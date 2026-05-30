@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<!-- saved from url=(0080)https://tipengine.zoho.in/jsp/inproduct.jsp?frameorigin=https://projects.zoho.in -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>MICSSDK</title><script src="./httpcall.js.download"></script><script>// 
+document.addEventListener("DOMContentLoaded", function () {
+window.parent.postMessage({
+type: 'inproductiframeload',
+}, document.referrer)
+});
+var frameorigin = null;
+try {
+frameorigin = new URL(window.location.href).searchParams.get('frameorigin');
+} 
+catch (e) {
+frameorigin = null;
+}
+window.addEventListener('message', (event) => {
+var source = event.data;
+if (!source.micsinproduct || event.origin !== frameorigin) {
+return;
+}
+function onsuccesscallback(xhttp) {
+if(source.callbackId == -1 ){
+return ;
+}
+var response = xhttp.response;
+window.parent.postMessage({
+response: response,
+callback_type: "success",
+type: 'inproductresponse',
+callbackId: source.callbackId,
+medium:source.medium,
+api_type:source.api_type
+}, event.origin)
+}
+function onerrorcallback(xhttp) {
+if(source.callbackId == -1 ){
+return ;
+}
+var response = xhttp.response;
+window.parent.postMessage({
+response: response,
+type: 'inproductresponse',
+callback_type: "error",
+callbackId: source.callbackId
+}, event.origin)
+}
+let url = source.api + source.queryParam
+var httpcall = new HttpCall(source.http_method,url, source.requestheaders, [], source.async);
+if(source.bodyParam && source.http_method==='post'){
+for(let bodydata in source.bodyParam){
+httpcall.setRequestBody(bodydata+"="+encodeURIComponent(source.bodyParam[bodydata]))
+}
+} 
+httpcall.makeHttpRequest(onsuccesscallback,onerrorcallback)
+})</script></head><body></body></html>

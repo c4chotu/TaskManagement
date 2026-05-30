@@ -1,0 +1,25 @@
+/* Default theme imported */
+/*	Icon Colors */
+/* Loading theme in configuration */
+/* Themes of components */
+/* Loading custom themes */
+/* import theme overrides */
+/* import custom css */
+/* Default theme imported */
+/* Loading theme in configuration */
+/* rtl files loading */
+/* Loading custom themes */
+/* Make changes to override predefined styles */
+/* Search CSS BEGINS */
+.lyteSearchHidden {
+  display: none !important;
+}
+lyte-search[lt-prop-close-icon="true"] input {
+  padding-right: 30px;
+}
+/* import theme overrides - styles */
+/* import custom css - final tweaks by the user */
+/* Make preferred css changes over here.
+ * This will be added to the end of the styles/search.less file
+ */
+/* Search CSS ENDS */

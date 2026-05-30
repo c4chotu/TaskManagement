@@ -1,0 +1,221 @@
+.servscript-formcontainer {
+  height: var(--setupHeightGenbutton);
+  display: flex;
+}
+
+.servscript-formcontainer .servscript-editorcontainer, .monaco-editor {
+  width: 100% !important;
+  height: 100% !important;
+  border-top: 1px solid rgb(var(--zpSecondaryBdr));
+}
+
+.scripts-popuplist + popuplist-flex {
+  display: flex;
+  align-items: flex-start;
+  padding: 8px 10px 8px 15px;
+  font-size: var(--fs13px);
+  color: rgb(var(--zpOnSurface));
+  cursor: pointer;
+  text-decoration: none !important;
+}
+
+.servscript-formcontainer .zps-serverscript-popup {
+  width: 30%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 20px;
+  background-color: rgb(var(--zpSurface));
+  box-shadow: -5px 0px 10px 5px rgba(var(--zpBlackOpac), 0.05);
+  border-top: 1px solid rgb(var(--zpSecondaryBdr));
+  position: relative;
+  z-index: 1;
+}
+
+.codex-logicons > .zoho-close::after {
+  content: "";
+  width: 1px;
+  height: 50%;
+  background: rgba(var(--zpSecondaryBdr));
+  left: -3px;
+  position: absolute;
+}
+
+.zps-MLT[stick-left=yes] > tbody.table-group-header > tr > td .group-header-content {
+  width: calc(var(--fullvw) - var(--setupMenu));
+}
+.zps-MLT tr[data-row-expanded=true] {
+  background-color: rgb(var(--sheetGroupBG)) !important;
+}
+.zps-MLT tr[data-row-expanded=true] > td {
+  background: unset !important;
+}
+.zps-MLT tr[data-row-expanded=true] .zps-mlt-rowaction > i {
+  visibility: visible !important;
+  color: rgba(var(--zpPrimary));
+}
+.zps-MLT tbody.table-group-list > tr[log-expanded=true]:hover {
+  background-color: rgba(var(--zpSurface), 1) !important;
+}
+.zps-MLT tbody.table-group-list > tr[log-expanded=true] > td {
+  background: rgba(var(--zpSurface), 1) !important;
+}
+
+.setup-main-panel .zps-filter-display + .zp-codex-container {
+  height: calc(100% - (var(--setupListHeaderHeight) + var(--zpPaginationHeight) + var(--zpfilterHeight) + var(--fs10px)));
+}
+.setup-main-panel .zp-codex-container {
+  height: calc(100% - (var(--setupListHeaderHeight) + var(--zpPaginationHeight) + 2px));
+}
+.setup-main-panel .zp-codex-container .zps-mlt-rowaction {
+  width: 25px !important;
+}
+.setup-main-panel .zp-codex-container .zps-mlt-rowaction > i {
+  color: rgba(var(--zpPrimary));
+}
+.setup-main-panel .zp-codex-container .zps-mlt-rowaction > .zoho-drag {
+  cursor: move;
+}
+.setup-main-panel .zp-codex-container .mlt-row-action {
+  width: 40px !important;
+}
+.setup-main-panel .zp-codex-container .group-header-content .zps-mlt-checkbox {
+  width: 45px !important;
+}
+.setup-main-panel .zp-codex-container .ui-sortable-placeholder {
+  height: var(--fs40px) !important;
+}
+.setup-main-panel .zp-codex-container table.zps-MLT tr.highlightbg td:first-child {
+  background: unset !important;
+}
+.setup-main-panel .zp-codex-container table.zps-MLT tr:hover .mlt-app-itemname {
+  color: rgba(var(--zpPrimary));
+}
+.setup-main-panel .setup-data-parent .lyteEditorToolBar {
+  padding-left: 15px;
+}
+.setup-main-panel .setup-data-parent .darkMode .lyte-editor-toolbar {
+  background-color: rgb(41, 43, 45) !important;
+}
+.setup-main-panel .setup-data-parent .lyte-editor-toolbar {
+  background-color: rgb(245, 247, 250) !important;
+}
+
+.popuplist-flex[text-wrap=yes] > i {
+  font-size: var(--fs12-5px);
+  line-height: var(--fs18px) !important;
+  direction: ltr !important;
+  display: inline-flex;
+}
+
+.zps-mid-pop .zp-codex-container {
+  height: calc(100% - (var(--fs40px) + var(--zpPaginationHeight) - 15px));
+  padding: 20px;
+  padding-top: 0;
+}
+.zps-mid-pop .zp-codex-container .zps-module-list-scroll-area {
+  overflow-x: hidden;
+  background-color: rgb(var(--zpData));
+}
+.zps-mid-pop .zp-codex-container .zps-MLT {
+  width: 100%;
+  table-layout: fixed;
+}
+.zps-mid-pop .zp-codex-container .zps-MLT > tbody.table-group-list > tr:hover > td .logs-copyicon {
+  visibility: visible !important;
+}
+.zps-mid-pop .zp-codex-container .zps-MLT > tbody.table-group-list > tr > td .mlt-item-group {
+  position: relative;
+}
+.zps-mid-pop .zp-codex-container .zps-MLT > tbody.table-group-list > tr > td .logs-copyicon {
+  position: relative;
+  top: -2px;
+  cursor: pointer;
+  visibility: hidden;
+  font-size: var(--fs13-5px);
+  color: rgba(var(--zpPrimary));
+}
+.zps-mid-pop .zp-codex-container .zps-MLT .zps-mlt-rowaction > i {
+  font-size: var(--fs15px);
+  font-weight: 800;
+}
+.zps-mid-pop .zp-codex-container .zps-MLT:not([stick-left=no]) > tbody.table-group-list > tr:not(:hover):not([data-row-expanded=true]) > td:first-child {
+  background: rgb(var(--zpData)) !important;
+}
+.zps-mid-pop .zp-codex-container .zps-MLT:not([stick-left=no]) > thead.table-header > tr > th {
+  background: rgb(var(--zpData)) !important;
+}
+.zps-mid-pop .zp-codex-logs table.zps-MLT tr > th:nth-child(1) {
+  width: 25% !important;
+  max-width: 25% !important;
+  min-width: 25% !important;
+}
+.zps-mid-pop .zp-codex-logs table.zps-MLT tr > th:nth-child(2) {
+  width: 12% !important;
+  max-width: 12% !important;
+  min-width: 12% !important;
+}
+.zps-mid-pop .zp-codex-logs table.zps-MLT tr > th:nth-child(3) {
+  width: calc(63% - 40px) !important;
+  max-width: calc(63% - 40px) !important;
+  min-width: calc(63% - 40px) !important;
+}
+.zps-mid-pop .zp-codex-logs table.zps-MLT tr > th :nth-child(4) {
+  width: 0px !important;
+  max-width: 0px !important;
+  min-width: 0px !important;
+}
+.zps-mid-pop .zp-codex-logs table.zps-MLT tr > td {
+  word-wrap: break-word;
+}
+
+.zp-codex-section .filter-display-container {
+  left: 45px !important;
+  padding-left: 0;
+}
+
+.zp-codex-logsinfo {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  margin-right: 10px;
+  background-color: rgba(var(--zpPrimaryHover));
+  border-radius: var(--fs4px);
+}
+
+.editor-disabled {
+  position: relative;
+}
+
+.editor-disabled::before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  background-color: rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(1px);
+}
+
+.editor-disabled::after {
+  content: attr(info);
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  top: 40%;
+  left: 35%;
+  z-index: 3;
+  background: rgba(var(--zpSurface), 0.9);
+  box-shadow: rgba(var(--zpBlackOpac), 0.2) 2px 2px 10px;
+  border-radius: 10px;
+  padding: 20px;
+  font-size: var(--fs15px);
+  font-family: var(--fontsemibold);
+  width: var(--fs300px);
+  text-align: center;
+  line-height: var(--fs25px);
+}

@@ -1,0 +1,27 @@
+/* Default theme imported */
+/*	Icon Colors */
+/* Loading theme in configuration */
+/* Themes of components */
+/* Loading custom themes */
+/* import theme overrides */
+/* import custom css */
+/* Default theme imported */
+/* Loading theme in configuration */
+/* rtl files loading */
+.lyteZoomContainer {
+  position: absolute;
+  display: none;
+  padding: 10px;
+  z-index: 1080;
+  background: #ececec;
+  border: 1px solid #212121;
+  color: #000;
+  border-radius: 5px;
+  font-size: 60px;
+  outline: 1px solid #555;
+  word-wrap: break-word;
+  height: fit-content;
+}
+.lyteZoomContainer.showZoomContainer {
+  display: block;
+}

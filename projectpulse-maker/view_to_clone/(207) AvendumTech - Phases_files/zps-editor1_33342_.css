@@ -1,0 +1,535 @@
+/* $Id$ */
+
+@font-face {
+    font-family: 'Puvi';
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_thin.eot');
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_thin.eot') format('embedded-opentype'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_thin.woff2') format('woff2'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_thin.otf') format('opentype');
+    font-weight: normal;
+    font-display: swap
+}
+
+@font-face {
+    font-family: 'Puvi';
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_thin.eot');
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_thin.eot') format('embedded-opentype'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_thin.woff2') format('woff2'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_thin.otf') format('opentype');
+    font-weight: normal;
+    font-display: swap
+}
+
+@font-face {
+    font-family: 'Puvi';
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_light.eot');
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_light.eot') format('embedded-opentype'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_light.woff2') format('woff2'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_light.otf') format('opentype');
+    font-weight: normal;
+    font-display: swap
+}
+
+@font-face {
+    font-family: 'Puvi';
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_light.eot');
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_light.eot') format('embedded-opentype'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_light.woff2') format('woff2'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_light.otf') format('opentype');
+    font-weight: normal;
+    font-display: swap
+}
+
+@font-face {
+    font-family: 'Puvi';
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_extralight.eot');
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_extralight.eot') format('embedded-opentype'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_extralight.woff2') format('woff2'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_extralight.otf') format('opentype');
+    font-weight: normal;
+    font-display: swap
+}
+
+@font-face {
+    font-family: 'Puvi';
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_regular.eot');
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_regular.eot') format('embedded-opentype'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_regular.woff2') format('woff2'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_regular.otf') format('opentype');
+    font-weight: normal;
+    font-display: swap
+}
+
+@font-face {
+    font-family: 'Puvi';
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_regular.eot');
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_regular.eot') format('embedded-opentype'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_regular.woff2') format('woff2'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_regular.otf') format('opentype');
+    font-weight: normal;
+    font-display: swap
+}
+
+@font-face {
+    font-family: 'Puvi';
+    font-weight: bold;
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_medium.eot');
+    src: url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_medium.eot') format('embedded-opentype'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_medium.woff2') format('woff2'),url('https://fonts.zohowebstatic.com/zohopuvi/3.5/zoho_puvi_medium.otf') format('opentype');
+    font-display: swap
+}
+
+@font-face {
+    font-family: "Lato";
+    font-weight: 300;
+    src: url(https://webfonts.zohowebstatic.com/latolight/font.eot);
+    src: url(https://webfonts.zohowebstatic.com/latolight/font.eot?#iefix) format("eot"),url(https://webfonts.zohowebstatic.com/latolight/font.woff2) format("woff2"),url(https://webfonts.zohowebstatic.com/latolight/font.woff) format("woff"),url(https://webfonts.zohowebstatic.com/latolight/font.ttf) format("truetype"),url(https://webfonts.zohowebstatic.com/latolight/font.svg#Lato-Light) format("svg");
+    
+    font-display: swap
+}
+
+@font-face {
+    font-family: "Lato";
+    font-weight: 400;
+    src: url(https://webfonts.zohowebstatic.com/latoregular/font.eot);
+    src: url(https://webfonts.zohowebstatic.com/latoregular/font.eot?#iefix) format("eot"),url(https://webfonts.zohowebstatic.com/latoregular/font.woff2) format("woff2"),url(https://webfonts.zohowebstatic.com/latoregular/font.woff) format("woff"),url(https://webfonts.zohowebstatic.com/latoregular/font.ttf) format("truetype"),url(https://webfonts.zohowebstatic.com/latoregular/font.svg#Lato-Regular) format("svg");
+    
+    font-display: swap
+}
+
+@font-face {
+    font-family: 'Lato';
+    font-weight: 400;
+    font-style: italic;
+    src: url(https://webfonts.zohowebstatic.com/latoitalic/font.eot);
+    src: url(https://webfonts.zohowebstatic.com/latoitalic/font.eot?#iefix) format("eot"),url(https://webfonts.zohowebstatic.com/latoitalic/font.woff2) format("woff2"),url(https://webfonts.zohowebstatic.com/latoitalic/font.woff) format("woff"),url(https://webfonts.zohowebstatic.com/latoitalic/font.ttf) format("truetype"),url(https://webfonts.zohowebstatic.com/latoitalic/font.svg#Lato-Italic) format("svg");
+    font-display: swap
+}
+
+@font-face {
+    font-family: "Lato";
+    font-weight: bold;
+    src: url(https://webfonts.zohowebstatic.com/latobold/font.eot);
+    src: url(https://webfonts.zohowebstatic.com/latobold/font.eot?#iefix) format("eot"),url(https://webfonts.zohowebstatic.com/latobold/font.woff2) format("woff2"),url(https://webfonts.zohowebstatic.com/latobold/font.woff) format("woff"),url(https://webfonts.zohowebstatic.com/latobold/font.ttf) format("truetype"),url(https://webfonts.zohowebstatic.com/latobold/font.svg#Lato-Bold) format("svg");
+    font-style: normal;
+    font-display: swap
+}
+:root {
+    --cursorText: text;
+    --cursorDefault: default;
+	--cursorPointer: pointer;
+	--cursorMove: move;
+    --cursorHelp: help;
+	--cursorNotAllowed: not-allowed;
+    --zpHighlightColor:38, 120, 255;
+}
+body[contrast-mode="true"][dark-mode="true"]{
+	--zpSurface: 0, 0, 0;
+}
+body[day-mode="true"]{
+	--zpSurface: 255, 255, 255;
+	--zpSurfaceBdr: 230, 230, 230;
+	--zpSecondary: 250, 250, 250;
+	--zpSecondaryBdr:235, 235, 235;
+	--zpData: 255, 255, 255;
+	--zpOnData: 32, 33, 35;
+	--zpOnDataLight: 85 , 85 , 85;
+	--zpDisabled: 241, 241, 241;
+	--zpOnDisabled: 142, 142, 142;
+	--zpPopupBase: 255, 255, 255;
+	--zpDetailBase: 245, 245, 245;
+	--zpFormElement: 255, 255, 255;
+	--zpFormElementBdr: 232, 238, 244;
+	--zpDropDownShadow:-2px 0 15px rgba(0,0,0,.14);
+    --editorTableBdr: 222, 223, 227;
+    --zpMltRowHover:250,252,253;
+    --zpInsercodebdr: 235, 235, 235;
+    --zpInsertcodeBg: 245, 245, 245;
+}
+body[dark-mode="true"]{
+    --zpSurface: 32, 33, 36;
+	--zpSurfaceBdr: 55, 58, 61;
+	--zpSecondary: 37, 38, 40;
+	--zpSecondaryBdr: 55, 58, 61;
+	--zpData: 32, 33, 36;
+	--zpOnData: 212, 212, 212;
+	--zpOnDataLight: 150, 150, 150;
+	--zpDisabled: 62, 62, 62;
+	--zpOnDisabled: 152, 152, 152;
+	--zpPopupBase: 48, 49, 52;
+	--zpDetailBase: 32, 33, 36;
+	--zpFormElement: 37, 38, 40;
+	/* --zpFormElementBdr: 55, 58, 61; */
+	--zpOnFormElement: 204, 204, 204;
+	--zpFormLabel: 150, 150, 150;
+	--zpDropDownShadow:-2px 0 15px rgba(0,0,0,.41);
+    --editorTableBdr: 51, 51, 51;
+    --zpInsercodebdr: 74, 75, 79;
+    --zpInsertcodeBg: 51, 52, 53;
+}
+body[dim-mode="true"]{
+    --zpSurface: 0, 40, 62;
+    --zpSurfaceBdr: 25, 61, 81;
+    --zpSecondary: 8, 46, 68;
+    --zpSecondaryBdr: 25, 61, 81;
+    --zpData: 0, 40, 62;
+    --zpOnData: 178, 190, 197;
+    --zpOnDataLight: 102, 126, 139;
+    --zpDisabled: 8, 46, 68;
+    --zpOnDisabled: 55, 84, 96;
+    --zpPopupBase: 13, 51, 72;
+    --zpDetailBase: 0, 40, 62;
+    --zpFormElement: 8, 46, 68;
+    --zpOnFormElement: 204, 204, 204;
+    --zpFormLabel: 102, 126, 139;
+    --zpDropDownShadow: -2px 0 15px rgba(0, 0, 0, .41);
+    --editorTableBdr:25, 61, 81;
+    --zpInsercodebdr: 38, 72, 91;
+    --zpInsertcodeBg: 0, 59, 86;
+   
+}
+/*spellcheck*/
+html.editor-document, .ze_body { font-size: var(--baseFont); }
+html {
+    height: 100%;
+    overflow: hidden;
+}
+
+.ze_body {
+    height: 100%;
+    margin: 0;
+    overflow: auto;
+    line-height:1;
+}
+.ze_body pre{
+    font-family: inherit;
+}
+.ze_body a:visited, .ze_body a:link{ color:rgb(var(--zpPrimary , var(--zpHighlightColor))) !important; }
+.zpmail-table a:visited, .zpmail-table a:link { color: #5491eb !important; }
+.zpmail-table a:not([target]):visited, .zpmail-table a:link:not([target]) { color: #fff !important; }
+
+.ze_body table, 
+.ze_body table td { 
+    border:rgb(var(--editorTableBdr)) solid 1px;
+}
+
+body.spellCheckOn {
+    padding-right: 35px !important;
+}
+/* .ze_body table, .ze_body table td { 
+    border:rgb(var(--editorTableBdr)) solid 1px;  
+} */
+ .feed-load-data table:not(.zp-bdr-normal) td {
+    /* border: rgb(var(--editorTableBdr)) solid 1px !important; */
+    border-top: 0px;
+    border:rgb(var(--editorTableBdr)) solid 1px;
+    border-top: 0px !important;
+    border-right: 0px !important;
+    padding: 5px 10px;
+
+}
+.feed-load-data table:not(.zp-bdr-normal) th {
+    border: rgb(var(--editorTableBdr)) solid 1px !important;
+    border-right: 0px !important;
+    border-top: 0px !important;
+    padding: 5px 10px;
+
+ }
+.feed-load-data table:not(.zp-bdr-normal) tr td:last-child{
+     border-right: rgb(var(--editorTableBdr)) solid 1px !important;
+     /* border-left: 0px; */
+     /* background-color: #555; */
+}
+.feed-load-data table:not(.zp-bdr-normal) tr:first-child th{
+    border-top:rgb(var(--editorTableBdr)) solid 1px !important;
+}
+.feed-load-data table:not(.zp-bdr-normal) tr:first-child td {
+       border-top:rgb(var(--editorTableBdr)) solid 1px !important;
+    border-right: rgb(var(--editorTableBdr)) solid 1px !important;
+    /* background-color: #ed3927; */
+}
+.ze_spell {
+    position: absolute;
+    background-color: rgb(var(--zpPopupBase));
+    border: 1px solid rgb(var(--zpSurfaceBdr));
+    color: rgb(var(--zpOnData)) !important;
+    padding: 5px;
+    font-size: 14px;
+    font-family: Arial, Verdana, Helvetica, sans-serif
+}
+
+.ze_spell a {
+    padding: 0 10px
+}
+
+.ze_spell a:hover {
+    text-decoration: underline
+}
+
+.ze_spell i {
+    margin-left: 10px;
+}
+
+.ze_sltd {
+    background-color: rgb(var(--zpDetailBase));
+}
+
+.ze_spell span {
+    padding: 0 5px;
+    margin-left: 5px;
+    cursor: var(--cursorPointer);
+    display: inline-block;
+}
+
+.ze_spell span:hover {
+    text-decoration: underline;
+}
+
+.smallDiv {
+    position: absolute;
+    width: 15px;
+    height: 15px;
+}
+
+.ze_spell span.sep {
+    margin-left: 10px;
+    position: relative;
+}
+
+.ze_spell span.sep:before {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 12px;
+    background: #3498DB;
+    position: absolute;
+    left: -5px;
+    top: 2px;
+}
+
+.smallDiv-tr:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    border-top: solid 8px #555;
+    border-left: solid 8px transparent;
+}
+
+.smallDiv-br:before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    border-right: solid 8px #555;
+    border-top: solid 8px transparent;
+}
+
+.smallDiv-tl:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-left: solid 8px #555;
+    border-bottom: solid 8px transparent;
+}
+
+.smallDiv-bl:before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    border-left: solid 8px #555;
+    border-top: solid 8px transparent;
+}
+
+.enc {
+    border: 1px solid #0096fd;
+    position: absolute;
+}
+
+
+/*drag mask area*/
+
+.ze_drag {
+    background-color: #fafafa;
+    border: 3px dashed #dedede;
+    margin-left: auto;
+    margin-right: auto;
+    opacity: 0.8;
+    position: srelative;
+    top: 50%;
+    width: 70%;
+    text-align: center;
+    font-size: 20px;
+}
+
+.ze_drag span {
+    position: relative;
+    top: 46%;
+    color: #ccc;
+}
+
+a.ze_mention,
+a.zms_mention {
+    color: rgb(var(--zpPrimary));
+    text-decoration: none;
+}
+
+.ze_colResize {
+    position: absolute;
+}
+
+.ze_colResize:hover {
+    cursor: var(--cursorColResize);
+}
+
+.ze_rowResize:hover {
+    cursor: row-resize;
+}
+
+@font-face {
+    font-family: "Editor";
+    font-weight: normal;
+    font-style: normal;
+}
+
+/*Checkbox*/
+.zeCheckBox {
+    list-style: none;
+    line-height: 1.3
+}
+
+.zeCheckBox li {
+    margin-bottom: 10px;
+    position: relative;
+}
+
+.zeCheckBox li.zeChecked>span {
+    opacity: 0.4;
+    text-decoration: var(--lineThrough);
+}
+
+.zeCheckBox li.zeChecked>span:hover {
+    opacity: 1;
+    text-decoration: none;
+}
+
+.zeCheckBox li:before {
+    content: "\e927";
+    cursor: var(--cursorPointer);
+    float: left;
+    font-family: Editor;
+    font-size: 85%;
+    font-style: normal;
+    font-weight: normal;
+    line-height: 1.6;
+    margin-right: 8px;
+    text-shadow: none;
+    white-space: nowrap;
+}
+
+.zeCheckBox li.zeChecked:before {
+    content: "\e937";
+}
+
+.zeAddSignatureWra {
+    display: flex;
+    align-items: center;
+    margin: 12px 0
+}
+
+.zeAddSignature {
+    padding: 3px 8px;
+    border: dashed 1px rgb(var(--zpSecondaryBdr));
+    color: rgb(var(--zpOnDataLight));
+    border-radius: 10px;
+    margin-right: 5px;
+}
+
+.zeAddSignatureWra i.zei-close {
+    color: #ed3927
+}
+
+ol.code{
+    list-style-position:outside;
+    list-style-type:decimal;
+    padding:0 30px;
+}
+
+ol.code li{
+    border-left:2px solid rgb(var(--zpInsercodebdr));
+    padding:2px;
+    margin:1px 0px;
+    background: rgba(var(--zpInsertcodeBg));
+    filter: var(--zpFilterInvert);
+    color: rgba(var(--zpOnData));
+}
+.content-from-user pre{white-space: normal!important;}
+
+.ze_body  ul[codelist="true"] > li{
+    counter-increment: item;
+    list-style-type: none;
+    border-left: none!important;
+    padding-left: 40px!important;
+    display: block;
+    z-index: 1;
+    position: relative;
+    min-height: 22px;
+}
+.ze_body  ul[codelist="true"] > li::before{
+    content: counter(item);
+    border-right: 2px solid #ccc;
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    min-width: 28px;
+    padding: 0 2px;
+    text-align: center;
+}
+.ze_body[dim-mode="true"]{background-color: rgb(var(--zpSurface)) !important;}
+.switch-editor:before,
+.switch-editor:after{font-family: 'zohoproj'!important; speak: none;font-style: normal;font-weight: normal;font-variant: normal;text-transform: none;line-height: 1;-webkit-font-smoothing: antialiased;-moz-osx-font-smoothing: grayscale;}
+.switch-editor:before {content: "\eb59";color: rgb(var(--zpOnData));}
+.switch-editor {font-size: var(--fs18px);cursor: var(--cursorPointer);}
+.switch-editor.selected:before {content: "\eb57";}
+.ze_SCmb .extra-options > li { text-align: center !important; }
+
+/* editor popup */
+.zps-editor-pop .editor-pop-content{width: 98vw;height: 95%;background:rgb(var(--editorpop));border-radius: 15px; display: flex; align-items: center; flex-direction: column;overflow: hidden;}
+.zps-editor-pop .ze.posrel {width:60%; height: 100%;border: unset !important;overflow: unset; background: rgb(var(--editorpop));}
+.zps-editor-pop .ze_area {height: calc(100% - 102px) !important;border: 1px solid rgb(var(--zpSurfaceBdr));margin-top: 40px;border-radius: 5px 5px 0 0;}
+.zps-editor-pop{background-color: rgba(var(--zpFreeze)); position: fixed; z-index:12; top:0; right:0; bottom:var(--wmsbarHeight); left:0; display:flex; align-items:center; justify-content:center;opacity: 0;transition: all 0.3s ease-in-out;transform: scale(1.3);}
+.zps-editor-anime{opacity: 1;transform: scale(1);}
+.editor-attachment-footer { width: 100%;padding: 20px 0;z-index: 2;box-shadow: -1px -7px 14px -8px rgba(var(--zpBlackOpac), .11);}
+body[dark-mode="true"] .editor-attachment-footer{box-shadow: -1px -7px 14px -8px rgba(var(--zpShadow), .11);}
+.extroptions-backg {position: absolute;background: rgb(var(--zpFormElement));height: 62px;width: 98%;z-index: 0;border-radius: 15px 15px 0 0; display: flex; justify-content: flex-end;border-bottom: 1px solid rgb(var(--zpSurfaceBdr));}
+body[dir="rtl"] .extroptions-backg{justify-content: flex-start!important; float: left;}
+body[dir="rtl"] .editor-pop-content .zps-secondary-button.preview_btn{margin-left: unset!important; margin-right: 40px;}
+.editor-pop-content .ze_SCmb{ border-radius: unset; height: 62px;display: flex; align-items: center;margin-right: 0;}
+body[dir="rtl"] .editor-pop-content .ze_SCmb{justify-content: flex-end;}
+.editor-pop-content .ze_SCmb .extra-options{background-color: transparent;height: 60px;border-bottom: unset;right: 85px;position: fixed; margin-top: -2px;}
+.editor-pop-content .ze_SCmb.ze_alttool{top: 62px;box-shadow: rgba(0, 0, 0, 0.15) 0px 1px 4px;border: unset;border-radius: 5px;margin-right: unset;}
+.editor-pop-content .ze_SCmb.ze_alttool font {margin-top: 0;}
+.forum-preview-container{width: 98vw;height: 95%;background: rgb(var(--zpFormElement));border-radius: 15px;display: flex;align-items: center;flex-direction: column;}
+.forum-preview-container .forum-preview-close{width: 100%;font-size: var(--fs13px);border-radius: 15px 15px 0px 0px;background: rgb(var(--editorpop));}
+.forum-preview-content{width: 60%;height: 100%;border: unset !important;overflow-x: hidden;overflow-y: auto;}
+.forum-preview-container .extroptions-backg{    background: rgb(var(--editorpop));}
+.forum-preview-close .extroptions-backg{position: relative; width: 100%; float: right; font-family: var(--fontmedium);justify-content: center;align-items: center;}
+.forum-preview-close .extroptions-backg i {color: rgba(var(--zpPrimary)); margin-right: 10px;}
+body[dir="rtl"] .extroptions-backg div {flex-direction: row-reverse;}
+.extroptions-backg .preview-head{ color: rgb(var(--zpOnData));font-family: var(--fontmedium);font-size: var(--fs16px);}
+.ze_SCmb .extra-options#openAI-suggest-imgcnt {right: 0px;border-right: 1px solid rgb(var(--zpSurfaceBdr),0.4);padding-right: 10px;}
+.editor-pop-content .ze_SCmb li b .zei-textclr {padding-top: unset;}
+.editor-pop-content .ze_SCmb li b{display: flex; align-items: center;}
+.editor-pop-content .ze_SCmb li b.ze_dn {height: 38px;}
+.editor-pop-content .ze_SCmb .extra-options:last-child b{height: 60px; line-height: 60px;}
+.editor-pop-content .ze_SCmb .extra-options:last-child b:hover{background-color: transparent;}
+.editor-pop-content .ze_SCmb .extra-options:last-child span {padding-left: 10px;position: relative;height: unset;}
+.editor-pop-content .ze_SCmb .extra-options:last-child{right: 35px;margin-top: 0;}
+.editor-pop-content .preview_btn{margin-top:5px;}
+.extraoption-before::before {content: '';width: 1px;height: var(--fs20px);background-color: rgb(var(--zpSurfaceBdr));position: absolute;right: 121px;top: 22px;}
+.editor-pop-content .ze_SCmb li b:hover { background-color: rgb(234 239 243);}
+.zps-editor-pop .editor-pop-content .ze_SCmb .extra-options#openAI-suggest-imgcnt {right: 133px; border-right: 1px solid rgb(var(--zpSurfaceBdr),0.4); height: 22px; padding-right: 18px; margin-top: 1px;}
+body[dark-mode="true"] .editor-pop-content .ze_SCmb li b:hover{background-color: rgb(40, 40, 40);}
+body[dim-mode="true"] .editor-pop-content .ze_SCmb li b:hover{background-color: rgb(var(--zpPrimaryHover));}
+.editor-pop-content .zps-secondary-button.editor-savebtn{background-color: transparent;}
+.editor-pop-content .ze_SCmb .openAI-suggest-imgcnt {width: 40px;}
+body:not([dir="rtl"]) .editor-attachment{display: flex;margin-left: 20%;}
+body[dir="rtl"] .editor-attachment{display: flex;margin-right: 20%;}
+.forum-preview-container .preview-collapse {position: relative;right: -29px;border-left: unset;display: none!important;}
+.forum-preview-container .expandEditor::before {content: '';width: 1px;position: absolute;left: 6px;height: var(--fs20px);background-color: rgb(var(--zpSurfaceBdr));}
+.user-profile{position: sticky;top: 0;padding-top: 20px;padding-bottom: 15px;}
+.editorMentionLabel::before{content: attr(editor-label) !important;position: absolute;color: rgb(var(--zpOnDataLight)) !important;opacity: 0.7;cursor: var(--cursorText);}
+.editorMentionLabel:not([placeholder-dir="right"])::before{left: 15px;right: 10px;text-align: left;}
+.editorMentionLabel[placeholder-dir="right"]::before{left: 10px;right: 15px;text-align: right;}
+.expand-icon-div{ margin-top:calc(var(--fs22px) + 18px + 15px + var(--fs13-5px) - calc(calc(var(--fs13px) + 15px) / 2));}
+.notes-multiline .ze_alttool {width: 100% !important;}
+/* analytics css change */
+.zats-iframe-load{ height:calc(var(--detailpageHeight) - calc( 50px + var(--fs65px))); }

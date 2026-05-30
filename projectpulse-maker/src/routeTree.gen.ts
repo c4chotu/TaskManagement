@@ -26,6 +26,7 @@ import { Route as AppPeopleRouteImport } from './routes/_app.people'
 import { Route as AppOnboardingRouteImport } from './routes/_app.onboarding'
 import { Route as AppOnCallRouteImport } from './routes/_app.on-call'
 import { Route as AppIncidentsRouteImport } from './routes/_app.incidents'
+import { Route as AppHomeRouteImport } from './routes/_app.home'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCollaborationRouteImport } from './routes/_app.collaboration'
 import { Route as AppCalendarRouteImport } from './routes/_app.calendar'
@@ -120,6 +121,11 @@ const AppIncidentsRoute = AppIncidentsRouteImport.update({
   path: '/incidents',
   getParentRoute: () => AppRoute,
 } as any)
+const AppHomeRoute = AppHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -176,6 +182,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof AppCalendarRoute
   '/collaboration': typeof AppCollaborationRoute
   '/dashboard': typeof AppDashboardRoute
+  '/home': typeof AppHomeRoute
   '/incidents': typeof AppIncidentsRouteWithChildren
   '/on-call': typeof AppOnCallRoute
   '/onboarding': typeof AppOnboardingRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof AppCalendarRoute
   '/collaboration': typeof AppCollaborationRoute
   '/dashboard': typeof AppDashboardRoute
+  '/home': typeof AppHomeRoute
   '/incidents': typeof AppIncidentsRouteWithChildren
   '/on-call': typeof AppOnCallRoute
   '/onboarding': typeof AppOnboardingRoute
@@ -232,6 +240,7 @@ export interface FileRoutesById {
   '/_app/calendar': typeof AppCalendarRoute
   '/_app/collaboration': typeof AppCollaborationRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/home': typeof AppHomeRoute
   '/_app/incidents': typeof AppIncidentsRouteWithChildren
   '/_app/on-call': typeof AppOnCallRoute
   '/_app/onboarding': typeof AppOnboardingRoute
@@ -261,6 +270,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/collaboration'
     | '/dashboard'
+    | '/home'
     | '/incidents'
     | '/on-call'
     | '/onboarding'
@@ -288,6 +298,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/collaboration'
     | '/dashboard'
+    | '/home'
     | '/incidents'
     | '/on-call'
     | '/onboarding'
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/_app/calendar'
     | '/_app/collaboration'
     | '/_app/dashboard'
+    | '/_app/home'
     | '/_app/incidents'
     | '/_app/on-call'
     | '/_app/onboarding'
@@ -463,6 +475,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIncidentsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/home': {
+      id: '/_app/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof AppHomeRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -583,6 +602,7 @@ interface AppRouteChildren {
   AppCalendarRoute: typeof AppCalendarRoute
   AppCollaborationRoute: typeof AppCollaborationRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppHomeRoute: typeof AppHomeRoute
   AppIncidentsRoute: typeof AppIncidentsRouteWithChildren
   AppOnCallRoute: typeof AppOnCallRoute
   AppOnboardingRoute: typeof AppOnboardingRoute
@@ -604,6 +624,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCalendarRoute: AppCalendarRoute,
   AppCollaborationRoute: AppCollaborationRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppHomeRoute: AppHomeRoute,
   AppIncidentsRoute: AppIncidentsRouteWithChildren,
   AppOnCallRoute: AppOnCallRoute,
   AppOnboardingRoute: AppOnboardingRoute,
@@ -630,13 +651,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
