@@ -32,6 +32,7 @@ public class TaskRoutingController {
     private final TaskRepository taskRepository;
     private final UserSkillRepository userSkillRepository;
     private final TeamRepository teamRepository;
+    private final com.taskflow.modules.user.service.UserProfileService userProfileService;
 
     public TaskRoutingController(TaskRouterService taskRouterService,
                                  WorkloadBalancerService workloadBalancerService,
@@ -39,7 +40,8 @@ public class TaskRoutingController {
                                  AssignmentHistoryRepository assignmentHistoryRepository,
                                  TaskRepository taskRepository,
                                  UserSkillRepository userSkillRepository,
-                                 TeamRepository teamRepository) {
+                                 TeamRepository teamRepository,
+                                 com.taskflow.modules.user.service.UserProfileService userProfileService) {
         this.taskRouterService = taskRouterService;
         this.workloadBalancerService = workloadBalancerService;
         this.routingRuleRepository = routingRuleRepository;
@@ -47,6 +49,27 @@ public class TaskRoutingController {
         this.taskRepository = taskRepository;
         this.userSkillRepository = userSkillRepository;
         this.teamRepository = teamRepository;
+        this.userProfileService = userProfileService;
+    }
+
+    @GetMapping("/workload")
+    public ResponseEntity<List<Map<String, Object>>> getOrgWorkloads() {
+        UUID orgId = SecurityContextHelper.getCurrentOrgId();
+        if (orgId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        List<com.taskflow.modules.user.dto.UserProfileResponse> users = userProfileService.getUsersByOrganization(orgId);
+        List<Map<String, Object>> workloads = users.stream()
+                .map(u -> {
+                    Map<String, Object> wl = new HashMap<>(workloadBalancerService.getUserWorkload(u.getId()));
+                    // Ensure it has the structure expected by the frontend
+                    wl.put("totalActiveTasks", wl.get("activeTasksCount"));
+                    wl.put("totalEstimatedHours", wl.get("estimatedHours"));
+                    wl.put("overloaded", wl.get("isOverloaded"));
+                    return wl;
+                })
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(workloads);
     }
 
     @PostMapping("/routing/rules")

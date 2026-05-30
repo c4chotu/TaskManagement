@@ -31,7 +31,14 @@ function WorkloadPage() {
               <CartesianGrid stroke="oklch(0.28 0.02 160)" strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" stroke="oklch(0.68 0.03 155)" fontSize={11} />
               <YAxis stroke="oklch(0.68 0.03 155)" fontSize={11} />
-              <Tooltip contentStyle={{ background: "oklch(0.20 0.02 160)", border: "1px solid oklch(0.28 0.02 160)", borderRadius: 8, fontSize: 12 }} />
+              <Tooltip
+                contentStyle={{
+                  background: "oklch(0.20 0.02 160)",
+                  border: "1px solid oklch(0.28 0.02 160)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+              />
               <Bar dataKey="hours" fill="oklch(0.72 0.17 155)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -43,17 +50,30 @@ function WorkloadPage() {
             return (
               <Card key={w.userId} className="p-4">
                 <div className="flex items-start gap-3">
-                  <Avatar className="h-10 w-10 border border-border"><AvatarFallback className="bg-muted">{u?.name?.slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
+                  <Avatar className="h-10 w-10 border border-border">
+                    <AvatarFallback className="bg-muted">
+                      {u?.name?.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{u?.name}</p>
                     <RoleBadge role={u?.roleName} level={u?.roleLevel} />
                   </div>
-                  {w.overloaded && <span className="rounded bg-destructive/15 px-2 py-0.5 text-[10px] font-medium text-destructive">Over</span>}
+                  {w.overloaded && (
+                    <span className="rounded bg-destructive/15 px-2 py-0.5 text-[10px] font-medium text-destructive">
+                      Over
+                    </span>
+                  )}
                 </div>
                 <div className="mt-4">
-                  <div className="mb-1 flex justify-between text-xs"><span className="text-muted-foreground">Capacity</span><span className="font-mono">{w.totalEstimatedHours}/40h</span></div>
+                  <div className="mb-1 flex justify-between text-xs">
+                    <span className="text-muted-foreground">Capacity</span>
+                    <span className="font-mono">{w.totalEstimatedHours}/40h</span>
+                  </div>
                   <Progress value={pct} className="h-1.5" />
-                  <p className="mt-1 text-[10px] text-muted-foreground">{w.totalActiveTasks} active tasks</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {w.totalActiveTasks} active tasks
+                  </p>
                 </div>
               </Card>
             );

@@ -18,9 +18,9 @@ import {
 export function Topbar({ title, actions }: { title?: string; actions?: React.ReactNode }) {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  
+
   const [open, setOpen] = useState(false);
-  
+
   const { data: projects = [] } = useProjects();
   const { data: tasks = [] } = useTasks();
 
@@ -53,13 +53,20 @@ export function Topbar({ title, actions }: { title?: string; actions?: React.Rea
               <span className="text-[10px]">⌘</span>K
             </kbd>
           </button>
-          
+
           {actions}
           <Button variant="ghost" size="icon" className="h-8 w-8">
             <Bell className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8"
-            onClick={() => { logout(); navigate({ to: "/login" }); }}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => {
+              logout();
+              navigate({ to: "/login" });
+            }}
+          >
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
@@ -71,7 +78,7 @@ export function Topbar({ title, actions }: { title?: string; actions?: React.Rea
           <CommandEmpty className="py-6 text-center text-xs text-muted-foreground">
             No results found.
           </CommandEmpty>
-          
+
           {projects.length > 0 && (
             <CommandGroup heading="Projects">
               {projects.map((project) => (
@@ -86,7 +93,9 @@ export function Topbar({ title, actions }: { title?: string; actions?: React.Rea
                 >
                   <Folder className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                   <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="font-semibold text-xs text-foreground truncate">{project.name}</span>
+                    <span className="font-semibold text-xs text-foreground truncate">
+                      {project.name}
+                    </span>
                     {project.description && (
                       <span className="text-[10px] text-muted-foreground line-clamp-1 font-normal">
                         {project.description}
@@ -103,7 +112,7 @@ export function Topbar({ title, actions }: { title?: string; actions?: React.Rea
           {tasks.length > 0 && (
             <CommandGroup heading="Tasks & Incidents">
               {tasks.map((task) => {
-                const isIncident = task.taskType === "INCIDENT";
+                const isIncident = task.taskType === "ISSUE";
                 const proj = projects.find((p) => p.id === task.projectId);
                 return (
                   <CommandItem
@@ -122,8 +131,12 @@ export function Topbar({ title, actions }: { title?: string; actions?: React.Rea
                     )}
                     <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-[10px] text-primary/80 bg-primary/10 px-1 rounded shrink-0">{task.id}</span>
-                        <span className="font-medium text-xs text-foreground truncate">{task.title}</span>
+                        <span className="font-mono text-[10px] text-primary/80 bg-primary/10 px-1 rounded shrink-0">
+                          {task.id}
+                        </span>
+                        <span className="font-medium text-xs text-foreground truncate">
+                          {task.title}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground mt-0.5">
                         {proj && (

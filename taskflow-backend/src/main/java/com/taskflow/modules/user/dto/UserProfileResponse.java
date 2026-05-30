@@ -1,8 +1,6 @@
 package com.taskflow.modules.user.dto;
-
 import lombok.Builder;
 import lombok.Data;
-
 import java.util.UUID;
 
 @Data
@@ -15,4 +13,6 @@ public class UserProfileResponse {
     private UUID organizationId;
     private String avatarUrl;
     private String bio;
+    private String roleName;
+    private Integer roleLevel;
 }

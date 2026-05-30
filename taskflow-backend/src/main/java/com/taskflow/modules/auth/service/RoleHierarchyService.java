@@ -5,15 +5,19 @@ import com.taskflow.common.exception.UnauthorizedException;
 import com.taskflow.modules.auth.domain.User;
 import com.taskflow.modules.auth.domain.UserRole;
 import com.taskflow.modules.auth.domain.RolePermission;
+import com.taskflow.modules.auth.domain.Organization;
 import com.taskflow.modules.auth.repository.UserRepository;
 import com.taskflow.modules.auth.repository.UserRoleRepository;
 import com.taskflow.modules.auth.repository.RolePermissionRepository;
+import com.taskflow.modules.auth.repository.OrganizationRepository;
 import com.taskflow.modules.project.domain.ProjectMember;
 import com.taskflow.modules.project.repository.ProjectMemberRepository;
 import com.taskflow.modules.user.domain.Department;
 import com.taskflow.modules.user.domain.Team;
 import com.taskflow.modules.user.repository.DepartmentRepository;
 import com.taskflow.modules.user.repository.TeamRepository;
+import com.taskflow.modules.user.repository.UserProfileRepository;
+import com.taskflow.modules.user.repository.TeamMemberRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,19 +34,28 @@ public class RoleHierarchyService {
     private final ProjectMemberRepository projectMemberRepository;
     private final DepartmentRepository departmentRepository;
     private final TeamRepository teamRepository;
+    private final UserProfileRepository userProfileRepository;
+    private final TeamMemberRepository teamMemberRepository;
+    private final OrganizationRepository organizationRepository;
 
     public RoleHierarchyService(UserRoleRepository userRoleRepository,
                                 RolePermissionRepository rolePermissionRepository,
                                 UserRepository userRepository,
                                 ProjectMemberRepository projectMemberRepository,
                                 DepartmentRepository departmentRepository,
-                                TeamRepository teamRepository) {
+                                TeamRepository teamRepository,
+                                UserProfileRepository userProfileRepository,
+                                TeamMemberRepository teamMemberRepository,
+                                OrganizationRepository organizationRepository) {
         this.userRoleRepository = userRoleRepository;
         this.rolePermissionRepository = rolePermissionRepository;
         this.userRepository = userRepository;
         this.projectMemberRepository = projectMemberRepository;
         this.departmentRepository = departmentRepository;
         this.teamRepository = teamRepository;
+        this.userProfileRepository = userProfileRepository;
+        this.teamMemberRepository = teamMemberRepository;
+        this.organizationRepository = organizationRepository;
     }
 
     @Transactional(readOnly = true)
@@ -333,6 +346,124 @@ public class RoleHierarchyService {
                 .build();
 
         return teamRepository.save(team);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Department> getDepartmentsByOrganization(UUID orgId) {
+        return departmentRepository.findByOrganizationId(orgId);
+    }
+
+    @Transactional
+    public void bootstrapOrganization(
+            UUID orgId,
+            String orgName,
+            String tier,
+            List<Map<String, String>> departments,
+            List<Map<String, String>> teams,
+            List<Map<String, String>> members,
+            UUID actorId) {
+
+        // Save or update organization metadata
+        Organization org = organizationRepository.findById(orgId).orElse(null);
+        if (org == null) {
+            org = Organization.builder()
+                    .id(orgId)
+                    .name(orgName)
+                    .pricingTier(tier)
+                    .build();
+        } else {
+            org.setName(orgName);
+            if (tier != null) {
+                org.setPricingTier(tier);
+            }
+        }
+        organizationRepository.save(org);
+
+        // 1. Create Departments and map name -> ID
+        Map<String, UUID> deptMap = new HashMap<>();
+        for (Map<String, String> d : departments) {
+            String deptName = d.get("name");
+            if (deptName == null || deptName.trim().isEmpty()) continue;
+            Department dept = createDepartment(deptName, d.get("description"), null, null, orgId);
+            deptMap.put(deptName, dept.getId());
+        }
+
+        // 2. Create Teams and map name -> ID
+        Map<String, UUID> teamMap = new HashMap<>();
+        Map<String, UUID> teamDeptMap = new HashMap<>();
+        for (Map<String, String> t : teams) {
+            String teamName = t.get("name");
+            String deptName = t.get("departmentName");
+            if (teamName == null || teamName.trim().isEmpty() || deptName == null) continue;
+            UUID deptId = deptMap.get(deptName);
+            if (deptId != null) {
+                Team team = createTeamInDepartment(deptId, teamName, t.get("description"), null, orgId);
+                teamMap.put(teamName, team.getId());
+                teamDeptMap.put(teamName, deptId);
+            }
+        }
+
+        // 3. Create Members
+        for (Map<String, String> m : members) {
+            String name = m.get("name");
+            String email = m.get("email");
+            String roleName = m.get("roleName");
+            String teamName = m.get("teamName");
+
+            if (name == null || email == null || roleName == null) continue;
+
+            UUID memberId = UUID.randomUUID();
+
+            // Create User
+            User user = User.builder()
+                    .id(memberId)
+                    .email(email)
+                    .name(name)
+                    .passwordHash("$2a$10$8.UnVuG9HHgffUDAlk8GP.3n.K1P64e8.9Y.V2tA7vT9u2g5UuVLu") // password123
+                    .role("ROLE_" + roleName)
+                    .organizationId(orgId)
+                    .build();
+            userRepository.save(user);
+
+            // Create UserProfile
+            com.taskflow.modules.user.domain.UserProfile profile = com.taskflow.modules.user.domain.UserProfile.builder()
+                    .id(memberId)
+                    .email(email)
+                    .name(name)
+                    .role("ROLE_" + roleName)
+                    .organizationId(orgId)
+                    .build();
+            userProfileRepository.save(profile);
+
+            // Resolve Team and Department
+            UUID teamId = (teamName != null && !teamName.isEmpty()) ? teamMap.get(teamName) : null;
+            UUID deptId = (teamName != null && !teamName.isEmpty()) ? teamDeptMap.get(teamName) : null;
+
+            // Create UserRole (Hierarchy role assignment)
+            UserRole userRole = UserRole.builder()
+                    .id(UUID.randomUUID())
+                    .userId(memberId)
+                    .organizationId(orgId)
+                    .roleLevel(mapRoleNameToLevel(roleName))
+                    .roleName(roleName)
+                    .departmentId(deptId)
+                    .teamId(teamId)
+                    .grantedBy(actorId)
+                    .grantedAt(Instant.now())
+                    .build();
+            userRoleRepository.save(userRole);
+
+            // Add to TeamMember if team is set
+            if (teamId != null) {
+                com.taskflow.modules.user.domain.TeamMember tm = com.taskflow.modules.user.domain.TeamMember.builder()
+                        .id(UUID.randomUUID())
+                        .teamId(teamId)
+                        .userId(memberId)
+                        .role(roleName.equals("TEAM_LEAD") ? "LEAD" : "MEMBER")
+                        .build();
+                teamMemberRepository.save(tm);
+            }
+        }
     }
 
     private UUID getOrgIdForUser(UUID userId) {

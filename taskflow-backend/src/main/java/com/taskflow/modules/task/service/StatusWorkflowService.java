@@ -27,6 +27,7 @@ public class StatusWorkflowService {
     private final StatusHistoryRepository statusHistoryRepository;
     private final TaskDependencyRepository taskDependencyRepository;
     private final RoleHierarchyService roleHierarchyService;
+    private final IssueDetailRepository issueDetailRepository;
     private final RestTemplate restTemplate;
 
     public StatusWorkflowService(TaskRepository taskRepository,
@@ -34,13 +35,15 @@ public class StatusWorkflowService {
                                  StatusTransitionRepository statusTransitionRepository,
                                  StatusHistoryRepository statusHistoryRepository,
                                  TaskDependencyRepository taskDependencyRepository,
-                                 RoleHierarchyService roleHierarchyService) {
+                                 RoleHierarchyService roleHierarchyService,
+                                 IssueDetailRepository issueDetailRepository) {
         this.taskRepository = taskRepository;
         this.customTaskStatusRepository = customTaskStatusRepository;
         this.statusTransitionRepository = statusTransitionRepository;
         this.statusHistoryRepository = statusHistoryRepository;
         this.taskDependencyRepository = taskDependencyRepository;
         this.roleHierarchyService = roleHierarchyService;
+        this.issueDetailRepository = issueDetailRepository;
         this.restTemplate = new RestTemplate();
     }
 
@@ -132,6 +135,15 @@ public class StatusWorkflowService {
 
         // Subtask / Dependency check before moving to COMPLETED
         if ("COMPLETED".equalsIgnoreCase(newStatus.getCategory())) {
+            // RCA check for Issues
+            if ("ISSUE".equalsIgnoreCase(task.getTaskType())) {
+                IssueDetail issueDetail = issueDetailRepository.findByTaskId(task.getId()).orElse(null);
+                if (issueDetail == null || issueDetail.getRootCause() == null || issueDetail.getRootCause().trim().isEmpty()
+                        || issueDetail.getResolution() == null || issueDetail.getResolution().trim().isEmpty()) {
+                    throw new IllegalArgumentException("Root cause analysis (RCA) and resolution are required before transitioning an incident to COMPLETED status.");
+                }
+            }
+
             // Check subtasks
             List<Task> subtasks = taskRepository.findByProjectIdAndDeletedAtIsNull(task.getProjectId()).stream()
                     .filter(t -> task.getId().equals(t.getParentTaskId()))

@@ -9,6 +9,8 @@ export const Route = createFileRoute("/_app/incidents/$id")({
 function IncidentRedirect() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  useEffect(() => { navigate({ to: "/tasks/$id", params: { id }, replace: true }); }, [id, navigate]);
+  useEffect(() => {
+    navigate({ to: "/tasks/$id", params: { id }, replace: true });
+  }, [id, navigate]);
   return null;
 }

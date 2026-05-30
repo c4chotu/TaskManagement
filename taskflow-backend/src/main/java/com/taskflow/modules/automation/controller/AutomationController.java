@@ -1,5 +1,6 @@
 package com.taskflow.modules.automation.controller;
 
+import com.taskflow.common.security.SecurityContextHelper;
 import com.taskflow.modules.automation.domain.AutomationExecution;
 import com.taskflow.modules.automation.domain.AutomationRule;
 import com.taskflow.modules.automation.service.AutomationService;
@@ -18,6 +19,15 @@ public class AutomationController {
 
     public AutomationController(AutomationService automationService) {
         this.automationService = automationService;
+    }
+
+    @GetMapping
+    public ResponseEntity<List<AutomationRule>> listRules() {
+        UUID orgId = SecurityContextHelper.getCurrentOrgId();
+        if (orgId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(automationService.listRulesForOrganization(orgId));
     }
 
     @PostMapping

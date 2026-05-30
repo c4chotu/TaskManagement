@@ -34,4 +34,6 @@ public class TaskRequest {
     private UUID parentTaskId;
 
     private UUID phaseId;
+
+    private String recurrenceRule; // "WEEKLY" or "MONTHLY"
 }

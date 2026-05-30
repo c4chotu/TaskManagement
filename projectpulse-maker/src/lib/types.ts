@@ -1,5 +1,12 @@
-export type RoleName = "ORG_OWNER" | "ORG_ADMIN" | "DEPT_HEAD" | "TEAM_LEAD" | "TEAM_MEMBER" | "GUEST";
-export type RoleLevel = 0 | 1 | 2 | 3 | 4 | 5;
+export type RoleName =
+  | "SUPER_ADMIN"
+  | "ORG_OWNER"
+  | "ORG_ADMIN"
+  | "DEPT_HEAD"
+  | "TEAM_LEAD"
+  | "TEAM_MEMBER"
+  | "GUEST";
+export type RoleLevel = 0 | 1 | 2 | 3 | 4 | 5 | 10;
 export type Severity = "SEV0" | "SEV1" | "SEV2" | "SEV3";
 export type StatusCategory = "PLANNING" | "ACTIVE" | "BLOCKED" | "COMPLETED";
 export type ProjectType = "KANBAN" | "SCRUM" | "WATERFALL";
@@ -22,6 +29,8 @@ export interface AuthResult {
   orgId: string;
   email: string;
   name: string;
+  roleName?: RoleName;
+  roleLevel?: RoleLevel;
 }
 
 export interface Department {
@@ -44,6 +53,8 @@ export interface Team {
 export interface Project {
   id: string;
   name: string;
+  /** Short uppercase key used for task IDs, e.g. "NETIQ" */
+  key?: string;
   description?: string;
   status: "ACTIVE" | "IN_REVIEW" | "ARCHIVED" | "COMPLETED";
   type: ProjectType;
@@ -67,6 +78,9 @@ export interface CustomTaskStatus {
 
 export interface Task {
   id: string;
+  /** Project-scoped display ID, e.g. NETIQ-T1 or NETIQ-I3 */
+  displayId?: string;
+  taskNumber?: number;
   title: string;
   description?: string;
   statusId: string;
@@ -79,6 +93,9 @@ export interface Task {
   loggedHours?: number;
   priority?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   severity?: Severity;
+  teamId?: string;
+  departmentId?: string;
+  recurrenceRule?: string;
 }
 
 export interface Issue {
@@ -182,7 +199,7 @@ export interface Sprint {
 }
 
 export interface OrgSetupPayload {
-  organization: { name: string; description?: string };
+  organization: { name: string; description?: string; tier?: string };
   departments: { name: string; description?: string }[];
   teams: { name: string; departmentName: string; description?: string }[];
   members: { name: string; email: string; roleName: RoleName; teamName?: string }[];
@@ -212,5 +229,3 @@ export interface SuggestedAssignee {
   suggestedAssigneeId?: string | null;
   reason: string;
 }
-
-

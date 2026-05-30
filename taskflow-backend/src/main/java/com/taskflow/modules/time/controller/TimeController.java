@@ -1,5 +1,8 @@
 package com.taskflow.modules.time.controller;
 
+import com.taskflow.common.security.SecurityContextHelper;
+import com.taskflow.modules.task.domain.Task;
+import com.taskflow.modules.task.repository.TaskRepository;
 import com.taskflow.modules.time.domain.TimeEntry;
 import com.taskflow.modules.time.domain.Timesheet;
 import com.taskflow.modules.time.service.TimeService;
@@ -17,9 +20,11 @@ import java.util.UUID;
 public class TimeController {
 
     private final TimeService timeService;
+    private final TaskRepository taskRepository;
 
-    public TimeController(TimeService timeService) {
+    public TimeController(TimeService timeService, TaskRepository taskRepository) {
         this.timeService = timeService;
+        this.taskRepository = taskRepository;
     }
 
     @PostMapping("/time-entries/start")
@@ -60,8 +65,11 @@ public class TimeController {
 
     @GetMapping("/time-entries")
     public ResponseEntity<List<TimeEntry>> listEntries(
-            @RequestParam String from, @RequestParam String to) {
-        return ResponseEntity.ok(timeService.listEntries(Instant.parse(from), Instant.parse(to)));
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        Instant fromInstant = from != null ? Instant.parse(from) : Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS);
+        Instant toInstant = to != null ? Instant.parse(to) : Instant.now();
+        return ResponseEntity.ok(timeService.listEntries(fromInstant, toInstant));
     }
 
     @PostMapping("/timesheets/{id}/submit")
@@ -76,8 +84,42 @@ public class TimeController {
 
     @GetMapping("/timesheets/current")
     public ResponseEntity<Timesheet> getCurrentTimesheet(@RequestParam(required = false) String date) {
-        UUID userId = com.taskflow.common.security.SecurityContextHelper.getCurrentUserId();
+        UUID userId = SecurityContextHelper.getCurrentUserId();
         LocalDate targetDate = date != null ? LocalDate.parse(date) : LocalDate.now();
         return ResponseEntity.ok(timeService.getOrCreateTimesheetForWeek(userId, targetDate));
     }
+
+    /**
+     * GET /api/v1/time/assigned-tasks
+     * Returns tasks assigned to the current user — used by the timesheet calendar.
+     */
+    @GetMapping("/time/assigned-tasks")
+    public ResponseEntity<List<Task>> getAssignedTasksForTimesheet() {
+        UUID userId = SecurityContextHelper.getCurrentUserId();
+        UUID orgId = SecurityContextHelper.getCurrentOrgId();
+        return ResponseEntity.ok(taskRepository.findAssignedToUser(userId, orgId));
+    }
+
+    /**
+     * POST /api/v1/time-entries/bulk-log
+     * Body: [{ taskId, date (yyyy-MM-dd), hours, description }]
+     * Logs multiple time entries for a calendar-day in one request.
+     */
+    @PostMapping("/time-entries/bulk-log")
+    public ResponseEntity<List<TimeEntry>> bulkLogTime(
+            @RequestBody List<Map<String, Object>> entries) {
+        List<TimeEntry> saved = entries.stream().map(e -> {
+            UUID taskId = UUID.fromString((String) e.get("taskId"));
+            String date = (String) e.get("date"); // yyyy-MM-dd
+            double hours = ((Number) e.get("hours")).doubleValue();
+            String description = (String) e.getOrDefault("description", "");
+            boolean billable = e.containsKey("billable") && (Boolean) e.get("billable");
+            // Convert date + hours into start/end instants (midnight UTC for that date)
+            Instant start = Instant.parse(date + "T00:00:00Z");
+            Instant end = Instant.parse(date + "T00:00:00Z").plusSeconds((long)(hours * 3600));
+            return timeService.createManualEntry(taskId, start, end, description, billable);
+        }).toList();
+        return ResponseEntity.ok(saved);
+    }
 }
+

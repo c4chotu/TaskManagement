@@ -1,0 +1,1 @@
+ALTER TABLE auth.organizations ADD COLUMN status VARCHAR(20) DEFAULT 'ACTIVE';

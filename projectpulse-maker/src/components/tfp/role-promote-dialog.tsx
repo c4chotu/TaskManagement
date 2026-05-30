@@ -1,7 +1,20 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogHeader,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { canPromote, usePromoteUser } from "@/lib/queries";
 import type { RoleName, User } from "@/lib/types";
@@ -27,12 +40,18 @@ export function RolePromoteDialog({ user, trigger }: { user: User; trigger?: Rea
   const [target, setTarget] = useState<string>("");
 
   const targetRole = ROLES.find((r) => r.name === target);
-  const check = targetRole ? canPromote(actorLevel, currentLevel, targetRole.level) : { ok: false, reason: "Select a target role" };
+  const check = targetRole
+    ? canPromote(actorLevel, currentLevel, targetRole.level)
+    : { ok: false, reason: "Select a target role" };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {trigger ?? <Button size="sm" variant="outline" className="h-7 text-xs"><ArrowUpCircle className="mr-1 h-3 w-3" /> Promote</Button>}
+        {trigger ?? (
+          <Button size="sm" variant="outline" className="h-7 text-xs">
+            <ArrowUpCircle className="mr-1 h-3 w-3" /> Promote
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -43,18 +62,35 @@ export function RolePromoteDialog({ user, trigger }: { user: User; trigger?: Rea
 
         <div className="space-y-3">
           <div className="rounded-md border border-border bg-muted/30 p-3 text-xs">
-            <div className="flex justify-between"><span className="text-muted-foreground">Current role</span><span className="font-medium">L{currentLevel} · {user.roleName}</span></div>
-            <div className="mt-1 flex justify-between"><span className="text-muted-foreground">Your authority</span><span className="font-mono text-primary">L{actorLevel}</span></div>
-            <div className="mt-1 flex justify-between"><span className="text-muted-foreground">Max assignable (L+2 rule)</span><span className="font-mono">L{Math.max(0, actorLevel - 2)}</span></div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Current role</span>
+              <span className="font-medium">
+                L{currentLevel} · {user.roleName}
+              </span>
+            </div>
+            <div className="mt-1 flex justify-between">
+              <span className="text-muted-foreground">Your authority</span>
+              <span className="font-mono text-primary">L{actorLevel}</span>
+            </div>
+            <div className="mt-1 flex justify-between">
+              <span className="text-muted-foreground">Max assignable (L+2 rule)</span>
+              <span className="font-mono">L{Math.max(0, actorLevel - 2)}</span>
+            </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted-foreground">New role</label>
+            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              New role
+            </label>
             <Select value={target} onValueChange={setTarget}>
-              <SelectTrigger><SelectValue placeholder="Select new role" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Select new role" />
+              </SelectTrigger>
               <SelectContent>
                 {ROLES.filter((r) => r.level > currentLevel).map((r) => (
-                  <SelectItem key={r.name} value={r.name}>{r.label}</SelectItem>
+                  <SelectItem key={r.name} value={r.name}>
+                    {r.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -71,23 +107,37 @@ export function RolePromoteDialog({ user, trigger }: { user: User; trigger?: Rea
             <Alert className="border-primary/40 bg-primary/5">
               <ShieldCheck className="h-4 w-4 text-primary" />
               <AlertTitle className="text-sm">Authorized</AlertTitle>
-              <AlertDescription className="text-xs">You can promote {user.name} to {targetRole?.label}.</AlertDescription>
+              <AlertDescription className="text-xs">
+                You can promote {user.name} to {targetRole?.label}.
+              </AlertDescription>
             </Alert>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={!check.ok || promote.isPending} className="bg-gradient-primary text-primary-foreground" onClick={async () => {
-            if (!targetRole) return;
-            try {
-              await promote.mutateAsync({ userId: user.id, newRole: targetRole.name, newLevel: targetRole.level, actorLevel, currentLevel });
-              toast.success(`${user.name} promoted to ${targetRole.label}`);
-              setOpen(false);
-            } catch (e) {
-              toast.error(e instanceof Error ? e.message : "Promotion failed");
-            }
-          }}>
+          <Button variant="ghost" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            disabled={!check.ok || promote.isPending}
+            className="bg-gradient-primary text-primary-foreground"
+            onClick={async () => {
+              if (!targetRole) return;
+              try {
+                await promote.mutateAsync({
+                  userId: user.id,
+                  newRole: targetRole.name,
+                  newLevel: targetRole.level,
+                  actorLevel,
+                  currentLevel,
+                });
+                toast.success(`${user.name} promoted to ${targetRole.label}`);
+                setOpen(false);
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "Promotion failed");
+              }
+            }}
+          >
             {promote.isPending ? "Promoting…" : "Confirm promotion"}
           </Button>
         </DialogFooter>

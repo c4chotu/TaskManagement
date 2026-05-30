@@ -10,6 +10,7 @@ import lombok.Data;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,6 +84,15 @@ public class RoleController {
         return ResponseEntity.ok(roleHierarchyService.getSubordinates(actorId));
     }
 
+    @GetMapping("/departments")
+    public ResponseEntity<List<Department>> listDepartments() {
+        UUID orgId = SecurityContextHelper.getCurrentOrgId();
+        if (orgId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(roleHierarchyService.getDepartmentsByOrganization(orgId));
+    }
+
     @PostMapping("/departments")
     public ResponseEntity<Department> createDepartment(@RequestBody DepartmentRequest request) {
         UUID orgId = SecurityContextHelper.getCurrentOrgId();
@@ -131,6 +141,38 @@ public class RoleController {
                 orgId
         );
         return ResponseEntity.ok(team);
+    }
+
+    @SuppressWarnings("unchecked")
+    @PostMapping("/organizations/bootstrap")
+    public ResponseEntity<Map<String, Object>> bootstrapOrganization(@RequestBody Map<String, Object> body) {
+        UUID orgId = SecurityContextHelper.getCurrentOrgId();
+        UUID actorId = SecurityContextHelper.getCurrentUserId();
+        if (orgId == null || actorId == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        Map<String, Object> orgData = (Map<String, Object>) body.get("organization");
+        String orgName = orgData != null ? (String) orgData.get("name") : "New Organization";
+        String tier = orgData != null && orgData.containsKey("tier") ? (String) orgData.get("tier") : "FREE";
+
+        List<Map<String, String>> departments = (List<Map<String, String>>) body.get("departments");
+        List<Map<String, String>> teams = (List<Map<String, String>>) body.get("teams");
+        List<Map<String, String>> members = (List<Map<String, String>>) body.get("members");
+
+        roleHierarchyService.bootstrapOrganization(
+                orgId,
+                orgName,
+                tier,
+                departments != null ? departments : Collections.emptyList(),
+                teams != null ? teams : Collections.emptyList(),
+                members != null ? members : Collections.emptyList(),
+                actorId
+        );
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("ok", true);
+        return ResponseEntity.ok(response);
     }
 
     @Data

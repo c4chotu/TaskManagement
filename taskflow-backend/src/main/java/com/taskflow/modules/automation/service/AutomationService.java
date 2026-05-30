@@ -99,6 +99,11 @@ public class AutomationService {
         return ruleRepository.findByProjectIdAndIsActive(projectId, true);
     }
 
+    @Transactional(readOnly = true)
+    public List<AutomationRule> listRulesForOrganization(UUID orgId) {
+        return ruleRepository.findByOrganizationId(orgId);
+    }
+
     @Transactional
     public AutomationRule toggleRule(UUID ruleId) {
         AutomationRule rule = ruleRepository.findById(ruleId)

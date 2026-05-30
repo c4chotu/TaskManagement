@@ -84,10 +84,21 @@ function SettingsPage() {
             <Card className="max-w-xl p-6">
               <h3 className="mb-4 text-sm font-semibold">Profile</h3>
               <div className="space-y-4">
-                <div className="space-y-1.5"><Label>Name</Label><Input defaultValue={user?.name ?? ""} /></div>
-                <div className="space-y-1.5"><Label>Email</Label><Input defaultValue={user?.email ?? ""} disabled /></div>
-                <div className="space-y-1.5"><Label>Bio</Label><Textarea placeholder="DevOps Architect" /></div>
-                <Button className="bg-gradient-primary text-primary-foreground">Save changes</Button>
+                <div className="space-y-1.5">
+                  <Label>Name</Label>
+                  <Input defaultValue={user?.name ?? ""} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Email</Label>
+                  <Input defaultValue={user?.email ?? ""} disabled />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Bio</Label>
+                  <Textarea placeholder="DevOps Architect" />
+                </div>
+                <Button className="bg-gradient-primary text-primary-foreground">
+                  Save changes
+                </Button>
               </div>
             </Card>
           </TabsContent>
@@ -97,15 +108,33 @@ function SettingsPage() {
               <h3 className="mb-4 text-sm font-semibold">Custom workflow statuses</h3>
               <div className="space-y-2">
                 {statuses.map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 rounded-md border border-border bg-muted/30 p-3">
+                  <div
+                    key={s.id}
+                    className="flex items-center gap-3 rounded-md border border-border bg-muted/30 p-3"
+                  >
                     <StatusDot color={s.color} />
                     <div className="flex-1">
                       <p className="text-sm font-medium">{s.name}</p>
-                      <p className="text-[10px] text-muted-foreground">Sort {s.sortOrder} · {s.category}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        Sort {s.sortOrder} · {s.category}
+                      </p>
                     </div>
-                    <Badge variant="outline" className="text-[10px]">{s.category}</Badge>
-                    {s.wipLimit && <Badge variant="outline" className="text-[10px]">WIP {s.wipLimit}</Badge>}
-                    {s.requiresComment && <Badge variant="outline" className="border-warning/40 text-warning text-[10px]">Comment req</Badge>}
+                    <Badge variant="outline" className="text-[10px]">
+                      {s.category}
+                    </Badge>
+                    {s.wipLimit && (
+                      <Badge variant="outline" className="text-[10px]">
+                        WIP {s.wipLimit}
+                      </Badge>
+                    )}
+                    {s.requiresComment && (
+                      <Badge
+                        variant="outline"
+                        className="border-warning/40 text-warning text-[10px]"
+                      >
+                        Comment req
+                      </Badge>
+                    )}
                   </div>
                 ))}
               </div>
@@ -120,8 +149,14 @@ function SettingsPage() {
                 ["SLA breach warnings", "5 minutes before SLA breach"],
                 ["Daily digest", "Summary of activity at 8 AM"],
               ].map(([k, d]) => (
-                <div key={k} className="flex items-center justify-between rounded-md border border-border p-3">
-                  <div><p className="text-sm font-medium">{k}</p><p className="text-xs text-muted-foreground">{d}</p></div>
+                <div
+                  key={k}
+                  className="flex items-center justify-between rounded-md border border-border p-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{k}</p>
+                    <p className="text-xs text-muted-foreground">{d}</p>
+                  </div>
                   <Switch defaultChecked />
                 </div>
               ))}
@@ -135,7 +170,8 @@ function SettingsPage() {
                 <h3 className="text-sm font-semibold">Workspace Theme</h3>
               </div>
               <p className="text-xs text-muted-foreground mb-6">
-                Select a visual theme accent. The primary gradients, interactive glowing shadows, and status ring selections will immediately synchronize across your control deck.
+                Select a visual theme accent. The primary gradients, interactive glowing shadows,
+                and status ring selections will immediately synchronize across your control deck.
               </p>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -162,7 +198,10 @@ function SettingsPage() {
                         {t.description}
                       </p>
                       <div className="w-full bg-background/50 rounded-lg p-2 border border-border/60 flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full" style={{ backgroundColor: t.color }} />
+                        <div
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: t.color }}
+                        />
                         <div className="h-1 flex-1 rounded bg-muted-foreground/20" />
                         <div className="h-1 w-8 rounded bg-muted-foreground/20" />
                       </div>
@@ -179,15 +218,26 @@ function SettingsPage() {
               <div className="space-y-3">
                 <div className="space-y-1.5">
                   <Label>Base URL (read-only)</Label>
-                  <Input readOnly value={API_BASE_URL || "(not set — using template data)"} className="font-mono text-xs" />
-                  <p className="text-[10px] text-muted-foreground">Configure <code className="rounded bg-muted px-1">VITE_API_BASE_URL</code> in your environment. All requests target <code className="rounded bg-muted px-1">{`{base}/api/v1/*`}</code>.</p>
+                  <Input
+                    readOnly
+                    value={API_BASE_URL || "(not set — using template data)"}
+                    className="font-mono text-xs"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Configure <code className="rounded bg-muted px-1">VITE_API_BASE_URL</code> in
+                    your environment. All requests target{" "}
+                    <code className="rounded bg-muted px-1">{`{base}/api/v1/*`}</code>.
+                  </p>
                 </div>
                 {USE_MOCK && (
                   <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3">
                     <AlertTriangle className="mt-0.5 h-4 w-4 text-warning" />
                     <div className="text-xs">
                       <p className="font-medium text-warning">Template mode active</p>
-                      <p className="mt-0.5 text-muted-foreground">No API URL configured. The UI is fully wired but reads from in-memory fixtures so you can preview every workflow.</p>
+                      <p className="mt-0.5 text-muted-foreground">
+                        No API URL configured. The UI is fully wired but reads from in-memory
+                        fixtures so you can preview every workflow.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -199,4 +249,3 @@ function SettingsPage() {
     </>
   );
 }
-

@@ -28,6 +28,15 @@ public class Project {
     @Column(nullable = false)
     private String name;
 
+    /** Short uppercase key used for task display IDs, e.g. "NETIQ" */
+    @Column(name = "key", length = 10)
+    private String key;
+
+    /** Monotonically increasing counter; incremented atomically per task creation */
+    @Column(name = "task_counter", nullable = false)
+    @Builder.Default
+    private int taskCounter = 0;
+
     private String description;
 
     @Column(nullable = false)
@@ -52,3 +61,4 @@ public class Project {
     @Column(name = "updated_at")
     private Instant updatedAt;
 }
+

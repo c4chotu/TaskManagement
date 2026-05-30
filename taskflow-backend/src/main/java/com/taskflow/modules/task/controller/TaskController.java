@@ -22,9 +22,11 @@ import java.util.UUID;
 public class TaskController {
 
     private final TaskService taskService;
+    private final com.taskflow.modules.file.service.FileService fileService;
 
-    public TaskController(TaskService taskService) {
+    public TaskController(TaskService taskService, com.taskflow.modules.file.service.FileService fileService) {
         this.taskService = taskService;
+        this.fileService = fileService;
     }
 
     @PostMapping
@@ -127,5 +129,43 @@ public class TaskController {
             @PathVariable UUID projectId,
             @Valid @RequestBody CustomFieldRequest request) {
         return ResponseEntity.ok(taskService.createCustomField(projectId, request));
+    }
+
+    @PostMapping(value = "/{id}/attachments", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, Object>> uploadAttachment(
+            @PathVariable UUID id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        com.taskflow.modules.file.domain.FileAttachment att = fileService.uploadFile(file, "TASK", id);
+        return ResponseEntity.ok(mapAttachment(att));
+    }
+
+    @GetMapping("/{id}/attachments")
+    public ResponseEntity<List<Map<String, Object>>> getAttachments(@PathVariable UUID id) {
+        List<com.taskflow.modules.file.domain.FileAttachment> list = fileService.listFiles("TASK", id);
+        List<Map<String, Object>> response = list.stream()
+                .map(this::mapAttachment)
+                .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}/attachments/{attachmentId}")
+    public ResponseEntity<Void> deleteAttachment(
+            @PathVariable UUID id,
+            @PathVariable UUID attachmentId) {
+        fileService.deleteFile(attachmentId);
+        return ResponseEntity.noContent().build();
+    }
+
+    private Map<String, Object> mapAttachment(com.taskflow.modules.file.domain.FileAttachment att) {
+        Map<String, Object> map = new java.util.HashMap<>();
+        map.put("id", att.getId().toString());
+        map.put("taskId", att.getEntityId().toString());
+        map.put("fileName", att.getOriginalFilename());
+        map.put("mimeType", att.getContentType());
+        map.put("sizeBytes", att.getFileSize());
+        map.put("url", "/api/v1/files/" + att.getId() + "/download");
+        map.put("uploadedAt", att.getCreatedAt().toString());
+        map.put("uploadedBy", att.getUploadedBy().toString());
+        return map;
     }
 }

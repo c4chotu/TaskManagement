@@ -22,6 +22,14 @@ public class Task {
     @Id
     private UUID id;
 
+    /** Sequential number within the project, e.g. 1, 2, 3... */
+    @Column(name = "task_number")
+    private Integer taskNumber;
+
+    /** Human-readable display ID, e.g. NETIQ-T1 or NETIQ-I1 */
+    @Column(name = "display_id", length = 25)
+    private String displayId;
+
     @Column(name = "project_id", nullable = false)
     private UUID projectId;
 

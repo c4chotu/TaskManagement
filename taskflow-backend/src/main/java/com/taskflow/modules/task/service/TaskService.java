@@ -11,6 +11,8 @@ import com.taskflow.modules.project.repository.ProjectRepository;
 import com.taskflow.modules.task.domain.*;
 import com.taskflow.modules.task.dto.*;
 import com.taskflow.modules.task.repository.*;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
@@ -34,6 +36,7 @@ public class TaskService {
     private final TaskActivityRepository taskActivityRepository;
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
+    private final RecurringTaskRepository recurringTaskRepository;
 
     private static final Logger log = LoggerFactory.getLogger(TaskService.class);
 
@@ -55,7 +58,8 @@ public class TaskService {
                        CustomFieldValueRepository customFieldValueRepository,
                        TaskActivityRepository taskActivityRepository,
                        ProjectRepository projectRepository,
-                       ProjectMemberRepository projectMemberRepository) {
+                       ProjectMemberRepository projectMemberRepository,
+                       RecurringTaskRepository recurringTaskRepository) {
         this.taskRepository = taskRepository;
         this.taskStatusRepository = taskStatusRepository;
         this.customTaskStatusRepository = customTaskStatusRepository;
@@ -67,6 +71,7 @@ public class TaskService {
         this.taskActivityRepository = taskActivityRepository;
         this.projectRepository = projectRepository;
         this.projectMemberRepository = projectMemberRepository;
+        this.recurringTaskRepository = recurringTaskRepository;
     }
 
     @Transactional
@@ -140,13 +145,31 @@ public class TaskService {
                     .orElse(customStatuses.get(0).getId());
         }
 
+        // ---- Atomically increment project task counter to get display number ----
+        // Re-fetch project with a write lock to prevent concurrent duplicate numbers
+        Project lockedProject = projectRepository.findByIdWithLock(request.getProjectId())
+                .orElse(project);
+        int newCounter = lockedProject.getTaskCounter() + 1;
+        lockedProject.setTaskCounter(newCounter);
+        projectRepository.save(lockedProject);
+
+        String taskType = request.getTaskType() != null ? request.getTaskType() : "TASK";
+        String projectKey = lockedProject.getKey() != null ? lockedProject.getKey()
+                : lockedProject.getName().replaceAll("[^A-Z0-9]", "").toUpperCase();
+        if (projectKey.isEmpty()) projectKey = "TASK";
+        if (projectKey.length() > 8) projectKey = projectKey.substring(0, 8);
+        String suffix = "ISSUE".equals(taskType) ? "-I" : "-T";
+        String displayId = projectKey + suffix + newCounter;
+
         UUID taskId = UUID.randomUUID();
         Task task = Task.builder()
                 .id(taskId)
+                .taskNumber(newCounter)
+                .displayId(displayId)
                 .projectId(request.getProjectId())
                 .statusId(statusId)
                 .currentStatusId(currentStatusId)
-                .taskType(request.getTaskType() != null ? request.getTaskType() : "TASK")
+                .taskType(taskType)
                 .departmentId(request.getDepartmentId())
                 .teamId(request.getTeamId())
                 .title(request.getTitle())
@@ -164,7 +187,7 @@ public class TaskService {
         Task savedTask = taskRepository.save(task);
 
         // Record Activity Log
-        logActivity(taskId, currentUserId, "CREATE", "Task created", null, savedTask.getTitle());
+        logActivity(taskId, currentUserId, "CREATE", "Task created", null, displayId + ": " + savedTask.getTitle());
 
         // Perform automatic routing
         if (taskRouterService != null) {
@@ -173,6 +196,23 @@ public class TaskService {
             } catch (Exception e) {
                 log.error("Failed to auto-route task: {}", e.getMessage());
             }
+        }
+
+        // Handle recurring task logic
+        if (request.getRecurrenceRule() != null && !request.getRecurrenceRule().isEmpty()) {
+            Instant nextRun = "MONTHLY".equalsIgnoreCase(request.getRecurrenceRule()) 
+                    ? Instant.now().plus(java.time.Duration.ofDays(30))
+                    : Instant.now().plus(java.time.Duration.ofDays(7)); // Default WEEKLY
+            
+            RecurringTask recurring = RecurringTask.builder()
+                    .id(UUID.randomUUID())
+                    .templateTaskId(savedTask.getId())
+                    .cronExpression(request.getRecurrenceRule().toUpperCase())
+                    .nextRunAt(nextRun)
+                    .isActive(true)
+                    .build();
+            recurringTaskRepository.save(recurring);
+            logActivity(taskId, currentUserId, "RECURRENCE_SET", "Task set to recurring: " + request.getRecurrenceRule(), null, null);
         }
 
         return mapToResponse(savedTask);
@@ -600,6 +640,8 @@ public class TaskService {
 
         return TaskResponse.builder()
                 .id(task.getId())
+                .displayId(task.getDisplayId())
+                .taskNumber(task.getTaskNumber())
                 .projectId(task.getProjectId())
                 .statusId(task.getStatusId())
                 .currentStatusId(task.getCurrentStatusId())

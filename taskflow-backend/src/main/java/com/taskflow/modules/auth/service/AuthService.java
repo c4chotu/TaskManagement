@@ -74,6 +74,8 @@ public class AuthService {
                 .orgId(user.getOrganizationId())
                 .email(user.getEmail())
                 .name(user.getName())
+                .role(user.getRole())
+                .roleLevel(mapRoleNameToLevel(user.getRole()))
                 .build();
     }
 
@@ -96,6 +98,8 @@ public class AuthService {
                 .orgId(user.getOrganizationId())
                 .email(user.getEmail())
                 .name(user.getName())
+                .role(user.getRole())
+                .roleLevel(mapRoleNameToLevel(user.getRole()))
                 .build();
     }
 
@@ -119,6 +123,34 @@ public class AuthService {
                 .orgId(user.getOrganizationId())
                 .email(user.getEmail())
                 .name(user.getName())
+                .role(user.getRole())
+                .roleLevel(mapRoleNameToLevel(user.getRole()))
                 .build();
+    }
+
+    private int mapRoleNameToLevel(String role) {
+        if (role == null) return 1;
+        String normalized = role.replace("ROLE_", "").toUpperCase();
+        switch (normalized) {
+            case "SUPER_ADMIN":
+                return 10;
+            case "ORG_OWNER":
+            case "OWNER":
+                return 5;
+            case "ORG_ADMIN":
+            case "ADMIN":
+                return 4;
+            case "DEPT_HEAD":
+                return 3;
+            case "TEAM_LEAD":
+                return 2;
+            case "TEAM_MEMBER":
+            case "MEMBER":
+                return 1;
+            case "GUEST":
+                return 0;
+            default:
+                return 1;
+        }
     }
 }

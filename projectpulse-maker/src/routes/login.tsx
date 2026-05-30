@@ -29,7 +29,9 @@ function LoginPage() {
       navigate({ to: "/dashboard" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sign in failed");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -40,20 +42,38 @@ function LoginPage() {
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
           </div>
-          <Button type="submit" disabled={loading} className="w-full bg-gradient-primary text-primary-foreground shadow-glow">
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-primary text-primary-foreground shadow-glow"
+          >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Sign in
           </Button>
         </form>
         <p className="mt-6 text-center text-xs text-muted-foreground">
           No workspace yet?{" "}
-          <Link to="/register" className="font-medium text-primary hover:underline">Create one</Link>
+          <Link to="/register" className="font-medium text-primary hover:underline">
+            Create one
+          </Link>
         </p>
       </Card>
     </AuthShell>
@@ -75,21 +95,29 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="space-y-4">
             <h2 className="text-3xl font-semibold leading-tight">
-              Run projects, sprints, and incidents <span className="text-gradient-primary">in one operations cockpit.</span>
+              Run projects, sprints, and incidents{" "}
+              <span className="text-gradient-primary">in one operations cockpit.</span>
             </h2>
             <p className="max-w-md text-sm text-muted-foreground">
-              Role-aware boards, SLA-tracked incident response, on-call routing, and workload balancing — all
-              wired to your REST backend.
+              Role-aware boards, SLA-tracked incident response, on-call routing, and workload
+              balancing — all wired to your REST backend.
             </p>
             <ul className="space-y-2 text-xs text-muted-foreground">
-              {["Kanban + Gantt + Calendar + Workload views", "SEV0–SEV3 incident timers with SLA breach alerts", "Department-aware auto-routing & on-call paging", "Time tracking with weekly approvals"].map((f) => (
+              {[
+                "Kanban + Gantt + Calendar + Workload views",
+                "SEV0–SEV3 incident timers with SLA breach alerts",
+                "Department-aware auto-routing & on-call paging",
+                "Time tracking with weekly approvals",
+              ].map((f) => (
                 <li key={f} className="flex items-start gap-2">
                   <span className="mt-1 h-1 w-1 rounded-full bg-primary" /> {f}
                 </li>
               ))}
             </ul>
           </div>
-          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">© 2026 Cyberdyne Systems</p>
+          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+            © 2026 Cyberdyne Systems
+          </p>
         </div>
       </div>
       <div className="flex items-center justify-center p-6 lg:p-12">

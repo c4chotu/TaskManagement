@@ -4,8 +4,8 @@ server:
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/taskflow_db
-    username: taskflow
-    password: taskflow_password
+    username: postgres
+    password: "3131"
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -26,18 +26,6 @@ spring:
     bootstrap-servers: localhost:9092
     listener:
       auto-startup: false # Fail-safe if Kafka broker isn't active on startup
-
-taskflow:
-  jwt:
-    secret: aHlwZXJzaXN0ZW5jZS11dGlscy1oaWJlcm5hdGUtNjMtc3VwcG9ydC1mb3ItanBiLWFuZC1zaWduZWQtand0cy1kZXZlbG9wbWVudC1jYXNl
-    access-expiration-ms: 900000
-    refresh-expiration-ms: 604800000
-
-app:
-  file:
-    upload-dir: ./uploads
-
-spring:
   servlet:
     multipart:
       enabled: true
@@ -54,3 +42,13 @@ spring:
           auth: true
           starttls:
             enable: true
+
+taskflow:
+  jwt:
+    secret: aHlwZXJzaXN0ZW5jZS11dGlscy1oaWJlcm5hdGUtNjMtc3VwcG9ydC1mb3ItanBiLWFuZC1zaWduZWQtand0cy1kZXZlbG9wbWVudC1jYXNl
+    access-expiration-ms: 900000
+    refresh-expiration-ms: 604800000
+
+app:
+  file:
+    upload-dir: ./uploads

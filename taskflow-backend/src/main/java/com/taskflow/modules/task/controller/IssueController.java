@@ -1,5 +1,6 @@
 package com.taskflow.modules.task.controller;
 
+import com.taskflow.common.exception.EntityNotFoundException;
 import com.taskflow.common.security.SecurityContextHelper;
 import com.taskflow.modules.task.domain.IssueDetail;
 import com.taskflow.modules.task.domain.OnCallSchedule;
@@ -48,6 +49,21 @@ public class IssueController {
                 request.getCustomerImpact()
         );
         return ResponseEntity.ok(detail);
+    }
+
+    @GetMapping("/issues")
+    public ResponseEntity<List<IssueDetail>> getIssues() {
+        UUID orgId = SecurityContextHelper.getCurrentOrgId();
+        if (orgId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(issueDetailRepository.findByOrganizationId(orgId));
+    }
+
+    @GetMapping("/issues/by-task/{taskId}")
+    public ResponseEntity<IssueDetail> getIssueByTaskId(@PathVariable UUID taskId) {
+        return ResponseEntity.ok(issueDetailRepository.findByTaskId(taskId)
+                .orElseThrow(() -> new EntityNotFoundException("Issue details not found for task: " + taskId)));
     }
 
     @GetMapping("/issues/severity/{severity}")
@@ -164,6 +180,15 @@ public class IssueController {
         }
 
         return ResponseEntity.ok(onCallScheduleRepository.save(sched));
+    }
+
+    @GetMapping("/on-call/schedule")
+    public ResponseEntity<List<OnCallSchedule>> getOnCallSchedule() {
+        UUID orgId = SecurityContextHelper.getCurrentOrgId();
+        if (orgId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(onCallScheduleRepository.findByOrganizationId(orgId));
     }
 
     @Data

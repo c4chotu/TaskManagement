@@ -36,15 +36,21 @@ public class ProjectService {
         }
 
         UUID projectId = UUID.randomUUID();
+        String projectKey = name.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
+        if (projectKey.isEmpty()) projectKey = "PROJ";
+        if (projectKey.length() > 8) projectKey = projectKey.substring(0, 8);
+
         Project project = Project.builder()
                 .id(projectId)
                 .name(name)
+                .key(projectKey)
                 .description(description)
                 .status("ACTIVE")
                 .type(type)
                 .startDate(startDate)
                 .endDate(endDate)
                 .organizationId(orgId)
+                .taskCounter(0)
                 .build();
 
         Project savedProject = projectRepository.save(project);

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { Topbar } from "@/components/tfp/topbar";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { Building2, Network, Users, FolderPlus, ListChecks, Check, ArrowRight, A
 import { useCreateOrganization, useCreateProject, useCreateTask } from "@/lib/queries";
 import type { OrgSetupPayload, ProjectType, RoleName, TaskType } from "@/lib/types";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/onboarding")({
   head: () => ({ meta: [{ title: "Set up organization — TaskFlow Pro" }] }),
@@ -33,8 +34,9 @@ function OnboardingPage() {
   const createProject = useCreateProject();
   const createTask = useCreateTask();
   const [step, setStep] = useState(1);
+  const { user } = useAuth();
 
-  const [org, setOrg] = useState({ name: "", description: "" });
+  const [org, setOrg] = useState({ name: "", description: "", tier: "FREE" });
   const [departments, setDepartments] = useState<OrgSetupPayload["departments"]>([{ name: "", description: "" }]);
   const [teams, setTeams] = useState<OrgSetupPayload["teams"]>([{ name: "", departmentName: "", description: "" }]);
   const [members, setMembers] = useState<OrgSetupPayload["members"]>([{ name: "", email: "", roleName: "TEAM_MEMBER", teamName: "" }]);
@@ -76,6 +78,10 @@ function OnboardingPage() {
     }
   };
 
+  if (user && user.roleName !== "SUPER_ADMIN") {
+    return <Navigate to="/dashboard" />;
+  }
+
   return (
     <>
       <Topbar title="Set up your organization" />
@@ -105,6 +111,19 @@ function OnboardingPage() {
               <Heading icon={Building2} title="Organization basics" sub="Start with your company's identity." />
               <div><Label>Organization name *</Label><Input value={org.name} onChange={(e) => setOrg({ ...org, name: e.target.value })} placeholder="Cyberdyne Systems" autoFocus /></div>
               <div><Label>Description</Label><Textarea rows={3} value={org.description} onChange={(e) => setOrg({ ...org, description: e.target.value })} placeholder="Mission, sector, what you build…" /></div>
+              <div>
+                <Label>Pricing Plan</Label>
+                <Select value={org.tier} onValueChange={(v) => setOrg({ ...org, tier: v })}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FREE">Free ($0/mo)</SelectItem>
+                    <SelectItem value="PRO">Pro ($10/user/mo)</SelectItem>
+                    <SelectItem value="ENTERPRISE">Enterprise (Custom)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </section>
           )}
 
@@ -236,7 +255,7 @@ function OnboardingPage() {
           <div className="flex items-center justify-between border-t border-border pt-4">
             <Button variant="ghost" onClick={back} disabled={step === 1}><ArrowLeft className="mr-1 h-3 w-3" /> Back</Button>
             <Badge variant="outline" className="font-mono text-[10px]">Step {step} of {STEPS.length}</Badge>
-            {step < STEPS.length ? (
+            {step !== STEPS.length ? (
               <Button onClick={() => { const err = validateStep(); if (err) return toast.error(err); next(); }} className="bg-gradient-primary text-primary-foreground">
                 Continue <ArrowRight className="ml-1 h-3 w-3" />
               </Button>

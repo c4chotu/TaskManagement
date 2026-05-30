@@ -3,7 +3,8 @@
 // the in-memory template data layer so the UI is fully explorable.
 import { toast } from "sonner";
 
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "";
+export const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "";
 export const USE_MOCK = !API_BASE_URL;
 
 const TOKEN_KEY = "tfp.accessToken";
@@ -31,7 +32,11 @@ export const tokenStore = {
 };
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string, public payload?: unknown) {
+  constructor(
+    public status: number,
+    message: string,
+    public payload?: unknown,
+  ) {
     super(message);
   }
 }
@@ -80,7 +85,11 @@ export async function apiRequest<T>(path: string, opts: RequestOptions = {}): Pr
 }
 
 function safeJson(text: string): unknown {
-  try { return JSON.parse(text); } catch { return text; }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
 export function showApiError(err: unknown, fallback = "Something went wrong") {

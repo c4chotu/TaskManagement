@@ -63,6 +63,11 @@ public class StatusWorkflowController {
         return ResponseEntity.ok(statusHistoryRepository.findByTaskIdOrderByChangedAtDesc(taskId));
     }
 
+    @GetMapping("/projects/{projectId}/statuses")
+    public ResponseEntity<List<CustomTaskStatus>> getProjectStatuses(@PathVariable UUID projectId) {
+        return ResponseEntity.ok(customTaskStatusRepository.findByProjectIdOrderBySortOrderAsc(projectId));
+    }
+
     @PostMapping("/projects/{id}/statuses")
     public ResponseEntity<CustomTaskStatus> addCustomStatusToProject(@PathVariable UUID id, @RequestBody CustomStatusRequest request) {
         UUID orgId = SecurityContextHelper.getCurrentOrgId();

@@ -1,37 +1,36 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard, FolderKanban, ListChecks, AlertOctagon, Clock, Users,
-  Workflow, BarChart3, Settings, Activity, ShieldAlert, CalendarDays, CalendarRange, Building2,
+  LayoutDashboard,
+  FolderKanban,
+  ListChecks,
+  AlertOctagon,
+  Clock,
+  Users,
+  Workflow,
+  BarChart3,
+  Settings,
+  Activity,
+  ShieldAlert,
+  CalendarDays,
+  CalendarRange,
+  Building2,
+  Upload,
 } from "lucide-react";
 import {
-  Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
-  SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton,
-  SidebarMenuItem, useSidebar,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth";
-
-const work = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Projects", url: "/projects", icon: FolderKanban },
-  { title: "Tasks", url: "/tasks", icon: ListChecks },
-  { title: "Calendar", url: "/calendar", icon: CalendarDays },
-  { title: "Sprints", url: "/sprints", icon: CalendarRange },
-  { title: "Incidents", url: "/incidents", icon: AlertOctagon },
-];
-const ops = [
-  { title: "Time Tracking", url: "/time", icon: Clock },
-  { title: "Workload", url: "/workload", icon: Activity },
-  { title: "On-Call", url: "/on-call", icon: ShieldAlert },
-];
-const admin = [
-  { title: "People", url: "/people", icon: Users },
-  { title: "Onboarding", url: "/onboarding", icon: Building2 },
-  { title: "Automations", url: "/automations", icon: Workflow },
-  { title: "Reports", url: "/reports", icon: BarChart3 },
-  { title: "Settings", url: "/settings", icon: Settings },
-];
-
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -39,6 +38,46 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isActive = (url: string) => pathname === url || pathname.startsWith(url + "/");
   const { user } = useAuth();
+
+  const isSuperAdmin = user?.roleName === "SUPER_ADMIN";
+  const isOrgOwner = user && ((user.roleLevel ?? 0) >= 5 || isSuperAdmin);
+  const isOrgAdmin = user && ((user.roleLevel ?? 0) >= 4 || isSuperAdmin);
+  const isDeptHeadOrAbove = user && ((user.roleLevel ?? 0) >= 3 || isSuperAdmin);
+  const isTeamLeadOrAbove = user && ((user.roleLevel ?? 0) >= 2 || isSuperAdmin);
+
+  const workItems = isSuperAdmin ? [
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  ] : [
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+    { title: "Projects", url: "/projects", icon: FolderKanban },
+    { title: "Tasks", url: "/tasks", icon: ListChecks },
+    { title: "Calendar", url: "/calendar", icon: CalendarDays },
+    { title: "Sprints", url: "/sprints", icon: CalendarRange },
+    { title: "Incidents", url: "/incidents", icon: AlertOctagon },
+  ];
+
+  const opsItems = isSuperAdmin ? [] : [
+    { title: "Time Tracking", url: "/time", icon: Clock },
+    ...(isTeamLeadOrAbove ? [{ title: "Workload", url: "/workload", icon: Activity }] : []),
+    { title: "On-Call", url: "/on-call", icon: ShieldAlert },
+  ];
+
+  const adminItems = [
+    ...(!isSuperAdmin ? [{ title: "People", url: "/people", icon: Users }] : []),
+    ...(isOrgAdmin || isOrgOwner || isSuperAdmin ? [{ title: "Collaboration", url: "/collaboration", icon: Users }] : []),
+    ...(isOrgAdmin && !isSuperAdmin ? [{ title: "Onboard Member", url: "/people-onboarding", icon: Users }] : []),
+    ...(isOrgOwner && !isSuperAdmin ? [{ title: "Bulk Upload", url: "/bulk-upload", icon: Upload }] : []),
+    ...(isSuperAdmin ? [{ title: "Onboarding", url: "/onboarding", icon: Building2 }] : []),
+    ...(isOrgAdmin && !isSuperAdmin ? [{ title: "Automations", url: "/automations", icon: Workflow }] : []),
+    ...(isDeptHeadOrAbove && !isSuperAdmin ? [{ title: "Reports", url: "/reports", icon: BarChart3 }] : []),
+    ...(isOrgAdmin && !isSuperAdmin ? [{ title: "Settings", url: "/settings", icon: Settings }] : []),
+  ];
+
+  const groups = [
+    { label: "Work", items: workItems },
+    ...(opsItems.length > 0 ? [{ label: "Operations", items: opsItems }] : []),
+    ...(adminItems.length > 0 ? [{ label: "Admin", items: adminItems }] : []),
+  ];
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -50,15 +89,21 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col">
               <span className="text-sm font-semibold tracking-tight">TaskFlow Pro</span>
-              <span className="text-[10px] font-mono uppercase text-muted-foreground">Cyberdyne Sys</span>
+              <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                {isSuperAdmin ? "System Admin" : "Cyberdyne Sys"}
+              </span>
             </div>
           )}
         </div>
       </SidebarHeader>
       <SidebarContent className="scrollbar-thin">
-        {[{ label: "Work", items: work }, { label: "Operations", items: ops }, { label: "Admin", items: admin }].map((g) => (
+        {groups.map((g) => (
           <SidebarGroup key={g.label}>
-            {!collapsed && <SidebarGroupLabel className="text-[10px] font-mono uppercase tracking-widest">{g.label}</SidebarGroupLabel>}
+            {!collapsed && (
+              <SidebarGroupLabel className="text-[10px] font-mono uppercase tracking-widest">
+                {g.label}
+              </SidebarGroupLabel>
+            )}
             <SidebarGroupContent>
               <SidebarMenu>
                 {g.items.map((item) => (
