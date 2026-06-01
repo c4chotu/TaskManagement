@@ -48,6 +48,10 @@ public class TaskService {
     @org.springframework.context.annotation.Lazy
     private StatusWorkflowService statusWorkflowService;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    @org.springframework.context.annotation.Lazy
+    private com.taskflow.modules.automation.service.AutomationService automationService;
+
     public TaskService(TaskRepository taskRepository,
                        TaskStatusRepository taskStatusRepository,
                        CustomTaskStatusRepository customTaskStatusRepository,
@@ -177,6 +181,8 @@ public class TaskService {
                 .priority(request.getPriority() != null ? request.getPriority() : "MEDIUM")
                 .startDate(request.getStartDate())
                 .dueDate(request.getDueDate())
+                .category(request.getCategory())
+                .badgeId(request.getBadgeId())
                 .storyPoints(request.getStoryPoints())
                 .parentTaskId(request.getParentTaskId())
                 .phaseId(request.getPhaseId())
@@ -215,6 +221,17 @@ public class TaskService {
             logActivity(taskId, currentUserId, "RECURRENCE_SET", "Task set to recurring: " + request.getRecurrenceRule(), null, null);
         }
 
+        // Trigger automation rules for TASK_CREATED
+        try {
+            java.util.Map<String, Object> ctx = new java.util.HashMap<>();
+            ctx.put("triggeredBy", currentUserId != null ? currentUserId.toString() : null);
+            ctx.put("priority", savedTask.getPriority());
+            ctx.put("category", savedTask.getCategory());
+            automationService.evaluateRules("TASK_CREATED", savedTask.getProjectId(), savedTask, ctx);
+        } catch (Exception e) {
+            log.error("Automation evaluation failed on create: {}", e.getMessage());
+        }
+
         return mapToResponse(savedTask);
     }
 
@@ -222,6 +239,10 @@ public class TaskService {
     public TaskResponse updateTask(UUID taskId, TaskRequest request) {
         UUID currentUserId = SecurityContextHelper.getCurrentUserId();
         Task task = getTaskEntity(taskId); // Verifies tenant and project membership access
+
+        // Snapshot old values for automation triggers
+        UUID oldCurrentStatusId = task.getCurrentStatusId();
+        java.time.Instant oldDueDate = task.getDueDate();
 
         // Ensure user is not a VIEWER
         verifyRoleRequirement(task.getProjectId(), List.of("PROJECT_OWNER", "PROJECT_MANAGER", "PROJECT_MEMBER"), "update tasks");
@@ -270,6 +291,14 @@ public class TaskService {
             logActivity(taskId, currentUserId, "DESC_CHANGE", "Description updated", task.getDescription(), request.getDescription());
             task.setDescription(request.getDescription());
         }
+        if (!Objects.equals(task.getCategory(), request.getCategory())) {
+            logActivity(taskId, currentUserId, "CATEGORY_CHANGE", "Category updated", task.getCategory(), request.getCategory());
+            task.setCategory(request.getCategory());
+        }
+        if (!Objects.equals(task.getBadgeId(), request.getBadgeId())) {
+            logActivity(taskId, currentUserId, "BADGE_CHANGE", "Badge updated", task.getBadgeId() != null ? task.getBadgeId().toString() : null, request.getBadgeId() != null ? request.getBadgeId().toString() : null);
+            task.setBadgeId(request.getBadgeId());
+        }
         if (!Objects.equals(task.getPriority(), request.getPriority()) && request.getPriority() != null) {
             logActivity(taskId, currentUserId, "PRIORITY_CHANGE", "Priority updated", task.getPriority(), request.getPriority());
             task.setPriority(request.getPriority());
@@ -291,6 +320,28 @@ public class TaskService {
         }
 
         Task updatedTask = taskRepository.save(task);
+
+        // Trigger automation for status changes and due date updates
+        try {
+            if (request.getCurrentStatusId() != null && !Objects.equals(oldCurrentStatusId, request.getCurrentStatusId())) {
+                java.util.Map<String, Object> ctx = new java.util.HashMap<>();
+                ctx.put("changedBy", currentUserId != null ? currentUserId.toString() : null);
+                ctx.put("oldStatus", oldCurrentStatusId != null ? oldCurrentStatusId.toString() : null);
+                ctx.put("newStatus", request.getCurrentStatusId().toString());
+                automationService.evaluateRules("TASK_STATUS_CHANGED", updatedTask.getProjectId(), updatedTask, ctx);
+            }
+
+            if (!Objects.equals(oldDueDate, request.getDueDate())) {
+                java.util.Map<String, Object> ctx2 = new java.util.HashMap<>();
+                ctx2.put("changedBy", currentUserId != null ? currentUserId.toString() : null);
+                ctx2.put("oldDueDate", oldDueDate != null ? oldDueDate.toString() : null);
+                ctx2.put("newDueDate", request.getDueDate() != null ? request.getDueDate().toString() : null);
+                automationService.evaluateRules("TASK_DUE_DATE_CHANGED", updatedTask.getProjectId(), updatedTask, ctx2);
+            }
+        } catch (Exception e) {
+            log.error("Automation evaluation failed on update: {}", e.getMessage());
+        }
+
         return mapToResponse(updatedTask);
     }
 
@@ -355,6 +406,15 @@ public class TaskService {
 
         TaskAssignment saved = taskAssignmentRepository.save(assignment);
         logActivity(taskId, currentUserId, "ASSIGNMENT_ADD", "User assigned to task", null, userId.toString());
+        // Trigger automation for assignment
+        try {
+            java.util.Map<String, Object> ctx = new java.util.HashMap<>();
+            ctx.put("assigneeId", userId.toString());
+            ctx.put("assignedBy", currentUserId != null ? currentUserId.toString() : null);
+            automationService.evaluateRules("TASK_ASSIGNED", task.getProjectId(), task, ctx);
+        } catch (Exception e) {
+            log.error("Automation evaluation failed on assign: {}", e.getMessage());
+        }
         return saved;
     }
 
@@ -655,6 +715,8 @@ public class TaskService {
                 .priority(task.getPriority())
                 .startDate(task.getStartDate())
                 .dueDate(task.getDueDate())
+                .category(task.getCategory())
+                .badgeId(task.getBadgeId())
                 .storyPoints(task.getStoryPoints())
                 .parentTaskId(task.getParentTaskId())
                 .phaseId(task.getPhaseId())

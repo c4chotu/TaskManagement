@@ -3,9 +3,8 @@
 // the in-memory template data layer so the UI is fully explorable.
 import { toast } from "sonner";
 
-export const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "";
-export const USE_MOCK = !API_BASE_URL;
+export const API_BASE_URL =  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "";
+export const USE_MOCK = false;
 
 const TOKEN_KEY = "tfp.accessToken";
 const REFRESH_KEY = "tfp.refreshToken";

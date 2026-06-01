@@ -9,13 +9,14 @@ import {
   useBulkUploadPeople,
   useBulkUploadTasks,
   useBulkUploadAssignments,
+  useBulkUploadAutomations,
   type BulkUploadResult,
 } from "@/lib/queries";
 import { useState, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import {
   Upload, FileText, Users, CheckCircle2, XCircle, Layers,
-  Link2, Shield, Download, AlertTriangle, ChevronRight
+  Link2, Shield, Download, AlertTriangle, ChevronRight, Settings
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/bulk-upload")({
@@ -76,6 +77,21 @@ const TABS = [
     color: "text-emerald-400",
     bg: "bg-emerald-500/10",
     border: "border-emerald-500/30",
+  },
+  {
+    id: "automations",
+    label: "Automations",
+    icon: Settings,
+    description: "Import custom automation rules in bulk",
+    columns: ["name", "triggerType", "actionType", "conditionsJson", "actionsJson", "projectId"],
+    sample: [
+      "name,triggerType,actionType,conditionsJson,actionsJson,projectId",
+      "Auto-Assign Critical,TASK_UPDATED,ASSIGN_USER,\"[{\\\"field\\\":\\\"severity\\\",\\\"operator\\\":\\\"EQUALS\\\",\\\"value\\\":\\\"SEV0\\\"}]\",\"[{\\\"assigneeId\\\":\\\"u-dev1\\\"}]\",default",
+      "SLA Alert,STATUS_CHANGED,SEND_NOTIFICATION,\"[{\\\"field\\\":\\\"statusId\\\",\\\"operator\\\":\\\"EQUALS\\\",\\\"value\\\":\\\"s-todo\\\"}]\",\"[{\\\"recipient\\\":\\\"team-lead\\\"}]\",default"
+    ].join("\n"),
+    color: "text-rose-400",
+    bg: "bg-rose-500/10",
+    border: "border-rose-500/30",
   },
 ] as const;
 
@@ -242,8 +258,15 @@ function BulkUploadPage() {
   const uploadPeople = useBulkUploadPeople();
   const uploadTasks = useBulkUploadTasks();
   const uploadAssignments = useBulkUploadAssignments();
+  const uploadAutomations = useBulkUploadAutomations();
 
-  const uploaders = { teams: uploadTeams, people: uploadPeople, tasks: uploadTasks, assignments: uploadAssignments };
+  const uploaders = { 
+    teams: uploadTeams, 
+    people: uploadPeople, 
+    tasks: uploadTasks, 
+    assignments: uploadAssignments, 
+    automations: uploadAutomations 
+  };
 
   const isAuthorized = user && ((user.roleLevel ?? 0) >= 5 || user.roleName === "SUPER_ADMIN");
 
@@ -340,7 +363,7 @@ function BulkUploadPage() {
         <div className="grid gap-6 lg:grid-cols-5">
           {/* Left: Upload panel */}
           <div className="lg:col-span-3 space-y-4">
-            <Card className="p-5 space-y-4">
+            <Card className="glass-card-green p-5 space-y-4 transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className={`text-base font-semibold ${tab.color}`}>{tab.label}</h3>
@@ -390,7 +413,7 @@ function BulkUploadPage() {
 
           {/* Right: Instructions */}
           <div className="lg:col-span-2 space-y-4">
-            <Card className="p-5 space-y-4">
+            <Card className="glass-card-green p-5 space-y-4 transition-all duration-300">
               <h4 className="text-sm font-semibold">Required Columns</h4>
               <div className="space-y-2">
                 {tab.columns.map((col) => (
@@ -410,7 +433,7 @@ function BulkUploadPage() {
               </div>
             </Card>
 
-            <Card className="p-4 space-y-3">
+            <Card className="glass-card-green p-4 space-y-3 transition-all duration-300">
               <h4 className="text-sm font-semibold">Upload Order</h4>
               <div className="space-y-2">
                 {TABS.map((t, i) => {

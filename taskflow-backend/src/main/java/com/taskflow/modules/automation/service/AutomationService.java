@@ -36,6 +36,14 @@ public class AutomationService {
         this.executionRepository = executionRepository;
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    @org.springframework.context.annotation.Lazy
+    private com.taskflow.modules.task.service.TaskService taskService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    @org.springframework.context.annotation.Lazy
+    private com.taskflow.modules.task.service.StatusWorkflowService statusWorkflowService;
+
     // ---- Rule Management ----
 
     @Transactional
@@ -180,16 +188,64 @@ public class AutomationService {
     }
 
     private void dispatchAction(AutomationAction action, Task task, Map<String, Object> context) {
-        // Action dispatch is logged; actual execution hooks are registered via event listeners
-        // (TaskService, NotificationService) in a production system.
-        // This layer records the intent; side effects are handled transactionally by listeners.
-        switch (action.getActionType().toUpperCase()) {
-            case "ASSIGN_USER":
-            case "CHANGE_STATUS":
-            case "SEND_NOTIFICATION":
-            case "SET_DUE_DATE_OFFSET":
-                // Placeholder for action dispatch — extend with ApplicationEventPublisher
+        // Execute a small set of supported action types synchronously.
+        String type = action.getActionType() == null ? "" : action.getActionType().toUpperCase();
+        Map<String, Object> cfg = action.getActionConfig() != null ? action.getActionConfig() : new java.util.HashMap<>();
+        UUID actorId = null;
+        try {
+            if (action.getRule() != null) actorId = action.getRule().getCreatedBy();
+        } catch (Exception ignored) {}
+
+        switch (type) {
+            case "ASSIGN_USER": {
+                Object uid = cfg.getOrDefault("userId", context != null ? context.get("assigneeId") : null);
+                String role = cfg.getOrDefault("role", "ASSIGNEE").toString();
+                if (uid != null) {
+                    UUID userId = UUID.fromString(uid.toString());
+                    try {
+                        taskService.assignTask(task.getId(), userId, role);
+                    } catch (Exception e) {
+                        throw new RuntimeException("Failed to assign user via automation: " + e.getMessage());
+                    }
+                }
                 break;
+            }
+            case "CHANGE_STATUS": {
+                Object sid = cfg.getOrDefault("statusId", cfg.get("targetStatusId"));
+                if (sid != null) {
+                    UUID statusId = UUID.fromString(sid.toString());
+                    try {
+                        UUID performer = actorId != null ? actorId : SecurityContextHelper.getCurrentUserId();
+                        statusWorkflowService.transitionStatus(task.getId(), statusId, performer, "Automation rule: " + (action.getRule() != null ? action.getRule().getName() : "auto"));
+                    } catch (Exception e) {
+                        throw new RuntimeException("Failed to change status via automation: " + e.getMessage());
+                    }
+                }
+                break;
+            }
+            case "SET_DUE_DATE_OFFSET": {
+                Object offsetObj = cfg.getOrDefault("daysOffset", cfg.get("offsetDays"));
+                if (offsetObj != null) {
+                    int days = Integer.parseInt(offsetObj.toString());
+                    java.time.Instant base = task.getDueDate() != null ? task.getDueDate() : java.time.Instant.now();
+                    java.time.Instant newDue = base.plus(java.time.Duration.ofDays(days));
+                    try {
+                        com.taskflow.modules.task.dto.TaskRequest req = new com.taskflow.modules.task.dto.TaskRequest();
+                        req.setProjectId(task.getProjectId());
+                        req.setTitle(task.getTitle());
+                        req.setDescription(task.getDescription());
+                        req.setDueDate(newDue);
+                        taskService.updateTask(task.getId(), req);
+                    } catch (Exception e) {
+                        throw new RuntimeException("Failed to set due date via automation: " + e.getMessage());
+                    }
+                }
+                break;
+            }
+            case "SEND_NOTIFICATION": {
+                // Placeholder: integrate notification service in future
+                break;
+            }
             default:
                 throw new IllegalArgumentException("Unknown action type: " + action.getActionType());
         }

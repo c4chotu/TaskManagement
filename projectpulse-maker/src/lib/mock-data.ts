@@ -238,6 +238,11 @@ export const mockTasks: Task[] = [
     estimatedHours: 8,
     loggedHours: 3,
     priority: "HIGH",
+    category: "SECURITY",
+    badges: ["URGENT", "NEEDS_REVIEW"],
+    storyPoints: 5,
+    sprintId: "sp-1",
+    displayId: "ING-T1",
   },
   {
     id: "t-2",
@@ -252,6 +257,11 @@ export const mockTasks: Task[] = [
     estimatedHours: 5,
     loggedHours: 5,
     priority: "HIGH",
+    category: "BACKEND",
+    badges: ["ON_TRACK"],
+    storyPoints: 3,
+    sprintId: "sp-1",
+    displayId: "ING-T2",
   },
   {
     id: "t-3",
@@ -265,6 +275,10 @@ export const mockTasks: Task[] = [
     estimatedHours: 12,
     loggedHours: 0,
     priority: "MEDIUM",
+    category: "INFRA",
+    storyPoints: 8,
+    sprintId: "sp-1",
+    displayId: "ING-T3",
   },
   {
     id: "t-4",
@@ -278,6 +292,10 @@ export const mockTasks: Task[] = [
     estimatedHours: 3,
     loggedHours: 0,
     priority: "LOW",
+    category: "INFRA",
+    storyPoints: 2,
+    sprintId: "sp-2",
+    displayId: "ING-T4",
   },
   {
     id: "t-5",
@@ -291,6 +309,10 @@ export const mockTasks: Task[] = [
     estimatedHours: 4,
     loggedHours: 4,
     priority: "MEDIUM",
+    category: "DOCS",
+    badges: ["MILESTONE"],
+    storyPoints: 2,
+    displayId: "ING-T5",
   },
   {
     id: "t-6",
@@ -305,6 +327,10 @@ export const mockTasks: Task[] = [
     estimatedHours: 6,
     loggedHours: 2,
     priority: "HIGH",
+    category: "BACKEND",
+    badges: ["BLOCKED", "P0"],
+    storyPoints: 5,
+    displayId: "ING-T6",
   },
   // Issues
   {
@@ -478,6 +504,12 @@ export const mockRoutingRules: RoutingRule[] = [
     assignmentStrategy: "ON_CALL",
     priority: 10,
     enabled: true,
+    triggerCondition: {
+      conditions: [
+        { field: "priority", operator: "=", value: "CRITICAL" },
+        { field: "taskType", operator: "=", value: "ISSUE" }
+      ]
+    }
   },
   {
     id: "rr-2",
@@ -488,6 +520,12 @@ export const mockRoutingRules: RoutingRule[] = [
     assignmentStrategy: "LEAST_LOADED",
     priority: 5,
     enabled: true,
+    triggerCondition: {
+      conditions: [
+        { field: "priority", operator: "=", value: "HIGH" },
+        { field: "taskType", operator: "=", value: "ISSUE" }
+      ]
+    }
   },
   {
     id: "rr-3",
@@ -498,6 +536,11 @@ export const mockRoutingRules: RoutingRule[] = [
     assignmentStrategy: "ROUND_ROBIN",
     priority: 1,
     enabled: false,
+    triggerCondition: {
+      conditions: [
+        { field: "taskType", operator: "=", value: "TASK" }
+      ]
+    }
   },
 ];
 

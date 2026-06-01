@@ -90,8 +90,35 @@ public class StatusWorkflowController {
                 .autoTransitionDays(request.getAutoTransitionDays())
                 .transitionToOnAuto(request.getTransitionToOnAuto())
                 .build();
-
         return ResponseEntity.ok(customTaskStatusRepository.save(status));
+    }
+
+    @PutMapping("/statuses/{statusId}")
+    public ResponseEntity<CustomTaskStatus> updateCustomStatus(@PathVariable UUID statusId, @RequestBody CustomStatusRequest request) {
+        Optional<CustomTaskStatus> opt = customTaskStatusRepository.findById(statusId);
+        if (opt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        CustomTaskStatus status = opt.get();
+        status.setName(request.getName());
+        status.setCategory(request.getCategory());
+        status.setColor(request.getColor());
+        status.setSortOrder(request.getSortOrder());
+        status.setDefault(request.isDefault());
+        status.setRequiresComment(request.isRequiresComment());
+        status.setRequiresApproval(request.isRequiresApproval());
+        status.setAutoTransitionDays(request.getAutoTransitionDays());
+        status.setTransitionToOnAuto(request.getTransitionToOnAuto());
+        return ResponseEntity.ok(customTaskStatusRepository.save(status));
+    }
+
+    @DeleteMapping("/statuses/{statusId}")
+    public ResponseEntity<Void> deleteCustomStatus(@PathVariable UUID statusId) {
+        if (!customTaskStatusRepository.existsById(statusId)) {
+            return ResponseEntity.notFound().build();
+        }
+        customTaskStatusRepository.deleteById(statusId);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/statuses/transitions")

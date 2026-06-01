@@ -11,6 +11,8 @@ export type Severity = "SEV0" | "SEV1" | "SEV2" | "SEV3";
 export type StatusCategory = "PLANNING" | "ACTIVE" | "BLOCKED" | "COMPLETED";
 export type ProjectType = "KANBAN" | "SCRUM" | "WATERFALL";
 export type TaskType = "TASK" | "ISSUE";
+export type TaskCategory = "FRONTEND" | "BACKEND" | "INFRA" | "DESIGN" | "QA" | "SECURITY" | "DOCS" | "RESEARCH" | "BUG" | "FEATURE";
+export type TaskBadge = "URGENT" | "BLOCKED" | "CUSTOMER_REPORTED" | "P0" | "HOT_FIX" | "INNOVATION" | "MILESTONE" | "GOOD_FIRST" | "NEEDS_REVIEW" | "ON_TRACK";
 
 export interface User {
   id: string;
@@ -62,6 +64,7 @@ export interface Project {
   endDate: string;
   organizationId?: string;
   progress?: number;
+  estimatedHours?: number;
 }
 
 export interface CustomTaskStatus {
@@ -96,6 +99,12 @@ export interface Task {
   teamId?: string;
   departmentId?: string;
   recurrenceRule?: string;
+  followerIds?: string[];
+  parentTaskId?: string;
+  category?: TaskCategory;
+  badges?: TaskBadge[];
+  sprintId?: string;
+  storyPoints?: number;
 }
 
 export interface Issue {
@@ -151,6 +160,7 @@ export interface RoutingRule {
   assignmentStrategy: "ROUND_ROBIN" | "LEAST_LOADED" | "ON_CALL";
   priority: number;
   enabled: boolean;
+  triggerCondition?: any;
 }
 
 export interface AutomationRule {
@@ -178,6 +188,7 @@ export interface Attachment {
   url: string;
   uploadedAt: string;
   uploadedBy: string;
+  projectId?: string;
 }
 
 export interface TaskDependency {
@@ -196,6 +207,7 @@ export interface Sprint {
   endDate: string;
   status: "PLANNED" | "ACTIVE" | "COMPLETED";
   taskIds: string[];
+  estimatedHours?: number;
 }
 
 export interface OrgSetupPayload {

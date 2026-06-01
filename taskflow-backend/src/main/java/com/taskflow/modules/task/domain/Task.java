@@ -71,6 +71,12 @@ public class Task {
     @Column(name = "due_date")
     private Instant dueDate;
 
+    @Column(name = "category")
+    private String category;
+
+    @Column(name = "badge_id")
+    private UUID badgeId;
+
     @Column(name = "story_points")
     private Integer storyPoints;
 

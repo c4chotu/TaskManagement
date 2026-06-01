@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/lib/auth";
-import { useStatuses } from "@/lib/queries";
+import { useStatuses, useCreateStatus, useUpdateStatus, useDeleteStatus } from "@/lib/queries";
 import { StatusDot } from "@/components/tfp/badges";
 import { Badge } from "@/components/ui/badge";
 import { API_BASE_URL, USE_MOCK } from "@/lib/api";
-import { AlertTriangle, Paintbrush } from "lucide-react";
+import { AlertTriangle, Paintbrush, Plus, Edit, Trash2, Save, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Settings — TaskFlow Pro" }] }),
@@ -51,6 +52,95 @@ const THEMES = [
 function SettingsPage() {
   const { user } = useAuth();
   const { data: statuses = [] } = useStatuses();
+
+  const createStatus = useCreateStatus();
+  const updateStatus = useUpdateStatus();
+  const deleteStatus = useDeleteStatus();
+
+  // Status configuration states
+  const [isEditing, setIsEditing] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState<"PLANNING" | "ACTIVE" | "BLOCKED" | "COMPLETED">("PLANNING");
+  const [color, setColor] = useState("#3b82f6");
+  const [sortOrder, setSortOrder] = useState(10);
+  const [wipLimit, setWipLimit] = useState("");
+  const [requiresComment, setRequiresComment] = useState(false);
+
+  const resetStatusForm = () => {
+    setName("");
+    setCategory("PLANNING");
+    setColor("#3b82f6");
+    setSortOrder(10);
+    setWipLimit("");
+    setRequiresComment(false);
+    setIsCreating(false);
+    setIsEditing(null);
+  };
+
+  const handleCreateStatus = async () => {
+    if (!name.trim()) return toast.error("Status name is required");
+    try {
+      await createStatus.mutateAsync({
+        projectId: "default",
+        status: {
+          name: name.trim(),
+          category,
+          color,
+          sortOrder,
+          wipLimit: wipLimit ? Number(wipLimit) : undefined,
+          requiresComment,
+        }
+      });
+      toast.success("Workflow status created");
+      resetStatusForm();
+    } catch {
+      toast.error("Failed to create status");
+    }
+  };
+
+  const handleStartEdit = (s: any) => {
+    setIsEditing(s.id);
+    setName(s.name);
+    setCategory(s.category);
+    setColor(s.color);
+    setSortOrder(s.sortOrder);
+    setWipLimit(s.wipLimit?.toString() || "");
+    setRequiresComment(!!s.requiresComment);
+  };
+
+  const handleUpdateStatus = async (statusId: string) => {
+    if (!name.trim()) return toast.error("Status name is required");
+    try {
+      await updateStatus.mutateAsync({
+        statusId,
+        projectId: "default",
+        patch: {
+          name: name.trim(),
+          category,
+          color,
+          sortOrder,
+          wipLimit: wipLimit ? Number(wipLimit) : undefined,
+          requiresComment,
+        }
+      });
+      toast.success("Workflow status updated");
+      resetStatusForm();
+    } catch {
+      toast.error("Failed to update status");
+    }
+  };
+
+  const handleDeleteStatus = async (statusId: string) => {
+    if (confirm("Are you sure you want to delete this status?")) {
+      try {
+        await deleteStatus.mutateAsync({ statusId, projectId: "default" });
+        toast.success("Workflow status deleted");
+      } catch {
+        toast.error("Failed to delete status");
+      }
+    }
+  };
 
   const [activeTheme, setActiveTheme] = useState(() => {
     if (typeof window !== "undefined") {
@@ -104,37 +194,118 @@ function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="statuses" className="mt-4">
-            <Card className="p-6">
-              <h3 className="mb-4 text-sm font-semibold">Custom workflow statuses</h3>
+            <Card className="p-6 space-y-6">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div>
+                  <h3 className="text-sm font-semibold">Custom Workflow Statuses</h3>
+                  <p className="text-xs text-muted-foreground">Configure the lanes for your Kanban Boards and automations.</p>
+                </div>
+                {!isCreating && !isEditing && (
+                  <Button size="sm" onClick={() => setIsCreating(true)} className="bg-gradient-primary text-primary-foreground rounded-xl gap-1.5">
+                    <Plus className="h-4 w-4" /> Add Status
+                  </Button>
+                )}
+              </div>
+
+              {/* Create/Edit Form Container */}
+              {(isCreating || isEditing) && (
+                <div className="p-4 rounded-xl border border-border bg-muted/20 space-y-4 max-w-xl">
+                  <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    {isCreating ? "Create Workflow Status" : "Edit Workflow Status"}
+                  </h4>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Status Name</Label>
+                      <Input placeholder="e.g. In Review" value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-xs rounded-lg" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Category</Label>
+                      <Select value={category} onValueChange={(val) => setCategory(val as any)}>
+                        <SelectTrigger className="h-8 text-xs rounded-lg">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PLANNING">Planning (Backlog/To Do)</SelectItem>
+                          <SelectItem value="ACTIVE">Active (In Progress/In Review)</SelectItem>
+                          <SelectItem value="BLOCKED">Blocked (On Hold)</SelectItem>
+                          <SelectItem value="COMPLETED">Completed (Done)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Status Color</Label>
+                      <div className="flex gap-2 items-center">
+                        <Input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-12 p-0.5 rounded-lg border bg-transparent" />
+                        <Input type="text" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 text-xs flex-1 rounded-lg font-mono" />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Sort Order</Label>
+                      <Input type="number" value={sortOrder} onChange={(e) => setSortOrder(Number(e.target.value))} className="h-8 text-xs rounded-lg text-center" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">WIP Limit (optional)</Label>
+                      <Input type="number" placeholder="No limit" value={wipLimit} onChange={(e) => setWipLimit(e.target.value)} className="h-8 text-xs rounded-lg text-center" />
+                    </div>
+                    <div className="flex items-center gap-2 pt-5">
+                      <Switch id="req-comm" checked={requiresComment} onCheckedChange={setRequiresComment} />
+                      <Label htmlFor="req-comm" className="text-[10px] font-bold text-muted-foreground uppercase cursor-pointer">Requires Comment</Label>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button size="sm" onClick={() => isCreating ? handleCreateStatus() : handleUpdateStatus(isEditing!)} className="bg-gradient-primary text-primary-foreground font-semibold px-4 rounded-lg gap-1">
+                      <Save className="h-3.5 w-3.5" /> {isCreating ? "Create Status" : "Save Changes"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={resetStatusForm} className="rounded-lg gap-1">
+                      <X className="h-3.5 w-3.5" /> Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 {statuses.map((s) => (
                   <div
                     key={s.id}
-                    className="flex items-center gap-3 rounded-md border border-border bg-muted/30 p-3"
+                    className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-3 hover:border-primary/20 transition-all"
                   >
                     <StatusDot color={s.color} />
                     <div className="flex-1">
-                      <p className="text-sm font-medium">{s.name}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        Sort {s.sortOrder} · {s.category}
+                      <p className="text-sm font-semibold">{s.name}</p>
+                      <p className="text-[10px] text-muted-foreground font-medium">
+                        Sort Order: {s.sortOrder} · Category: {s.category}
                       </p>
                     </div>
-                    <Badge variant="outline" className="text-[10px]">
-                      {s.category}
-                    </Badge>
-                    {s.wipLimit && (
-                      <Badge variant="outline" className="text-[10px]">
-                        WIP {s.wipLimit}
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-[10px] rounded-lg">
+                        {s.category}
                       </Badge>
-                    )}
-                    {s.requiresComment && (
-                      <Badge
-                        variant="outline"
-                        className="border-warning/40 text-warning text-[10px]"
-                      >
-                        Comment req
-                      </Badge>
-                    )}
+                      {s.wipLimit && (
+                        <Badge variant="outline" className="text-[10px] rounded-lg">
+                          WIP {s.wipLimit}
+                        </Badge>
+                      )}
+                      {s.requiresComment && (
+                        <Badge
+                          variant="outline"
+                          className="border-warning/40 text-warning bg-warning/5 text-[10px] rounded-lg"
+                        >
+                          Comment req
+                        </Badge>
+                      )}
+                      
+                      <div className="pl-2 border-l border-border flex items-center gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-muted text-muted-foreground rounded-lg" onClick={() => handleStartEdit(s)}>
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        {!s.isDefault && (
+                          <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-lg" onClick={() => handleDeleteStatus(s.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

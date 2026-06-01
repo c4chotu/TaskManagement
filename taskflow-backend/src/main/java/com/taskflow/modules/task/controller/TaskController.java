@@ -15,6 +15,11 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/tasks")
@@ -129,6 +134,45 @@ public class TaskController {
             @PathVariable UUID projectId,
             @Valid @RequestBody CustomFieldRequest request) {
         return ResponseEntity.ok(taskService.createCustomField(projectId, request));
+    }
+
+    @PostMapping(value = "/projects/{projectId}/bulk-upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<List<TaskResponse>> bulkUpload(
+            @PathVariable UUID projectId,
+            @RequestParam("file") MultipartFile file) throws IOException {
+        List<TaskResponse> created = new java.util.ArrayList<>();
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+            String header = br.readLine();
+            if (header == null) return ResponseEntity.badRequest().build();
+            String[] headers = header.split(",");
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] cols = line.split(",", -1);
+                java.util.Map<String, String> row = new java.util.HashMap<>();
+                for (int i = 0; i < Math.min(headers.length, cols.length); i++) {
+                    row.put(headers[i].trim().toLowerCase(), cols[i].trim());
+                }
+                TaskRequest req = new TaskRequest();
+                req.setProjectId(projectId);
+                req.setTitle(row.getOrDefault("title", "Untitled"));
+                req.setDescription(row.get("description"));
+                req.setPriority(row.get("priority"));
+                // optional fields: parse UUIDs if present
+                try { if (row.get("phaseid") != null && !row.get("phaseid").isBlank()) req.setPhaseId(UUID.fromString(row.get("phaseid"))); } catch (Exception ignored) {}
+                try { if (row.get("statusid") != null && !row.get("statusid").isBlank()) req.setStatusId(UUID.fromString(row.get("statusid"))); } catch (Exception ignored) {}
+                try { if (row.get("currentstatusid") != null && !row.get("currentstatusid").isBlank()) req.setCurrentStatusId(UUID.fromString(row.get("currentstatusid"))); } catch (Exception ignored) {}
+                req.setTaskType(row.get("tasktype"));
+                req.setCategory(row.get("category"));
+                try { if (row.get("badgeid") != null && !row.get("badgeid").isBlank()) req.setBadgeId(UUID.fromString(row.get("badgeid"))); } catch (Exception ignored) {}
+
+                try {
+                    created.add(taskService.createTask(req));
+                } catch (Exception e) {
+                    // skip row on error and continue
+                }
+            }
+        }
+        return ResponseEntity.ok(created);
     }
 
     @PostMapping(value = "/{id}/attachments", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)

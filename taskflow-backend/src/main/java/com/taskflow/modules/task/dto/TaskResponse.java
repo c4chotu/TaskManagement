@@ -34,6 +34,8 @@ public class TaskResponse {
     private Integer storyPoints;
     private UUID parentTaskId;
     private UUID phaseId;
+    private String category;
+    private UUID badgeId;
     private UUID organizationId;
     private int version;
     private UUID createdBy;

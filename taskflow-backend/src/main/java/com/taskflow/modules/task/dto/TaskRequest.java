@@ -36,4 +36,8 @@ public class TaskRequest {
     private UUID phaseId;
 
     private String recurrenceRule; // "WEEKLY" or "MONTHLY"
+
+    // Optional categorization and badge assignment
+    private String category;
+    private UUID badgeId;
 }

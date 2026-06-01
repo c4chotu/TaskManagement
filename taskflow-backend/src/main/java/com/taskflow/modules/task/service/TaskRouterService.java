@@ -119,15 +119,34 @@ public class TaskRouterService {
                 continue;
             }
 
-            // Evaluate conditions (priority, etc.)
-            Map<String, Object> cond = rule.getTriggerCondition();
-            if (cond != null && !cond.isEmpty()) {
-                String field = (String) cond.get("field");
-                String operator = (String) cond.get("operator");
-                Object value = cond.get("value");
-
-                if ("priority".equalsIgnoreCase(field)) {
-                    if ("=".equals(operator) && !Objects.equals(task.getPriority(), value)) {
+            // Evaluate conditions (priority, status, department, etc.)
+            Map<String, Object> triggerCondition = rule.getTriggerCondition();
+            if (triggerCondition != null && !triggerCondition.isEmpty()) {
+                // Support multiple conditions stored under "conditions" key as a List
+                List<Map<String, Object>> conditions = (List<Map<String, Object>>) triggerCondition.get("conditions");
+                
+                if (conditions != null && !conditions.isEmpty()) {
+                    boolean allMatch = true;
+                    for (Map<String, Object> cond : conditions) {
+                        String field = (String) cond.get("field");
+                        String operator = (String) cond.get("operator");
+                        Object value = cond.get("value");
+                        
+                        if (!matchesCondition(task, field, operator, value)) {
+                            allMatch = false;
+                            break;
+                        }
+                    }
+                    if (!allMatch) {
+                        continue;
+                    }
+                } else {
+                    // Fallback to single condition if "conditions" list is not present
+                    String field = (String) triggerCondition.get("field");
+                    String operator = (String) triggerCondition.get("operator");
+                    Object value = triggerCondition.get("value");
+                    
+                    if (field != null && !matchesCondition(task, field, operator, value)) {
                         continue;
                     }
                 }
@@ -321,5 +340,49 @@ public class TaskRouterService {
             taskRepository.save(subtask);
             log.info("Auto-created subtask {} under parent task {}", subtask.getId(), parentTask.getId());
         }
+    }
+
+    private boolean matchesCondition(Task task, String field, String operator, Object value) {
+        if (field == null) return true;
+        
+        switch (field.toLowerCase()) {
+            case "priority":
+                if ("=".equals(operator)) {
+                    return Objects.equals(task.getPriority(), value);
+                } else if ("!=".equals(operator)) {
+                    return !Objects.equals(task.getPriority(), value);
+                }
+                break;
+            case "tasktype":
+            case "task_type":
+                if ("=".equals(operator)) {
+                    return Objects.equals(task.getTaskType(), value);
+                } else if ("!=".equals(operator)) {
+                    return !Objects.equals(task.getTaskType(), value);
+                }
+                break;
+            case "statusid":
+            case "status_id":
+                if ("=".equals(operator)) {
+                    String strVal = value != null ? value.toString() : null;
+                    return strVal != null && task.getStatusId() != null && task.getStatusId().toString().equalsIgnoreCase(strVal);
+                }
+                break;
+            case "projectid":
+            case "project_id":
+                if ("=".equals(operator)) {
+                    String strVal = value != null ? value.toString() : null;
+                    return strVal != null && task.getProjectId() != null && task.getProjectId().toString().equalsIgnoreCase(strVal);
+                }
+                break;
+            case "departmentid":
+            case "department_id":
+                if ("=".equals(operator)) {
+                    String strVal = value != null ? value.toString() : null;
+                    return strVal != null && task.getDepartmentId() != null && task.getDepartmentId().toString().equalsIgnoreCase(strVal);
+                }
+                break;
+        }
+        return true;
     }
 }

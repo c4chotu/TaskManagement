@@ -1,42 +1,193 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState, useRef } from "react";
 import { Topbar } from "@/components/tfp/topbar";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  useAddDependency,
-  useDependencies,
-  useProject,
-  useRemoveDependency,
-  useStatuses,
-  useTasks,
-  useUpdateTaskStatus,
-  useProjectMembers,
-  useAddProjectMember,
-  useRemoveProjectMember,
-  useUsers,
-} from "@/lib/queries";
-import { ArrowLeft, AlertTriangle, GripVertical, Link2, X, Plus, Users, ShieldAlert } from "lucide-react";
-import { StatusDot } from "@/components/tfp/badges";
-import { useState } from "react";
-import type { Task } from "@/lib/types";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { useIssues, useProject, useProjectMembers, useSprints, useStatuses, useTasks, useProjectAttachments, useUploadProjectAttachment, useDeleteProjectAttachment, useCreateSprint } from "@/lib/queries";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { AssigneeStack } from "@/components/tfp/task-quick-edit";
-import { TaskCreateDialog } from "@/components/tfp/task-create-dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  TrendingUp, Users, Calendar, AlertTriangle, ArrowLeft, ArrowRight,
+  Plus, CheckCircle2, ShieldAlert, BadgeDollarSign, Activity,
+  Milestone, Briefcase, Clock, PlayCircle, Flame, Paperclip, Download, Trash2, FileText, X, UploadCloud
+} from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/_app/projects/$id")({
-  head: () => ({ meta: [{ title: "Project — TaskFlow Pro" }] }),
+  head: () => ({ meta: [{ title: "Project Dashboard — TaskFlow Pro" }] }),
   component: ProjectDetail,
 });
+
+const milestones = [
+  { id: "m-1", name: "Initiation & Setup", date: "May 5, 2026", status: "COMPLETED", pct: 100, goal: "Setup repository and dev environment" },
+  { id: "m-2", name: "Design & Architecture", date: "May 20, 2026", status: "COMPLETED", pct: 100, goal: "Database design and UI mockups" },
+  { id: "m-3", name: "Core Development", date: "June 10, 2026", status: "ACTIVE", pct: 65, goal: "Implement primary features and mock database" },
+  { id: "m-4", name: "Security & Testing", date: "June 25, 2026", status: "PLANNED", pct: 0, goal: "Perform audit and end-to-end user tests" },
+  { id: "m-5", name: "Beta Release & Launch", date: "July 15, 2026", status: "PLANNED", pct: 0, goal: "Deployment and validation checks" },
+];
 
 function ProjectDetail() {
   const { id } = Route.useParams();
   const { data: project } = useProject(id);
+  const { data: tasks = [] } = useTasks({ projectId: id });
+  const { data: issues = [] } = useIssues();
+  const { data: statuses = [] } = useStatuses(id);
+  const { data: members = [] } = useProjectMembers(id);
+  const { data: sprints = [] } = useSprints(id);
+  const { data: projectAttachments = [] } = useProjectAttachments(id);
+  const uploadAttachment = useUploadProjectAttachment();
+  const deleteAttachment = useDeleteProjectAttachment();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const createSprintMutation = useCreateSprint();
+
+  // Dialog State for Phase creation
+  const [newPhaseOpen, setNewPhaseOpen] = useState(false);
+  const [newPhaseName, setNewPhaseName] = useState("");
+  const [newPhaseGoal, setNewPhaseGoal] = useState("");
+  const [newPhaseStart, setNewPhaseStart] = useState("");
+  const [newPhaseEnd, setNewPhaseEnd] = useState("");
+  const [newPhaseHours, setNewPhaseHours] = useState("40");
+
+  const handleAddPhase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPhaseName || !newPhaseStart || !newPhaseEnd) {
+      toast.error("Please fill in the Phase Name, Start Date, and End Date.");
+      return;
+    }
+    try {
+      await createSprintMutation.mutateAsync({
+        projectId: id,
+        name: newPhaseName,
+        goal: newPhaseGoal,
+        startDate: new Date(newPhaseStart).toISOString(),
+        endDate: new Date(newPhaseEnd).toISOString(),
+        status: "PLANNED",
+        estimatedHours: Number(newPhaseHours) || 0,
+        taskIds: []
+      });
+      toast.success("New project phase added successfully!");
+      setNewPhaseOpen(false);
+      setNewPhaseName("");
+      setNewPhaseGoal("");
+      setNewPhaseStart("");
+      setNewPhaseEnd("");
+    } catch (err) {
+      toast.error("Failed to add phase.");
+    }
+  };
+
+  const sprintsRoadmap = useMemo(() => {
+    if (sprints.length > 0) {
+      return sprints.map((s) => {
+        const completedTasks = tasks.filter((t) => s.taskIds?.includes(t.id) && t.statusId === "s-done").length;
+        const totalTasks = s.taskIds?.length ?? 0;
+        const pct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+        return {
+          id: s.id,
+          name: s.name,
+          date: `${format(new Date(s.startDate), "MMM d")} - ${format(new Date(s.endDate), "MMM d, yyyy")}`,
+          status: s.status,
+          pct,
+          goal: s.goal
+        };
+      });
+    }
+    return milestones;
+  }, [sprints, tasks, milestones]);
+
+  const handleUploadProjDoc = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    const files = Array.from(e.target.files);
+    for (const file of files) {
+      const loadId = toast.loading(`Uploading ${file.name}...`);
+      try {
+        await uploadAttachment.mutateAsync({
+          projectId: id,
+          file,
+        });
+        toast.success(`Uploaded ${file.name} successfully`, { id: loadId });
+      } catch (err) {
+        toast.error(`Failed to upload ${file.name}`, { id: loadId });
+      }
+    }
+  };
+
+  const handleDeleteProjDoc = async (attachmentId: string, fileName: string) => {
+    if (confirm(`Are you sure you want to delete ${fileName}?`)) {
+      try {
+        await deleteAttachment.mutateAsync({ projectId: id, attachmentId });
+        toast.success("Document deleted");
+      } catch {
+        toast.error("Failed to delete document");
+      }
+    }
+  };
+
+  const humanSize = (b: number) => {
+    if (b < 1024) return `${b} B`;
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+    return `${(b / 1024 / 1024).toFixed(2)} MB`;
+  };
+
+  const linkedIssues = useMemo(() => {
+    return issues.filter((issue) => tasks.some((task) => task.id === issue.taskId));
+  }, [issues, tasks]);
+
+  const completed = useMemo(() => {
+    return tasks.filter((task) => task.statusId === "s-done").length;
+  }, [tasks]);
+
+  const progress = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
+  const estimateHours = tasks.reduce((sum, task) => sum + (task.estimatedHours ?? 0), 0);
+  const loggedHours = tasks.reduce((sum, task) => sum + (task.loggedHours ?? 0), 0);
+  const activeSprint = sprints.find((sprint) => sprint.status === "ACTIVE");
+
+  // Deadlines and critical items
+  const upcomingTasks = useMemo(() => {
+    return tasks
+      .filter((task) => task.dueDate && new Date(task.dueDate) > new Date() && task.statusId !== "s-done")
+      .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
+      .slice(0, 3);
+  }, [tasks]);
+
+  const overdueTasks = useMemo(() => {
+    return tasks.filter((task) => task.dueDate && new Date(task.dueDate) < new Date() && task.statusId !== "s-done");
+  }, [tasks]);
+
+  // Financial simulation
+  const billingRate = 85; // $85 per hour
+  const actualCost = loggedHours * billingRate;
+  const estimatedCost = estimateHours * billingRate;
+  const plannedBudget = 150000;
+  const budgetProgress = Math.min(Math.round((actualCost / plannedBudget) * 100), 100);
+
+
+
+  // User workload distribution
+  const teamWorkload = useMemo(() => {
+    return members.map((m) => {
+      const userTasks = tasks.filter((t) => t.assigneeIds.includes(m.id));
+      const hours = userTasks.reduce((sum, t) => sum + (t.estimatedHours ?? 0), 0);
+      const doneHours = userTasks.filter((t) => t.statusId === "s-done").reduce((sum, t) => sum + (t.loggedHours ?? 0), 0);
+      const capacityPct = Math.min(Math.round((hours / 40) * 100), 120); // 40h standard workload
+      return {
+        ...m,
+        taskCount: userTasks.length,
+        hours,
+        doneHours,
+        capacityPct,
+        overloaded: hours > 35,
+      };
+    });
+  }, [members, tasks]);
+
   if (!project) {
     return (
       <>
@@ -47,66 +198,622 @@ function ProjectDetail() {
       </>
     );
   }
+
   return (
     <>
-      <Topbar title={project.name} actions={<TaskCreateDialog defaultProjectId={id} />} />
-      <main className="flex-1 space-y-4 p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <Link
-              to="/projects"
-              className="mb-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-3 w-3" /> All projects
-            </Link>
-            <h2 className="text-xl font-semibold tracking-tight">{project.name}</h2>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{project.description}</p>
-          </div>
-          <Badge variant="outline" className="font-mono text-[10px]">
-            {project.type}
-          </Badge>
+      <Topbar title={project.name} />
+      <main className="flex-1 space-y-6 p-6">
+        {/* Back Link */}
+        <div>
+          <Link to="/projects" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to Projects
+          </Link>
         </div>
 
-        <Tabs defaultValue="dashboard">
-          <div className="border-b mb-4">
-            <TabsList className="h-12 w-full justify-start rounded-none border-b bg-transparent p-0">
-              <TabsTrigger value="dashboard" className="relative h-12 rounded-none border-b-2 border-transparent px-4 pb-3 pt-3 font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground">Dashboard</TabsTrigger>
-              <TabsTrigger value="tasks" className="relative h-12 rounded-none border-b-2 border-transparent px-4 pb-3 pt-3 font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground">Tasks</TabsTrigger>
-              <TabsTrigger value="milestones" className="relative h-12 rounded-none border-b-2 border-transparent px-4 pb-3 pt-3 font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground">Milestones</TabsTrigger>
-              <TabsTrigger value="timesheet" className="relative h-12 rounded-none border-b-2 border-transparent px-4 pb-3 pt-3 font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground">Timesheet</TabsTrigger>
-              <TabsTrigger value="issues" className="relative h-12 rounded-none border-b-2 border-transparent px-4 pb-3 pt-3 font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground">Issues</TabsTrigger>
-              <TabsTrigger value="team" className="relative h-12 rounded-none border-b-2 border-transparent px-4 pb-3 pt-3 font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground">Users</TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="dashboard" className="mt-0 outline-none">
-            <ProjectDashboardTab projectId={id} />
-          </TabsContent>
-          <TabsContent value="tasks" className="mt-0 outline-none">
-            <Tabs defaultValue="kanban" className="w-full">
-              <div className="flex justify-between items-center mb-4">
-                <TabsList>
-                  <TabsTrigger value="kanban">Kanban</TabsTrigger>
-                  <TabsTrigger value="list">List</TabsTrigger>
-                  <TabsTrigger value="gantt">Timeline</TabsTrigger>
-                </TabsList>
+        {/* Hero Banner Card with glassmorphism styling */}
+        <Card className="relative overflow-hidden border border-border/80 bg-gradient-to-tr from-violet-600/10 via-indigo-600/5 to-transparent p-6 shadow-md backdrop-blur-md">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <Badge variant="outline" className="border-primary/30 bg-primary/10 text-[10px] font-semibold uppercase tracking-wider text-primary">
+                  {project.type}
+                </Badge>
+                <Badge variant={project.status === "ACTIVE" ? "default" : "secondary"} className="text-[10px] uppercase">
+                  {project.status.replace("_", " ")}
+                </Badge>
               </div>
-              <TabsContent value="kanban" className="mt-0"><KanbanBoard projectId={id} /></TabsContent>
-              <TabsContent value="list" className="mt-0"><TaskListView projectId={id} /></TabsContent>
-              <TabsContent value="gantt" className="mt-0"><GanttView projectId={id} /></TabsContent>
-            </Tabs>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{project.name}</h1>
+              <p className="max-w-3xl text-sm text-muted-foreground leading-relaxed">{project.description}</p>
+              
+              <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground pt-2">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  Start: {format(new Date(project.startDate), "MMM d, yyyy")}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 text-destructive" />
+                  Target Release: {format(new Date(project.endDate), "MMM d, yyyy")}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 sm:flex-row lg:flex-col xl:flex-row">
+              {/* Radial Progress Simulation */}
+              <div className="flex items-center gap-4 rounded-xl border border-border bg-card/50 p-4 shadow-sm backdrop-blur">
+                <div className="relative h-14 w-14 shrink-0">
+                  <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
+                    <path
+                      className="text-muted/20"
+                      strokeWidth="3.5"
+                      stroke="currentColor"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    <path
+                      className="text-primary transition-all duration-500 ease-out-in"
+                      strokeWidth="3.5"
+                      strokeDasharray={`${progress}, 100`}
+                      strokeLinecap="round"
+                      stroke="currentColor"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center text-xs font-bold font-mono">
+                    {progress}%
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Overall Progress</h4>
+                  <p className="text-sm font-semibold">{completed} of {tasks.length} Completed</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button size="sm" asChild className="bg-gradient-primary text-primary-foreground font-semibold">
+                  <Link to="/tasks/new">
+                    <Plus className="mr-1.5 h-4 w-4" /> Add Task
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Dashboard Stat Cards */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Total Tasks"
+            value={String(tasks.length)}
+            subtext={`${completed} completed · ${tasks.length - completed} remaining`}
+            icon={Briefcase}
+            color="indigo"
+          />
+          <StatCard
+            label="Issues & Incidents"
+            value={String(linkedIssues.length)}
+            subtext={`${linkedIssues.filter((i) => i.slaBreached).length} SLA Breached · ${linkedIssues.filter((i) => !i.resolved).length} Active`}
+            icon={ShieldAlert}
+            color={linkedIssues.filter((i) => i.slaBreached).length > 0 ? "red" : "amber"}
+          />
+          <StatCard
+            label="Logged vs Estimated"
+            value={`${loggedHours.toFixed(0)}h / ${estimateHours.toFixed(0)}h`}
+            subtext={`${estimateHours > 0 ? Math.round((loggedHours / estimateHours) * 100) : 0}% burn rate of estimation`}
+            icon={Clock}
+            color="emerald"
+          />
+          <StatCard
+            label="Active Sprint"
+            value={activeSprint ? activeSprint.name : "None"}
+            subtext={activeSprint ? `Goal: ${activeSprint.goal ?? "N/A"}` : "No active sprint running"}
+            icon={PlayCircle}
+            color="violet"
+          />
+        </div>
+
+        {/* Main Tabs Layout */}
+        <Tabs defaultValue="dashboard" className="space-y-6">
+          <TabsList className="flex w-full items-center justify-start border-b border-border bg-transparent p-0 overflow-x-auto gap-2">
+            <TabsTrigger value="dashboard" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
+              Dashboard & Roadmap
+            </TabsTrigger>
+            <TabsTrigger value="tasks" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
+              Task Pipeline
+            </TabsTrigger>
+            <TabsTrigger value="issues" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
+              Linked Issues ({linkedIssues.length})
+            </TabsTrigger>
+            <TabsTrigger value="workload" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
+              Team Workload & Capacity
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
+              Project Documents ({projectAttachments.length})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* TAB 1: DASHBOARD & ROADMAP */}
+          <TabsContent value="dashboard" className="space-y-6 p-0 outline-none">
+            <div className="grid gap-6 lg:grid-cols-3">
+              {/* Left Column: Roadmap & Timeline */}
+              <div className="space-y-6 lg:col-span-2">
+                {/* Milestone & Phase Tracking Widget */}
+                <Card className="p-6 glass-card-green">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Milestone className="h-5 w-5 text-primary" />
+                      <h3 className="font-semibold text-base">Project Milestone Roadmap</h3>
+                    </div>
+                    
+                    <Dialog open={newPhaseOpen} onOpenChange={setNewPhaseOpen}>
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="outline" className="text-xs bg-background/50 border-white/10 rounded-xl gap-1">
+                          <Plus className="h-3.5 w-3.5" /> Add Phase
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="glass-card border border-white/10 shadow-[0_8px_32px_0_rgba(16,185,129,0.12)] bg-card/75 backdrop-blur-md rounded-2xl p-6 sm:max-w-[450px]">
+                        <form onSubmit={handleAddPhase} className="space-y-4">
+                          <DialogHeader>
+                            <DialogTitle className="text-lg font-bold text-foreground">Add Project Phase</DialogTitle>
+                            <DialogDescription className="text-xs text-muted-foreground">
+                              Define a new development sprint or milestone objective for this project.
+                            </DialogDescription>
+                          </DialogHeader>
+                          
+                          <div className="space-y-3">
+                            <div className="space-y-1">
+                              <Label htmlFor="phaseName" className="text-[10px] uppercase font-bold text-muted-foreground">Phase Name</Label>
+                              <Input id="phaseName" placeholder="e.g. Phase 4: Integration testing" value={newPhaseName} onChange={(e) => setNewPhaseName(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" required />
+                            </div>
+                            
+                            <div className="space-y-1">
+                              <Label htmlFor="phaseGoal" className="text-[10px] uppercase font-bold text-muted-foreground">Goal / Deliverables</Label>
+                              <Input id="phaseGoal" placeholder="e.g. Complete ingress route migration" value={newPhaseGoal} onChange={(e) => setNewPhaseGoal(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label htmlFor="phaseStart" className="text-[10px] uppercase font-bold text-muted-foreground">Start Date</Label>
+                                <Input id="phaseStart" type="date" value={newPhaseStart} onChange={(e) => setNewPhaseStart(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" required />
+                              </div>
+                              <div className="space-y-1">
+                                <Label htmlFor="phaseEnd" className="text-[10px] uppercase font-bold text-muted-foreground">End Date</Label>
+                                <Input id="phaseEnd" type="date" value={newPhaseEnd} onChange={(e) => setNewPhaseEnd(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" required />
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-1">
+                              <Label htmlFor="phaseHours" className="text-[10px] uppercase font-bold text-muted-foreground">Estimated Hours</Label>
+                              <Input id="phaseHours" type="number" value={newPhaseHours} onChange={(e) => setNewPhaseHours(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" />
+                            </div>
+                          </div>
+                          
+                          <DialogFooter className="pt-2">
+                            <Button type="button" variant="ghost" onClick={() => setNewPhaseOpen(false)} className="text-xs">Cancel</Button>
+                            <Button type="submit" className="bg-gradient-primary text-primary-foreground text-xs font-semibold rounded-lg px-4">
+                              Create Phase
+                            </Button>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                  
+                  <div className="relative pl-6 border-l border-border space-y-6 py-2">
+                    {sprintsRoadmap.map((m, idx) => {
+                      const isActive = m.status === "ACTIVE";
+                      const isDone = m.status === "COMPLETED";
+                      return (
+                        <div key={m.id || idx} className="border-l border-border pl-4 pb-4 last:pb-0 relative">
+                          {/* Timeline dot */}
+                          <div className={`absolute -left-[25px] top-1 flex h-[18px] w-[18px] items-center justify-center rounded-full border border-background text-[9px] font-bold text-white transition-all
+                            ${isDone ? "bg-green-500" : isActive ? "bg-primary ring-4 ring-primary/20" : "bg-muted"}`}>
+                            {isDone && <CheckCircle2 className="h-3.5 w-3.5 fill-current bg-background rounded-full" />}
+                            {isActive && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+                          </div>
+                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className={`text-sm font-medium ${isActive ? "text-primary font-bold" : "text-foreground"}`}>{m.name}</p>
+                              {m.goal && <p className="text-[11px] text-muted-foreground mt-0.5">{m.goal}</p>}
+                              <span className="text-[10px] text-muted-foreground">{m.date}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs font-mono font-medium text-muted-foreground">{m.pct}% complete</span>
+                              <Badge variant={isDone ? "outline" : isActive ? "default" : "secondary"} className={`text-[10px] uppercase ${isDone ? "border-green-500/35 bg-green-50 text-green-700" : ""}`}>
+                                {m.status}
+                              </Badge>
+                            </div>
+                          </div>
+                          {/* Mini Progress */}
+                          <div className="mt-2 h-1 w-full rounded-full bg-muted overflow-hidden">
+                            <div className={`h-full rounded-full ${isDone ? "bg-green-600" : "bg-primary"}`} style={{ width: `${m.pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+
+                {/* Team Workload capacity list preview */}
+                <Card className="glass-card-green p-6">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-primary" />
+                      <h3 className="font-semibold text-base">Resource Allocation & Load</h3>
+                    </div>
+                    <Link to="/people" className="text-xs text-primary hover:underline flex items-center gap-1">
+                      Manage Team <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </div>
+                  <div className="space-y-4">
+                    {teamWorkload.slice(0, 3).map((member) => (
+                      <div key={member.id} className="flex items-center gap-4">
+                        <Avatar className="h-9 w-9 shrink-0 border border-border">
+                          <AvatarFallback className="bg-muted text-xs font-bold">{member.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium truncate">{member.name}</span>
+                            <span className="font-mono text-muted-foreground">{member.hours}h assigned</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Progress value={member.capacityPct} className={`h-1.5 flex-1 ${member.overloaded ? "bg-red-200" : "bg-secondary"}`} />
+                            <span className={`text-[10px] font-semibold w-8 text-right font-mono ${member.overloaded ? "text-red-600" : "text-muted-foreground"}`}>
+                              {member.capacityPct}%
+                            </span>
+                          </div>
+                        </div>
+                        {member.overloaded && (
+                          <Badge variant="destructive" className="text-[9px] uppercase px-1.5 py-0">
+                            Overload
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+
+              {/* Right Column: Financial Health & Warnings */}
+              <div className="space-y-6">
+                {/* Budget overview & statistics */}
+                <Card className="glass-card-green p-6">
+                  <div className="mb-4 flex items-center gap-2">
+                    <BadgeDollarSign className="h-5 w-5 text-emerald-600" />
+                    <h3 className="font-semibold text-base">Project Budget & Cost</h3>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide">Planned Budget</p>
+                        <p className="text-xl font-bold text-foreground">${plannedBudget.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide">Actual Spent</p>
+                        <p className="text-xl font-bold text-emerald-600">${actualCost.toLocaleString()}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Budget utilization</span>
+                        <span className="font-mono font-bold text-emerald-700">{budgetProgress}%</span>
+                      </div>
+                      <Progress value={budgetProgress} className="h-2 bg-muted" />
+                    </div>
+
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-50/30 p-3 text-xs text-emerald-800">
+                      <span className="font-bold">Financial health: Excellent</span>. Logged hours are well within the planned budget constraints.
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Overdue/Critical Items Widget */}
+                {overdueTasks.length > 0 || linkedIssues.filter((i) => !i.resolved).length > 0 ? (
+                  <Card className="glass-card-green p-6 border border-destructive/30! bg-destructive/5">
+                    <div className="mb-3 flex items-center gap-2 text-destructive">
+                      <Flame className="h-5 w-5 animate-pulse" />
+                      <h3 className="font-semibold text-base text-destructive">Immediate Action Required</h3>
+                    </div>
+                    <div className="space-y-3">
+                      {overdueTasks.slice(0, 2).map((t) => (
+                        <div key={t.id} className="rounded-lg border border-destructive/15 bg-background p-3 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-destructive">OVERDUE</span>
+                            <span className="font-mono text-muted-foreground">{t.displayId}</span>
+                          </div>
+                          <p className="mt-1 font-medium truncate text-foreground">{t.title}</p>
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">Due: {t.dueDate ? format(new Date(t.dueDate), "MMM d, yyyy") : "N/A"}</p>
+                        </div>
+                      ))}
+                      {linkedIssues.filter((i) => !i.resolved).slice(0, 2).map((i) => {
+                        const issueTask = tasks.find((t) => t.id === i.taskId);
+                        return (
+                          <div key={i.id} className="rounded-lg border border-amber-300/35 bg-background p-3 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-amber-700 uppercase">UNRESOLVED BUG</span>
+                              <Badge variant="outline" className="text-[9px] uppercase border-red-200 text-red-600 bg-red-50">
+                                {i.severity}
+                              </Badge>
+                            </div>
+                            <p className="mt-1 font-medium truncate text-foreground">{issueTask?.title ?? "System Incident"}</p>
+                            <p className="mt-0.5 text-[10px] text-muted-foreground">SLA Breached: {i.slaBreached ? "Yes" : "No"}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Card>
+                ) : (
+                  <Card className="p-6 border border-green-500/20 bg-green-50/10 text-center">
+                    <CheckCircle2 className="mx-auto h-8 w-8 text-green-500" />
+                    <h4 className="mt-2 text-sm font-semibold text-foreground">All items on track</h4>
+                    <p className="mt-1 text-xs text-muted-foreground">No overdue items or unresolved critical SLAs found.</p>
+                  </Card>
+                )}
+
+                {/* Upcoming Deadlines */}
+                <Card className="glass-card-green p-6">
+                  <h3 className="font-semibold text-sm mb-3">Upcoming Milestones & Deadlines</h3>
+                  <div className="space-y-3">
+                    {upcomingTasks.map((t) => (
+                      <div key={t.id} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-b-0 last:pb-0">
+                        <div className="min-w-0">
+                          <Link to="/tasks/$id" params={{ id: t.id }} className="text-xs font-semibold text-foreground hover:text-primary truncate block hover:underline">
+                            {t.title}
+                          </Link>
+                          <span className="text-[10px] text-muted-foreground">{t.displayId}</span>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] shrink-0">
+                          {t.dueDate ? format(new Date(t.dueDate), "MMM d") : "N/A"}
+                        </Badge>
+                      </div>
+                    ))}
+                    {!upcomingTasks.length && <p className="text-xs text-muted-foreground">No upcoming deadlines.</p>}
+                  </div>
+                </Card>
+              </div>
+            </div>
           </TabsContent>
-          <TabsContent value="milestones" className="mt-0 outline-none">
-            <ProjectMilestonesTab />
+
+          {/* TAB 2: TASKS PIPELINE */}
+          <TabsContent value="tasks" className="p-0 outline-none">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {statuses.map((status) => {
+                const items = tasks.filter((task) => task.statusId === status.id);
+                return (
+                  <Card key={status.id} className="flex flex-col border border-border/70 bg-muted/20 p-4">
+                    <div className="flex items-center justify-between border-b border-border/50 pb-2.5 mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: status.color }} />
+                        <h4 className="font-bold text-xs uppercase tracking-wider text-muted-foreground">{status.name}</h4>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px] font-mono">{items.length}</Badge>
+                    </div>
+                    <div className="space-y-2.5 flex-1 overflow-y-auto max-h-[500px]">
+                      {items.map((task) => (
+                        <Card key={task.id} className="p-3 shadow-sm hover:border-primary/30 transition hover:shadow-md bg-card">
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-mono text-[9px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                              {task.displayId ?? task.id.toUpperCase()}
+                            </span>
+                            {task.priority && (
+                              <Badge variant="outline" className="text-[8px] px-1 py-0 border-orange-200 text-orange-700 bg-orange-50 font-bold">
+                                {task.priority}
+                              </Badge>
+                            )}
+                          </div>
+                          <Link to="/tasks/$id" params={{ id: task.id }} className="mt-2 block text-xs font-semibold text-foreground hover:text-primary hover:underline">
+                            {task.title}
+                          </Link>
+                          {task.dueDate && (
+                            <p className="mt-2 text-[9px] text-muted-foreground flex items-center gap-1">
+                              <Calendar className="h-3 w-3" /> Due {format(new Date(task.dueDate), "MMM d")}
+                            </p>
+                          )}
+                        </Card>
+                      ))}
+                      {!items.length && (
+                        <p className="text-[11px] text-muted-foreground text-center py-6 border border-dashed border-border/40 rounded-lg">
+                          No tasks in this stage
+                        </p>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
           </TabsContent>
-          <TabsContent value="timesheet" className="mt-0 outline-none">
-            <ProjectTimesheetTab />
+
+          {/* TAB 3: LINKED ISSUES */}
+          <TabsContent value="issues" className="p-0 outline-none">
+            <Card className="p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-semibold text-base">Unresolved Bugs & Incident Logs</h3>
+                <Badge variant="destructive">{linkedIssues.length} issues</Badge>
+              </div>
+              <div className="space-y-3">
+                {linkedIssues.map((issue) => {
+                  const task = tasks.find((t) => t.id === issue.taskId);
+                  return (
+                    <div key={issue.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-border p-4 rounded-xl hover:border-primary/20 transition">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Link to="/incidents/$id" params={{ id: issue.taskId }} className="font-semibold text-sm hover:text-primary hover:underline">
+                            {task?.title ?? `Issue ${issue.id.toUpperCase()}`}
+                          </Link>
+                          <Badge variant="outline" className="text-[9px] border-red-200 text-red-700 bg-red-50 uppercase">
+                            {issue.severity}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground font-mono">ID: {issue.id.toUpperCase()} · Environment: {issue.environment}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">SLA Breach Target</p>
+                          <p className="text-xs font-mono font-semibold">{format(new Date(issue.slaTargetFix), "MMM d, yyyy · h:mm a")}</p>
+                        </div>
+                        <Badge variant={issue.slaBreached ? "destructive" : "secondary"} className="text-[10px] uppercase font-bold px-2 py-0.5">
+                          {issue.slaBreached ? "SLA Breached" : "Active SLA"}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+                {!linkedIssues.length && (
+                  <p className="text-sm text-muted-foreground text-center py-8">No unresolved bugs reported on this project.</p>
+                )}
+              </div>
+            </Card>
           </TabsContent>
-          <TabsContent value="issues" className="mt-0 outline-none">
-            <ProjectIssuesTab projectId={id} />
+
+          {/* TAB 4: WORKLOAD CAPACITY */}
+          <TabsContent value="workload" className="p-0 outline-none">
+            <Card className="p-6">
+              <h3 className="font-semibold text-base mb-4">Detailed Member Capacity Roster</h3>
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {teamWorkload.map((m) => (
+                  <Card key={m.id} className={`p-4 border ${m.overloaded ? "border-red-200 bg-red-50/10" : "border-border"} space-y-4`}>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10 border border-border">
+                        <AvatarFallback className="bg-muted text-sm font-bold">{m.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h4 className="font-bold text-sm text-foreground">{m.name}</h4>
+                        <p className="text-[10px] text-muted-foreground uppercase font-semibold">{m.role?.replace(/_/g, " ") ?? "MEMBER"}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-muted/40 p-2 rounded-lg">
+                        <span className="text-[10px] text-muted-foreground block uppercase font-medium">Active Tasks</span>
+                        <span className="font-bold font-mono text-base">{m.taskCount}</span>
+                      </div>
+                      <div className="bg-muted/40 p-2 rounded-lg">
+                        <span className="text-[10px] text-muted-foreground block uppercase font-medium">Est. Hours</span>
+                        <span className="font-bold font-mono text-base">{m.hours}h</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Workload Limit</span>
+                        <span className={`font-mono font-bold ${m.overloaded ? "text-red-600 animate-pulse" : "text-foreground"}`}>
+                          {m.capacityPct}%
+                        </span>
+                      </div>
+                      <Progress value={m.capacityPct} className={`h-1.5 ${m.overloaded ? "bg-red-200" : "bg-secondary"}`} />
+                    </div>
+
+                    {m.overloaded && (
+                      <div className="flex items-center gap-1.5 text-[10px] text-red-600 font-semibold bg-red-50 border border-red-200 p-2 rounded-md">
+                        <AlertTriangle className="h-3.5 w-3.5" /> Overloaded (&gt;35h allocation threshold). Avoid assigning new tasks.
+                      </div>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            </Card>
           </TabsContent>
-          <TabsContent value="team" className="mt-0 outline-none">
-            <ProjectMembersView projectId={id} />
+
+          {/* TAB 5: PROJECT DOCUMENTS */}
+          <TabsContent value="documents" className="p-0 outline-none animate-in fade-in-50 duration-200">
+            <Card className="p-6 border border-white/10 bg-card/65 backdrop-blur-md rounded-2xl shadow-xl shadow-indigo-500/5 hover:border-primary/10 transition-all space-y-6">
+              <div className="flex items-center justify-between border-b border-border/50 pb-3">
+                <div className="space-y-1">
+                  <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                    <Paperclip className="h-5 w-5 text-primary" /> Project Documents & Attachments
+                  </h3>
+                  <p className="text-xs text-muted-foreground">Manage and download assets uploaded for this project timeline.</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-gradient-primary text-primary-foreground font-semibold rounded-xl hover:shadow-glow transition-all gap-1.5"
+                  >
+                    <Plus className="h-4 w-4" /> Upload Document
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    id="project-doc-uploader"
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={handleUploadProjDoc}
+                  />
+                </div>
+              </div>
+
+              {projectAttachments.length === 0 ? (
+                <div className="text-center py-16 border-2 border-dashed border-border/40 rounded-2xl bg-muted/15 flex flex-col items-center justify-center space-y-3">
+                  <UploadCloud className="h-10 w-10 text-muted-foreground animate-bounce" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">No project documents uploaded yet</p>
+                    <p className="text-xs text-muted-foreground max-w-xs">Upload system design docs, architecture specs, or plans here to share them with the team.</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-lg text-primary border-primary/20 hover:bg-primary/5"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Browse Files
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {projectAttachments.map((doc) => {
+                    return (
+                      <Card
+                        key={doc.id}
+                        className="group flex flex-col justify-between p-4 border border-white/5 bg-background/50 hover:bg-muted/15 hover:border-primary/20 rounded-xl transition-all shadow-sm"
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="p-2 bg-primary/10 rounded-lg text-primary shrink-0">
+                            <FileText className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0 space-y-0.5">
+                            <p className="font-bold text-xs text-foreground truncate" title={doc.fileName}>
+                              {doc.fileName}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {humanSize(doc.sizeBytes)} · {doc.uploadedAt ? format(new Date(doc.uploadedAt), "MMM d, yyyy") : "Date unknown"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between pt-2 border-t border-border/10">
+                          <span className="text-[9px] text-muted-foreground uppercase font-semibold tracking-wider font-mono">
+                            {doc.mimeType.split("/")[1] || "asset"}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                              asChild
+                            >
+                              <a href={doc.url} download={doc.fileName} title="Download Asset">
+                                <Download className="h-4 w-4" />
+                              </a>
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDeleteProjDoc(doc.id, doc.fileName)}
+                              title="Delete Document"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
           </TabsContent>
         </Tabs>
       </main>
@@ -114,551 +821,35 @@ function ProjectDetail() {
   );
 }
 
-function ProjectDashboardTab({ projectId }: { projectId: string }) {
-  return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <div className="p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">Task Completion</h3>
-          <p className="text-3xl font-bold mt-2">68%</p>
-          <div className="mt-4 h-2 w-full bg-secondary rounded-full overflow-hidden">
-            <div className="h-full bg-primary" style={{ width: '68%' }} />
-          </div>
-        </div>
-      </Card>
-      <Card>
-        <div className="p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">Open Issues</h3>
-          <p className="text-3xl font-bold mt-2 text-destructive">3</p>
-          <p className="text-xs text-muted-foreground mt-2">1 critical severity</p>
-        </div>
-      </Card>
-      <Card>
-        <div className="p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">Hours Logged</h3>
-          <p className="text-3xl font-bold mt-2">142h</p>
-          <p className="text-xs text-muted-foreground mt-2">This week</p>
-        </div>
-      </Card>
-      <Card>
-        <div className="p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">Team Size</h3>
-          <p className="text-3xl font-bold mt-2">12</p>
-          <p className="text-xs text-muted-foreground mt-2">Active contributors</p>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-function ProjectMilestonesTab() {
-  return (
-    <Card>
-      <div className="p-6 text-center py-12">
-        <h3 className="text-lg font-medium">Milestones</h3>
-        <p className="text-muted-foreground mt-2 text-sm">Define key phases and deliverables for your project. (Coming soon)</p>
-      </div>
-    </Card>
-  );
-}
-
-function ProjectTimesheetTab() {
-  return (
-    <Card>
-      <div className="p-6 text-center py-12">
-        <h3 className="text-lg font-medium">Project Timesheet</h3>
-        <p className="text-muted-foreground mt-2 text-sm">Review hours logged by your team against tasks in this project. (Timesheet Module integration coming soon)</p>
-      </div>
-    </Card>
-  );
-}
-
-function ProjectIssuesTab({ projectId }: { projectId: string }) {
-  return (
-    <Card>
-      <div className="p-6 text-center py-12">
-        <h3 className="text-lg font-medium">Linked Incidents</h3>
-        <p className="text-muted-foreground mt-2 text-sm">View SEV0-SEV3 incidents affecting this project's infrastructure. (Coming soon)</p>
-      </div>
-    </Card>
-  );
-}
-
-function KanbanBoard({ projectId }: { projectId: string }) {
-  const { data: statuses = [] } = useStatuses(projectId);
-  const { data: tasks = [] } = useTasks({ projectId });
-  const update = useUpdateTaskStatus();
-  const [dragId, setDragId] = useState<string | null>(null);
-
-  return (
-    <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-thin">
-      {statuses.map((col) => {
-        const colTasks = tasks.filter((t) => t.statusId === col.id);
-        const breached = col.wipLimit && colTasks.length > col.wipLimit;
-        return (
-          <div
-            key={col.id}
-            className="flex w-72 shrink-0 flex-col rounded-lg border border-border bg-muted/30"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={async () => {
-              if (!dragId) return;
-              if (col.requiresComment) {
-                const comment = window.prompt("This status requires a comment:");
-                if (!comment) return toast.error("Comment required for Blocked");
-                await update.mutateAsync({ taskId: dragId, statusId: col.id, comment });
-              } else {
-                await update.mutateAsync({ taskId: dragId, statusId: col.id });
-              }
-              setDragId(null);
-              toast.success(`Moved to ${col.name}`);
-            }}
-          >
-            <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
-              <div className="flex items-center gap-2">
-                <StatusDot color={col.color} />
-                <span className="text-xs font-semibold uppercase tracking-wide">{col.name}</span>
-                <Badge variant="outline" className="h-4 px-1 font-mono text-[10px]">
-                  {colTasks.length}
-                  {col.wipLimit ? `/${col.wipLimit}` : ""}
-                </Badge>
-              </div>
-              {breached && <AlertTriangle className="h-3.5 w-3.5 text-destructive" />}
-            </div>
-            <div className="flex flex-col gap-2 p-2">
-              {colTasks.map((t) => (
-                <TaskCard key={t.id} task={t} draggable onDragStart={() => setDragId(t.id)} />
-              ))}
-              {colTasks.length === 0 && (
-                <div className="rounded-md border border-dashed border-border/50 p-4 text-center text-[10px] text-muted-foreground">
-                  Drop here
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-export function TaskCard({
-  task,
-  draggable,
-  onDragStart,
+function StatCard({
+  label, value, subtext, icon: Icon, color
 }: {
-  task: Task;
-  draggable?: boolean;
-  onDragStart?: () => void;
+  label: string;
+  value: string;
+  subtext: string;
+  icon: any;
+  color: "indigo" | "red" | "amber" | "emerald" | "violet";
 }) {
-  return (
-    <Link
-      to="/tasks/$id"
-      params={{ id: task.id }}
-      draggable={draggable}
-      onDragStart={onDragStart}
-      className="group block rounded-md border border-border bg-card p-3 transition hover:border-primary/40 hover:shadow-glow"
-    >
-      <div className="flex items-start gap-2">
-        {draggable && (
-          <GripVertical className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" />
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="mb-1 flex items-center gap-1.5">
-            <span className="font-mono text-[10px] text-muted-foreground">
-              {task.id.toUpperCase()}
-            </span>
-            {task.taskType === "ISSUE" && (
-              <Badge
-                variant="outline"
-                className="h-4 border-destructive/30 px-1 text-[10px] text-destructive"
-              >
-                Issue
-              </Badge>
-            )}
-            {task.priority && <PriorityDot priority={task.priority} />}
-          </div>
-          <p className="line-clamp-2 text-sm font-medium leading-snug">{task.title}</p>
-          <div className="mt-2 flex items-center justify-between">
-            <AssigneeStack ids={task.assigneeIds} />
-            {task.dueDate && (
-              <span className="font-mono text-[10px] text-muted-foreground">
-                {format(new Date(task.dueDate), "MMM d")}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-function PriorityDot({ priority }: { priority: NonNullable<Task["priority"]> }) {
-  const color =
-    priority === "CRITICAL"
-      ? "bg-destructive"
-      : priority === "HIGH"
-        ? "bg-warning"
-        : priority === "MEDIUM"
-          ? "bg-info"
-          : "bg-muted-foreground";
-  return <span className={`inline-block h-1.5 w-1.5 rounded-full ${color}`} title={priority} />;
-}
-
-function TaskListView({ projectId }: { projectId: string }) {
-  const { data: tasks = [] } = useTasks({ projectId });
-  const { data: statuses = [] } = useStatuses(projectId);
-  return (
-    <Card className="overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="border-b border-border bg-muted/30 text-left text-[10px] uppercase tracking-wide text-muted-foreground">
-          <tr>
-            <th className="px-4 py-2">Task</th>
-            <th className="px-4 py-2">Status</th>
-            <th className="px-4 py-2">Assignees</th>
-            <th className="px-4 py-2">Due</th>
-            <th className="px-4 py-2">Hours</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tasks.map((t) => {
-            const s = statuses.find((x) => x.id === t.statusId);
-            return (
-              <tr key={t.id} className="border-b border-border/50 transition hover:bg-muted/30">
-                <td className="px-4 py-3">
-                  <Link to="/tasks/$id" params={{ id: t.id }} className="block">
-                    <span className="font-mono text-[10px] text-muted-foreground">
-                      {t.id.toUpperCase()}
-                    </span>
-                    <p className="font-medium">{t.title}</p>
-                  </Link>
-                </td>
-                <td className="px-4 py-3">
-                  {s && (
-                    <span className="inline-flex items-center gap-1.5 text-xs">
-                      <StatusDot color={s.color} />
-                      {s.name}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <AssigneeStack ids={t.assigneeIds} />
-                </td>
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                  {t.dueDate ? format(new Date(t.dueDate), "MMM d") : "—"}
-                </td>
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                  {t.loggedHours ?? 0} / {t.estimatedHours ?? 0}h
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </Card>
-  );
-}
-
-function GanttView({ projectId }: { projectId: string }) {
-  const { data: tasks = [] } = useTasks({ projectId });
-  const { data: project } = useProject(projectId);
-  const { data: deps = [] } = useDependencies(projectId);
-  const addDep = useAddDependency();
-  const rmDep = useRemoveDependency();
-  const navigate = useNavigate();
-  const [linkMode, setLinkMode] = useState(false);
-  const [predecessor, setPredecessor] = useState<string | null>(null);
-
-  if (!project) return null;
-  const start = new Date(project.startDate).getTime();
-  const end = new Date(project.endDate).getTime();
-  const span = end - start || 1;
-  const dated = tasks.filter((t) => t.dueDate);
-
-  const handleBarClick = async (taskId: string) => {
-    if (!linkMode) {
-      navigate({ to: "/tasks/$id", params: { id: taskId } });
-      return;
-    }
-    if (!predecessor) {
-      setPredecessor(taskId);
-      toast.message("Predecessor set", { description: "Now click the successor task" });
-      return;
-    }
-    if (predecessor === taskId) {
-      setPredecessor(null);
-      return;
-    }
-    try {
-      await addDep.mutateAsync({ predecessorId: predecessor, successorId: taskId, type: "FS" });
-      toast.success(`Linked ${predecessor.toUpperCase()} → ${taskId.toUpperCase()}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to link");
-    }
-    setPredecessor(null);
+  const colorMap = {
+    indigo: "text-indigo-600 bg-indigo-50 border-indigo-100",
+    red: "text-red-600 bg-red-50 border-red-100",
+    amber: "text-amber-600 bg-amber-50 border-amber-100",
+    emerald: "text-emerald-600 bg-emerald-50 border-emerald-100",
+    violet: "text-violet-600 bg-violet-50 border-violet-100",
   };
 
   return (
-    <Card className="p-5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[10px] font-mono uppercase text-muted-foreground">
-          {format(new Date(start), "MMM d, yyyy")} → {format(new Date(end), "MMM d, yyyy")}
+    <Card className="p-5 border border-border/80 shadow-sm bg-card hover:shadow-md transition">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs uppercase font-semibold text-muted-foreground tracking-wide">{label}</p>
+          <p className="mt-2 text-2xl font-bold tracking-tight text-foreground font-mono">{value}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant={linkMode ? "default" : "outline"}
-            className={`h-7 text-xs ${linkMode ? "bg-gradient-primary text-primary-foreground" : ""}`}
-            onClick={() => {
-              setLinkMode((v) => !v);
-              setPredecessor(null);
-            }}
-          >
-            <Link2 className="mr-1 h-3 w-3" /> {linkMode ? "Linking…" : "Edit dependencies"}
-          </Button>
+        <div className={`rounded-xl border p-2.5 ${colorMap[color]}`}>
+          <Icon className="h-5 w-5" />
         </div>
       </div>
-      {linkMode && (
-        <div className="mb-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
-          {predecessor ? (
-            <>
-              Predecessor: <span className="font-mono">{predecessor.toUpperCase()}</span> — click a
-              successor task bar to link.
-            </>
-          ) : (
-            <>Click a task bar to set the predecessor.</>
-          )}
-        </div>
-      )}
-
-      <div className="space-y-2">
-        {dated.map((t) => {
-          const ts = new Date(t.createdAt).getTime();
-          const te = new Date(t.dueDate!).getTime();
-          const left = Math.max(0, ((ts - start) / span) * 100);
-          const width = Math.max(2, ((te - ts) / span) * 100);
-          const taskDeps = deps.filter((d) => d.successorId === t.id);
-          const taskSuccs = deps.filter((d) => d.predecessorId === t.id);
-          const isPred = predecessor === t.id;
-          return (
-            <div key={t.id} className="grid grid-cols-[200px_1fr] items-center gap-3">
-              <div className="min-w-0 truncate text-xs">
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  {t.id.toUpperCase()}
-                </span>
-                <p className="truncate">{t.title}</p>
-                {(taskDeps.length > 0 || taskSuccs.length > 0) && (
-                  <p className="mt-0.5 text-[10px] text-muted-foreground">
-                    {taskDeps.length > 0 && (
-                      <span>
-                        after: {taskDeps.map((d) => d.predecessorId.toUpperCase()).join(", ")}
-                      </span>
-                    )}
-                    {taskDeps.length > 0 && taskSuccs.length > 0 && " · "}
-                    {taskSuccs.length > 0 && (
-                      <span>
-                        before: {taskSuccs.map((d) => d.successorId.toUpperCase()).join(", ")}
-                      </span>
-                    )}
-                  </p>
-                )}
-              </div>
-              <div className="relative h-6 rounded bg-muted/40">
-                <button
-                  onClick={() => handleBarClick(t.id)}
-                  className={`absolute top-1 h-4 cursor-pointer rounded transition ${isPred ? "bg-warning shadow-glow ring-2 ring-warning" : "bg-gradient-primary shadow-glow hover:brightness-110"}`}
-                  style={{ left: `${left}%`, width: `${Math.min(100 - left, width)}%` }}
-                  title={linkMode ? "Click to set/link" : "Open task"}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-6 border-t border-border pt-4">
-        <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <Link2 className="h-3 w-3" /> Dependencies ({deps.length})
-        </h4>
-        {deps.length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            No dependencies yet. Toggle "Edit dependencies" and click two task bars to link them.
-          </p>
-        )}
-        <ul className="space-y-1">
-          {deps.map((d) => {
-            const p = tasks.find((t) => t.id === d.predecessorId);
-            const s = tasks.find((t) => t.id === d.successorId);
-            return (
-              <li
-                key={d.id}
-                className="group flex items-center justify-between gap-2 rounded border border-border bg-muted/20 px-2 py-1.5 text-xs"
-              >
-                <span className="truncate">
-                  <span className="font-mono">{p?.id.toUpperCase()}</span> {p?.title} →{" "}
-                  <span className="font-mono">{s?.id.toUpperCase()}</span> {s?.title}
-                </span>
-                <button
-                  onClick={async () => {
-                    await rmDep.mutateAsync(d.id);
-                    toast.success("Removed");
-                  }}
-                  className="text-muted-foreground opacity-0 transition hover:text-destructive group-hover:opacity-100"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </Card>
-  );
-}
-
-function ProjectMembersView({ projectId }: { projectId: string }) {
-  const { data: members = [], isLoading: loadingMembers } = useProjectMembers(projectId);
-  const { data: users = [] } = useUsers();
-  const addMember = useAddProjectMember();
-  const removeMember = useRemoveProjectMember();
-
-  const [open, setOpen] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState("");
-  const [selectedRole, setSelectedRole] = useState("PROJECT_MEMBER");
-
-  const handleAddMember = async () => {
-    if (!selectedUserId) return toast.error("Please select a user");
-    try {
-      await addMember.mutateAsync({ projectId, userId: selectedUserId, role: selectedRole });
-      toast.success("Project member added successfully!");
-      setOpen(false);
-      setSelectedUserId("");
-      setSelectedRole("PROJECT_MEMBER");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to add member");
-    }
-  };
-
-  const handleRemoveMember = async (userId: string) => {
-    if (!window.confirm("Are you sure you want to remove this member from the project?")) return;
-    try {
-      await removeMember.mutateAsync({ projectId, userId });
-      toast.success("Member removed from project");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to remove member");
-    }
-  };
-
-  const nonMembers = users.filter(
-    (u) => !members.some((m) => m.userId === u.id)
-  );
-
-  return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-          <Users className="h-4 w-4" /> Project Members ({members.length})
-        </h3>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="bg-gradient-primary text-primary-foreground h-8">
-              <Plus className="h-3.5 w-3.5 mr-1" /> Add Member
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Project Member</DialogTitle>
-              <DialogDescription>
-                Select a user from your organization to collaborate on this project.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Select User</label>
-                <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a team member..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {nonMembers.length === 0 ? (
-                      <SelectItem value="_none" disabled>All users are already members</SelectItem>
-                    ) : (
-                      nonMembers.map((u) => (
-                        <SelectItem key={u.id} value={u.id}>
-                          {u.name} ({u.email})
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Project Role</label>
-                <Select value={selectedRole} onValueChange={setSelectedRole}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PROJECT_OWNER">Project Owner</SelectItem>
-                    <SelectItem value="PROJECT_ADMIN">Project Admin</SelectItem>
-                    <SelectItem value="PROJECT_MANAGER">Project Manager</SelectItem>
-                    <SelectItem value="PROJECT_MEMBER">Project Member</SelectItem>
-                    <SelectItem value="PROJECT_VIEWER">Project Viewer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleAddMember} size="sm" className="bg-gradient-primary text-primary-foreground">
-                Add to Project
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {loadingMembers ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">Loading members...</p>
-      ) : members.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">No members assigned to this project.</p>
-      ) : (
-        <div className="divide-y divide-border/50">
-          {members.map((m: any) => {
-            const u = users.find((x) => x.id === m.userId);
-            return (
-              <div key={m.id} className="flex items-center justify-between py-3">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8 border border-border">
-                    <AvatarFallback className="bg-muted text-xs">
-                      {u?.name?.slice(0, 2).toUpperCase() || "??"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h4 className="text-sm font-semibold">{u?.name || "Unknown User"}</h4>
-                    <p className="text-xs text-muted-foreground">{u?.email || ""}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <Badge variant="secondary" className="text-[10px] uppercase font-mono tracking-wider">
-                    {m.role?.replace("_", " ")}
-                  </Badge>
-                  <Button
-                    onClick={() => handleRemoveMember(m.userId)}
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <p className="mt-2.5 text-xs text-muted-foreground truncate">{subtext}</p>
     </Card>
   );
 }

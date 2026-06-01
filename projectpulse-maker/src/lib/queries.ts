@@ -2,7 +2,7 @@
 // When VITE_API_BASE_URL is unset, falls back to template data in mock-data.ts
 // so the UI is fully explorable.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiRequest, USE_MOCK } from "./api";
+import { apiRequest, USE_MOCK, tokenStore } from "./api";
 import * as mock from "./mock-data";
 import type {
   Attachment,
@@ -97,6 +97,36 @@ export function useTeams() {
   });
 }
 
+export function useCreateDepartment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: Omit<Department, "id">) => {
+      if (USE_MOCK) {
+        const nd: Department = { id: `d-${Date.now()}`, ...payload };
+        mock.mockDepartments.push(nd);
+        return nd;
+      }
+      return apiRequest<Department>("/departments", { method: "POST", body: payload });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["departments"] }),
+  });
+}
+
+export function useCreateTeam() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: Omit<Team, "id">) => {
+      if (USE_MOCK) {
+        const nt: Team = { id: `t-${Date.now()}`, ...payload };
+        mock.mockTeams.push(nt);
+        return nt;
+      }
+      return apiRequest<Team>("/teams", { method: "POST", body: payload });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["teams"] }),
+  });
+}
+
 // ---------- projects ----------
 export function useProjects() {
   return useQuery({
@@ -147,6 +177,70 @@ export function useStatuses(_projectId?: string) {
     queryFn: async (): Promise<CustomTaskStatus[]> => {
       if (USE_MOCK) return mock.mockStatuses.default;
       return apiRequest<CustomTaskStatus[]>(`/projects/${_projectId}/statuses`);
+    },
+  });
+}
+
+export function useCreateStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { projectId: string; status: Omit<CustomTaskStatus, "id"> }) => {
+      if (USE_MOCK) {
+        const ns: CustomTaskStatus = { id: `s-${Date.now()}`, ...vars.status };
+        mock.mockStatuses.default.push(ns);
+        return ns;
+      }
+      return apiRequest<CustomTaskStatus>(`/projects/${vars.projectId}/statuses`, {
+        method: "POST",
+        body: vars.status,
+      });
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["statuses", vars.projectId] });
+      qc.invalidateQueries({ queryKey: ["statuses", "default"] });
+    },
+  });
+}
+
+export function useUpdateStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { statusId: string; patch: Partial<CustomTaskStatus>; projectId?: string }) => {
+      if (USE_MOCK) {
+        const s = mock.mockStatuses.default.find(x => x.id === vars.statusId);
+        if (s) Object.assign(s, vars.patch);
+        return s;
+      }
+      return apiRequest<CustomTaskStatus>(`/statuses/${vars.statusId}`, {
+        method: "PUT",
+        body: vars.patch,
+      });
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["statuses", vars.projectId ?? "default"] });
+      qc.invalidateQueries({ queryKey: ["statuses", "default"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
+export function useDeleteStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { statusId: string; projectId?: string }) => {
+      if (USE_MOCK) {
+        const idx = mock.mockStatuses.default.findIndex(x => x.id === vars.statusId);
+        if (idx >= 0) mock.mockStatuses.default.splice(idx, 1);
+        return true;
+      }
+      return apiRequest<void>(`/statuses/${vars.statusId}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["statuses", vars.projectId ?? "default"] });
+      qc.invalidateQueries({ queryKey: ["statuses", "default"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
     },
   });
 }
@@ -490,6 +584,81 @@ export function useDeleteAttachment() {
       });
     },
     onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["attachments", v.taskId] }),
+  });
+}
+
+export function useProjectAttachments(projectId: string | undefined) {
+  return useQuery({
+    queryKey: ["project-attachments", projectId],
+    enabled: !!projectId,
+    queryFn: async (): Promise<Attachment[]> => {
+      if (USE_MOCK) return mock.mockAttachments.filter((a) => a.projectId === projectId);
+      return apiRequest<Attachment[]>(`/projects/${projectId}/attachments`);
+    },
+  });
+}
+
+export function useUploadProjectAttachment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { projectId: string; file: File; onProgress?: (p: number) => void }) => {
+      if (USE_MOCK) {
+        for (let p = 10; p <= 100; p += 15) {
+          await sleep(80);
+          vars.onProgress?.(Math.min(100, p));
+        }
+        const att: Attachment = {
+          id: `att-${Date.now()}`,
+          taskId: "",
+          projectId: vars.projectId,
+          fileName: vars.file.name,
+          mimeType: vars.file.type || "application/octet-stream",
+          sizeBytes: vars.file.size,
+          url: URL.createObjectURL(vars.file),
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: "u-owner",
+        };
+        mock.mockAttachments.push(att);
+        return att;
+      }
+      return new Promise<Attachment>((resolve, reject) => {
+        const fd = new FormData();
+        fd.append("file", vars.file);
+        const xhr = new XMLHttpRequest();
+        xhr.open(
+          "POST",
+          `${import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "")}/api/v1/projects/${vars.projectId}/attachments`,
+        );
+        const token = localStorage.getItem("tfp.accessToken");
+        if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.upload.onprogress = (e) =>
+          e.lengthComputable && vars.onProgress?.(Math.round((e.loaded / e.total) * 100));
+        xhr.onload = () =>
+          xhr.status < 300
+            ? resolve(JSON.parse(xhr.responseText))
+            : reject(new Error(xhr.statusText));
+        xhr.onerror = () => reject(new Error("Upload failed"));
+        xhr.send(fd);
+      });
+    },
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["project-attachments", v.projectId] }),
+  });
+}
+
+export function useDeleteProjectAttachment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { projectId: string; attachmentId: string }) => {
+      if (USE_MOCK) {
+        const idx = mock.mockAttachments.findIndex((a) => a.id === vars.attachmentId);
+        if (idx >= 0) mock.mockAttachments.splice(idx, 1);
+        return true;
+      }
+      return apiRequest(`/projects/${vars.projectId}/attachments/${vars.attachmentId}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["project-attachments", v.projectId] }),
   });
 }
 
@@ -878,6 +1047,7 @@ export function useCreateRoutingRule() {
           assignmentStrategy: payload.assignmentStrategy || "ROUND_ROBIN",
           priority: payload.priority ?? 1,
           enabled: true,
+          triggerCondition: payload.triggerCondition,
         };
         mock.mockRoutingRules.unshift(nr);
         return nr;
@@ -1130,9 +1300,89 @@ export function useMyAssignedTasks() {
     queryFn: async (): Promise<Task[]> => {
       if (USE_MOCK) {
         await sleep();
-        return mock.mockTasks.slice(0, 10);
+        const user = tokenStore.getUser<User>() || mock.mockUsers[0];
+        return mock.mockTasks.filter((t) => t.assigneeIds.includes(user.id));
       }
       return apiRequest<Task[]>("/time/assigned-tasks");
+    },
+  });
+}
+
+export function useCreateTimeEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { taskId: string; startTime: string; endTime: string; description?: string; billable?: boolean }) => {
+      if (USE_MOCK) {
+        const user = tokenStore.getUser<User>() || mock.mockUsers[0];
+        const hours = Math.max(0.1, (new Date(vars.endTime).getTime() - new Date(vars.startTime).getTime()) / 3_600_000);
+        const te: TimeEntry = {
+          id: `te-${Date.now()}`,
+          userId: user.id,
+          taskId: vars.taskId,
+          startTime: vars.startTime,
+          endTime: vars.endTime,
+          description: vars.description,
+          billable: vars.billable ?? true,
+          hours,
+        };
+        mock.mockTimeEntries.unshift(te);
+        return te;
+      }
+      return apiRequest<TimeEntry>("/time-entries", {
+        method: "POST",
+        body: vars,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["time-entries"] });
+      qc.invalidateQueries({ queryKey: ["timesheet"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
+export function useUpdateTimeEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { id: string; patch: { taskId?: string; startTime: string; endTime: string; description?: string; billable?: boolean } }) => {
+      if (USE_MOCK) {
+        const te = mock.mockTimeEntries.find(x => x.id === vars.id);
+        if (te) {
+          Object.assign(te, vars.patch);
+          te.hours = Math.max(0.1, (new Date(vars.patch.endTime).getTime() - new Date(vars.patch.startTime).getTime()) / 3_600_000);
+        }
+        return te;
+      }
+      return apiRequest<TimeEntry>(`/time-entries/${vars.id}`, {
+        method: "PATCH",
+        body: vars.patch,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["time-entries"] });
+      qc.invalidateQueries({ queryKey: ["timesheet"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
+export function useDeleteTimeEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (USE_MOCK) {
+        const idx = mock.mockTimeEntries.findIndex(x => x.id === id);
+        if (idx >= 0) mock.mockTimeEntries.splice(idx, 1);
+        return true;
+      }
+      return apiRequest<void>(`/time-entries/${id}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["time-entries"] });
+      qc.invalidateQueries({ queryKey: ["timesheet"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
     },
   });
 }
@@ -1171,6 +1421,32 @@ export interface BulkUploadResult {
 async function bulkUploadCsv(endpoint: string, file: File): Promise<BulkUploadResult> {
   if (USE_MOCK) {
     await sleep(600);
+    try {
+      const text = await file.text();
+      const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+      if (lines.length > 1 && endpoint === "automations") {
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(",").map(c => c.trim().replace(/^"(.*)"$/, "$1"));
+          if (cols.length >= 3) {
+            const name = cols[0] || `Automation Rule ${i}`;
+            const triggerType = cols[1] || "TASK_UPDATED";
+            const actionType = cols[2] || "ASSIGN_USER";
+            const projectId = cols[5] || "default";
+            mock.mockAutomations.push({
+              id: `a-uploaded-${Date.now()}-${i}`,
+              projectId,
+              name,
+              description: `Trigger: ${triggerType}, Action: ${actionType}`,
+              triggerType,
+              enabled: true
+            });
+          }
+        }
+        return { succeeded: lines.length - 1, failed: 0, errors: [] };
+      }
+    } catch (e) {
+      console.error("Mock upload failed", e);
+    }
     return { succeeded: 5, failed: 0, errors: [] };
   }
   const fd = new FormData();
@@ -1211,6 +1487,13 @@ export function useBulkUploadAssignments() {
   return useMutation({
     mutationFn: (file: File) => bulkUploadCsv("assignments", file),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+  });
+}
+export function useBulkUploadAutomations() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => bulkUploadCsv("automations", file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["automations"] }),
   });
 }
 

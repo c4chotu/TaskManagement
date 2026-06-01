@@ -103,9 +103,9 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         // ----------------------------------------------------------------
-        // 2. Skip if Avendum is already fully seeded
+        // 2. Skip if Avendum is already fully seeded (check for projects)
         // ----------------------------------------------------------------
-        if (userRepository.findByEmail("vp@avendum.tech").isPresent()) {
+        if (!projectRepository.findByOrganizationId(AVENDUM_ORG_ID).isEmpty()) {
             log.info("Avendum Tech already seeded — skipping.");
             return;
         }
