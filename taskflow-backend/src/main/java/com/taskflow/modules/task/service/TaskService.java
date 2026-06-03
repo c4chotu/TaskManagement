@@ -111,33 +111,13 @@ public class TaskService {
             }
         }
 
-        // Auto-initialize default statuses for the project if none exist
-        List<TaskStatus> projectStatuses = taskStatusRepository.findByProjectIdOrderBySortOrderAsc(request.getProjectId());
-        if (projectStatuses.isEmpty()) {
-            projectStatuses = createDefaultStatusesForProject(request.getProjectId());
-        }
-
-        // Resolve status ID
-        UUID statusId = request.getStatusId();
-        if (statusId == null) {
-            statusId = projectStatuses.stream()
-                    .filter(TaskStatus::isDefault)
-                    .findFirst()
-                    .map(TaskStatus::getId)
-                    .orElse(projectStatuses.get(0).getId());
-        } else {
-            UUID finalStatusId = statusId;
-            boolean statusExists = projectStatuses.stream().anyMatch(s -> s.getId().equals(finalStatusId));
-            if (!statusExists) {
-                throw new IllegalArgumentException("Invalid status ID for project: " + statusId);
-            }
-        }
-
         // Auto-initialize default custom statuses for the project if none exist
-        List<CustomTaskStatus> customStatuses = customTaskStatusRepository.findByProjectIdOrderBySortOrderAsc(request.getProjectId());
-        if (customStatuses.isEmpty()) {
-            customStatuses = createDefaultCustomStatusesForProject(request.getProjectId(), orgId);
+        List<CustomTaskStatus> projectCustomStatuses = customTaskStatusRepository.findByProjectIdOrderBySortOrderAsc(request.getProjectId());
+        if (projectCustomStatuses.isEmpty()) {
+            projectCustomStatuses = createDefaultCustomStatusesForProject(request.getProjectId(), orgId);
         }
+        List<CustomTaskStatus> customStatuses = new ArrayList<>(projectCustomStatuses);
+        customStatuses.addAll(customTaskStatusRepository.findByOrganizationIdAndProjectIdIsNullOrderBySortOrderAsc(orgId));
 
         // Resolve custom status ID
         UUID currentStatusId = request.getCurrentStatusId();
@@ -148,6 +128,9 @@ public class TaskService {
                     .map(CustomTaskStatus::getId)
                     .orElse(customStatuses.get(0).getId());
         }
+
+        // Resolve standard status ID mapping from custom status category
+        UUID statusId = resolveStandardStatusId(request.getProjectId(), currentStatusId);
 
         // ---- Atomically increment project task counter to get display number ----
         // Re-fetch project with a write lock to prevent concurrent duplicate numbers
@@ -186,11 +169,27 @@ public class TaskService {
                 .storyPoints(request.getStoryPoints())
                 .parentTaskId(request.getParentTaskId())
                 .phaseId(request.getPhaseId())
+                .sprintId(request.getSprintId())
                 .organizationId(orgId)
                 .createdBy(currentUserId)
                 .build();
 
         Task savedTask = taskRepository.save(task);
+
+        // Process Task Assignments
+        if (request.getAssigneeIds() != null) {
+            for (UUID assigneeId : request.getAssigneeIds()) {
+                projectMemberRepository.findByProjectIdAndUserId(savedTask.getProjectId(), assigneeId)
+                        .orElseThrow(() -> new IllegalArgumentException("Assignee must be a member of the project: " + assigneeId));
+                TaskAssignment assignment = TaskAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .taskId(taskId)
+                        .userId(assigneeId)
+                        .role("ASSIGNEE")
+                        .build();
+                taskAssignmentRepository.save(assignment);
+            }
+        }
 
         // Record Activity Log
         logActivity(taskId, currentUserId, "CREATE", "Task created", null, displayId + ": " + savedTask.getTitle());
@@ -279,6 +278,10 @@ public class TaskService {
                 statusWorkflowService.transitionStatus(taskId, request.getCurrentStatusId(), currentUserId, "Task updated via REST API");
             } else {
                 task.setCurrentStatusId(request.getCurrentStatusId());
+                UUID resolvedStatusId = resolveStandardStatusId(task.getProjectId(), request.getCurrentStatusId());
+                if (resolvedStatusId != null) {
+                    task.setStatusId(resolvedStatusId);
+                }
             }
         }
 
@@ -309,6 +312,7 @@ public class TaskService {
         task.setStoryPoints(request.getStoryPoints());
         task.setParentTaskId(request.getParentTaskId());
         task.setPhaseId(request.getPhaseId());
+        task.setSprintId(request.getSprintId());
         if (request.getTaskType() != null) {
             task.setTaskType(request.getTaskType());
         }
@@ -320,6 +324,22 @@ public class TaskService {
         }
 
         Task updatedTask = taskRepository.save(task);
+
+        // Process Task Assignments if provided
+        if (request.getAssigneeIds() != null) {
+            taskAssignmentRepository.deleteByTaskId(taskId);
+            for (UUID assigneeId : request.getAssigneeIds()) {
+                projectMemberRepository.findByProjectIdAndUserId(task.getProjectId(), assigneeId)
+                        .orElseThrow(() -> new IllegalArgumentException("Assignee must be a member of the project: " + assigneeId));
+                TaskAssignment assignment = TaskAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .taskId(taskId)
+                        .userId(assigneeId)
+                        .role("ASSIGNEE")
+                        .build();
+                taskAssignmentRepository.save(assignment);
+            }
+        }
 
         // Trigger automation for status changes and due date updates
         try {
@@ -703,7 +723,7 @@ public class TaskService {
                 .displayId(task.getDisplayId())
                 .taskNumber(task.getTaskNumber())
                 .projectId(task.getProjectId())
-                .statusId(task.getStatusId())
+                .statusId(task.getCurrentStatusId() != null ? task.getCurrentStatusId() : task.getStatusId())
                 .currentStatusId(task.getCurrentStatusId())
                 .taskType(task.getTaskType())
                 .departmentId(task.getDepartmentId())
@@ -720,6 +740,7 @@ public class TaskService {
                 .storyPoints(task.getStoryPoints())
                 .parentTaskId(task.getParentTaskId())
                 .phaseId(task.getPhaseId())
+                .sprintId(task.getSprintId())
                 .organizationId(task.getOrganizationId())
                 .version(task.getVersion())
                 .createdBy(task.getCreatedBy())
@@ -728,5 +749,30 @@ public class TaskService {
                 .assigneeIds(assigneeIds)
                 .predecessorIds(predecessorIds)
                 .build();
+    }
+
+    private UUID resolveStandardStatusId(UUID projectId, UUID customStatusId) {
+        CustomTaskStatus customStatus = customTaskStatusRepository.findById(customStatusId).orElse(null);
+        if (customStatus == null) return null;
+        
+        List<TaskStatus> projectStatuses = taskStatusRepository.findByProjectIdOrderBySortOrderAsc(projectId);
+        if (projectStatuses.isEmpty()) {
+            projectStatuses = createDefaultStatusesForProject(projectId);
+        }
+        
+        String category = customStatus.getCategory();
+        String targetStandardName = "To Do";
+        if ("ACTIVE".equalsIgnoreCase(category)) {
+            targetStandardName = "In Progress";
+        } else if ("COMPLETED".equalsIgnoreCase(category)) {
+            targetStandardName = "Done";
+        }
+        
+        String finalTargetStandardName = targetStandardName;
+        return projectStatuses.stream()
+                .filter(s -> s.getName().equalsIgnoreCase(finalTargetStandardName))
+                .findFirst()
+                .map(TaskStatus::getId)
+                .orElse(projectStatuses.get(0).getId());
     }
 }

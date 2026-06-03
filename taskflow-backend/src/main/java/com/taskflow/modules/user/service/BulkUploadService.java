@@ -24,6 +24,8 @@ import com.taskflow.modules.user.repository.DepartmentRepository;
 import com.taskflow.modules.user.repository.TeamMemberRepository;
 import com.taskflow.modules.user.repository.TeamRepository;
 import com.taskflow.modules.user.repository.UserProfileRepository;
+import com.taskflow.modules.automation.domain.*;
+import com.taskflow.modules.automation.repository.AutomationRuleRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +58,8 @@ public class BulkUploadService {
     private final TaskAssignmentRepository taskAssignmentRepository;
     private final TaskService taskService;
     private final PasswordEncoder passwordEncoder;
+    private final AutomationRuleRepository automationRuleRepository;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
     // -------------------------------------------------------------------------
     // Result DTO
@@ -328,5 +332,148 @@ public class BulkUploadService {
             case "GUEST"       -> 0;
             default            -> 1; // TEAM_MEMBER
         };
+    }
+
+    // -------------------------------------------------------------------------
+    // Automations: CSV columns → name,triggerType,actionType,conditionsJson,actionsJson,projectId
+    // -------------------------------------------------------------------------
+    @Transactional
+    public BulkUploadResult uploadAutomations(MultipartFile file) {
+        UUID orgId = requireOrgId();
+        List<String[]> rows = parseCsv(file);
+        int ok = 0; int fail = 0; List<String> errors = new ArrayList<>();
+
+        List<User> orgUsers = userRepository.findByOrganizationId(orgId);
+
+        for (int i = 0; i < rows.size(); i++) {
+            String[] row = rows.get(i);
+            try {
+                if (row.length < 2) throw new IllegalArgumentException("Requires name,triggerType");
+                String name = trim(row, 0);
+                String triggerType = trim(row, 1);
+                String actionType = row.length > 2 ? trim(row, 2) : "";
+                String conditionsJson = row.length > 3 ? trim(row, 3) : "";
+                String actionsJson = row.length > 4 ? trim(row, 4) : "";
+                String projectVal = row.length > 5 ? trim(row, 5) : "";
+
+                if (name.isEmpty() || triggerType.isEmpty()) {
+                    throw new IllegalArgumentException("name and triggerType are required");
+                }
+
+                UUID projectId = null;
+                if (!projectVal.isEmpty()) {
+                    try {
+                        projectId = UUID.fromString(projectVal);
+                    } catch (IllegalArgumentException e) {
+                        Optional<com.taskflow.modules.project.domain.Project> projectOpt = 
+                                projectRepository.findByOrganizationIdAndKey(orgId, projectVal.toUpperCase());
+                        if (projectOpt.isPresent()) {
+                            projectId = projectOpt.get().getId();
+                        }
+                    }
+                }
+
+                // Replace mock user IDs in JSON before parsing
+                conditionsJson = replaceMockUserIds(conditionsJson, orgUsers);
+                actionsJson = replaceMockUserIds(actionsJson, orgUsers);
+
+                AutomationRule rule = AutomationRule.builder()
+                        .id(UUID.randomUUID())
+                        .projectId(projectId)
+                        .organizationId(orgId)
+                        .name(name)
+                        .description("Imported via bulk upload")
+                        .triggerType(triggerType.toUpperCase())
+                        .createdBy(SecurityContextHelper.getCurrentUserId())
+                        .isActive(true)
+                        .conditions(new ArrayList<>())
+                        .actions(new ArrayList<>())
+                        .build();
+
+                // Parse conditionsJson
+                if (conditionsJson != null && !conditionsJson.isEmpty() && !conditionsJson.equals("[]")) {
+                    try {
+                        List<Map<String, String>> conditionDefs = objectMapper.readValue(
+                                conditionsJson, 
+                                new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, String>>>() {}
+                        );
+                        int pos = 0;
+                        for (Map<String, String> cd : conditionDefs) {
+                            AutomationCondition condition = AutomationCondition.builder()
+                                    .id(UUID.randomUUID())
+                                    .rule(rule)
+                                    .fieldName(cd.get("fieldName"))
+                                    .operator(cd.get("operator"))
+                                    .fieldValue(cd.get("fieldValue"))
+                                    .position(pos++)
+                                    .build();
+                            rule.getConditions().add(condition);
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to parse conditionsJson for rule {}: {}", name, e.getMessage());
+                    }
+                }
+
+                // Parse actionsJson
+                if (actionsJson != null && !actionsJson.isEmpty() && !actionsJson.equals("[]")) {
+                    try {
+                        List<Map<String, Object>> actionDefs = objectMapper.readValue(
+                                actionsJson, 
+                                new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {}
+                        );
+                        int pos = 0;
+                        for (Map<String, Object> ad : actionDefs) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> config = ad.get("actionConfig") instanceof Map
+                                    ? (Map<String, Object>) ad.get("actionConfig")
+                                    : new HashMap<>();
+                            
+                            String finalActionType = ad.containsKey("actionType") ? (String) ad.get("actionType") : actionType;
+                            
+                            AutomationAction action = AutomationAction.builder()
+                                    .id(UUID.randomUUID())
+                                    .rule(rule)
+                                    .actionType(finalActionType)
+                                    .actionConfig(config)
+                                    .position(pos++)
+                                    .build();
+                            rule.getActions().add(action);
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to parse actionsJson for rule {}: {}", name, e.getMessage());
+                    }
+                } else if (!actionType.isEmpty()) {
+                    AutomationAction action = AutomationAction.builder()
+                            .id(UUID.randomUUID())
+                            .rule(rule)
+                            .actionType(actionType)
+                            .actionConfig(new HashMap<>())
+                            .position(0)
+                            .build();
+                    rule.getActions().add(action);
+                }
+
+                automationRuleRepository.save(rule);
+                ok++;
+            } catch (Exception e) {
+                fail++;
+                errors.add("Row " + (i + 2) + ": " + e.getMessage());
+            }
+        }
+        return new BulkUploadResult(ok, fail, errors);
+    }
+
+    private String replaceMockUserIds(String json, List<User> orgUsers) {
+        if (json == null || json.isEmpty() || orgUsers.isEmpty()) return json;
+        for (int index = 0; index < orgUsers.size(); index++) {
+            String mockId = "u-dev" + (index + 1);
+            String realId = orgUsers.get(index).getId().toString();
+            json = json.replace(mockId, realId);
+        }
+        if (json.contains("u-dev")) {
+            String defaultUserId = orgUsers.get(0).getId().toString();
+            json = json.replaceAll("u-dev\\d+", defaultUserId);
+        }
+        return json;
     }
 }

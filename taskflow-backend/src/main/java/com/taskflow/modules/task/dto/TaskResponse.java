@@ -41,6 +41,7 @@ public class TaskResponse {
     private UUID createdBy;
     private Instant createdAt;
     private Instant updatedAt;
+    private UUID sprintId;
 
     // Associations
     private List<UUID> assigneeIds;

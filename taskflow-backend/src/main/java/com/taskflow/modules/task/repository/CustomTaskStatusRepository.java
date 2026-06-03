@@ -13,4 +13,7 @@ public interface CustomTaskStatusRepository extends JpaRepository<CustomTaskStat
     List<CustomTaskStatus> findByProjectIdOrderBySortOrderAsc(UUID projectId);
     List<CustomTaskStatus> findByDepartmentIdOrderBySortOrderAsc(UUID departmentId);
     Optional<CustomTaskStatus> findByOrganizationIdAndProjectIdAndName(UUID organizationId, UUID projectId, String name);
+    List<CustomTaskStatus> findByOrganizationIdAndProjectIdIsNullOrderBySortOrderAsc(UUID organizationId);
+    Optional<CustomTaskStatus> findByOrganizationIdAndProjectIdIsNullAndName(UUID organizationId, String name);
+    List<CustomTaskStatus> findByOrganizationIdAndProjectIdOrderBySortOrderAsc(UUID organizationId, UUID projectId);
 }

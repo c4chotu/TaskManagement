@@ -140,9 +140,14 @@ export function useProject(id: string | undefined) {
   return useQuery({
     queryKey: ["project", id],
     enabled: !!id,
-    queryFn: async (): Promise<Project | undefined> => {
-      if (USE_MOCK) return mock.mockProjects.find((p) => p.id === id);
-      return apiRequest<Project>(`/projects/${id}`);
+    queryFn: async (): Promise<Project | null> => {
+      if (USE_MOCK) return mock.mockProjects.find((p) => p.id === id) || null;
+      try {
+        const data = await apiRequest<Project>(`/projects/${id}`);
+        return data || null;
+      } catch (err) {
+        return null;
+      }
     },
   });
 }
@@ -172,11 +177,13 @@ export function useCreateProject() {
 
 // ---------- statuses ----------
 export function useStatuses(_projectId?: string) {
+  const isDefault = !_projectId || _projectId === "default" || _projectId === "undefined";
   return useQuery({
-    queryKey: ["statuses", _projectId ?? "default"],
+    queryKey: ["statuses", isDefault ? "default" : _projectId],
     queryFn: async (): Promise<CustomTaskStatus[]> => {
       if (USE_MOCK) return mock.mockStatuses.default;
-      return apiRequest<CustomTaskStatus[]>(`/projects/${_projectId}/statuses`);
+      const url = isDefault ? "/organizations/statuses" : `/projects/${_projectId}/statuses`;
+      return apiRequest<CustomTaskStatus[]>(url);
     },
   });
 }
@@ -184,19 +191,21 @@ export function useStatuses(_projectId?: string) {
 export function useCreateStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (vars: { projectId: string; status: Omit<CustomTaskStatus, "id"> }) => {
+    mutationFn: async (vars: { projectId?: string; status: Omit<CustomTaskStatus, "id"> }) => {
+      const isDefault = !vars.projectId || vars.projectId === "default" || vars.projectId === "undefined";
       if (USE_MOCK) {
         const ns: CustomTaskStatus = { id: `s-${Date.now()}`, ...vars.status };
         mock.mockStatuses.default.push(ns);
         return ns;
       }
-      return apiRequest<CustomTaskStatus>(`/projects/${vars.projectId}/statuses`, {
+      const url = isDefault ? "/organizations/statuses" : `/projects/${vars.projectId}/statuses`;
+      return apiRequest<CustomTaskStatus>(url, {
         method: "POST",
         body: vars.status,
       });
     },
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ["statuses", vars.projectId] });
+      qc.invalidateQueries({ queryKey: ["statuses", vars.projectId ?? "default"] });
       qc.invalidateQueries({ queryKey: ["statuses", "default"] });
     },
   });
@@ -266,9 +275,14 @@ export function useTask(id: string | undefined) {
   return useQuery({
     queryKey: ["task", id],
     enabled: !!id,
-    queryFn: async (): Promise<Task | undefined> => {
-      if (USE_MOCK) return mock.mockTasks.find((t) => t.id === id);
-      return apiRequest<Task>(`/tasks/${id}`);
+    queryFn: async (): Promise<Task | null> => {
+      if (USE_MOCK) return mock.mockTasks.find((t) => t.id === id) || null;
+      try {
+        const data = await apiRequest<Task>(`/tasks/${id}`);
+        return data || null;
+      } catch (err) {
+        return null;
+      }
     },
   });
 }
@@ -366,9 +380,14 @@ export function useIssue(taskId: string | undefined) {
   return useQuery({
     queryKey: ["issue", taskId],
     enabled: !!taskId,
-    queryFn: async (): Promise<Issue | undefined> => {
-      if (USE_MOCK) return mock.mockIssues.find((i) => i.taskId === taskId);
-      return apiRequest<Issue>(`/issues/by-task/${taskId}`);
+    queryFn: async (): Promise<Issue | null> => {
+      if (USE_MOCK) return mock.mockIssues.find((i) => i.taskId === taskId) || null;
+      try {
+        const data = await apiRequest<Issue>(`/issues/by-task/${taskId}`);
+        return data || null;
+      } catch (err) {
+        return null;
+      }
     },
   });
 }
@@ -517,7 +536,12 @@ export function useAttachments(taskId: string | undefined) {
     enabled: !!taskId,
     queryFn: async (): Promise<Attachment[]> => {
       if (USE_MOCK) return mock.mockAttachments.filter((a) => a.taskId === taskId);
-      return apiRequest<Attachment[]>(`/tasks/${taskId}/attachments`);
+      const data = await apiRequest<Attachment[]>(`/tasks/${taskId}/attachments`);
+      const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "";
+      return data.map((att) => ({
+        ...att,
+        url: att.url && !att.url.startsWith("http") ? `${baseUrl}${att.url}` : att.url,
+      }));
     },
   });
 }
@@ -593,7 +617,48 @@ export function useProjectAttachments(projectId: string | undefined) {
     enabled: !!projectId,
     queryFn: async (): Promise<Attachment[]> => {
       if (USE_MOCK) return mock.mockAttachments.filter((a) => a.projectId === projectId);
-      return apiRequest<Attachment[]>(`/projects/${projectId}/attachments`);
+      const data = await apiRequest<Attachment[]>(`/projects/${projectId}/attachments`);
+      const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "";
+      return data.map((att) => ({
+        ...att,
+        url: att.url && !att.url.startsWith("http") ? `${baseUrl}${att.url}` : att.url,
+      }));
+    },
+  });
+}
+
+// ---------- export reports ----------
+export function useExportReport() {
+  return useMutation({
+    mutationFn: async (payload: { projectId?: string; filterType?: string; columns: string[] }) => {
+      if (USE_MOCK) {
+        await sleep(1000);
+        return { jobId: `mock-job-${Date.now()}` };
+      }
+      return apiRequest<{ jobId: string }>("/reports/export-async", {
+        method: "POST",
+        body: payload,
+      });
+    },
+  });
+}
+
+export function useExportStatus(jobId: string | undefined) {
+  return useQuery({
+    queryKey: ["export-status", jobId],
+    enabled: !!jobId,
+    refetchInterval: (query) => {
+      const state = query.state.data as { status?: string } | undefined;
+      if (state && (state.status === "COMPLETED" || state.status === "FAILED")) {
+        return false;
+      }
+      return 1000; // poll every 1s
+    },
+    queryFn: async (): Promise<{ status: string }> => {
+      if (USE_MOCK) {
+        return { status: "COMPLETED" };
+      }
+      return apiRequest<{ status: string }>(`/reports/export-async/${jobId}`);
     },
   });
 }

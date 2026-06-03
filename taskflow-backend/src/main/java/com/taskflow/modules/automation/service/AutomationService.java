@@ -47,7 +47,7 @@ public class AutomationService {
     // ---- Rule Management ----
 
     @Transactional
-    public AutomationRule createRule(UUID projectId, String name, String description, String triggerType,
+    public AutomationRule createRule(UUID projectId, UUID teamId, String name, String description, String triggerType,
                                      List<Map<String, String>> conditionDefs,
                                      List<Map<String, Object>> actionDefs) {
         UUID userId = SecurityContextHelper.getCurrentUserId();
@@ -56,6 +56,7 @@ public class AutomationService {
         AutomationRule rule = AutomationRule.builder()
                 .id(UUID.randomUUID())
                 .projectId(projectId)
+                .teamId(teamId)
                 .organizationId(orgId)
                 .name(name)
                 .description(description)
@@ -135,7 +136,9 @@ public class AutomationService {
      */
     @Transactional
     public void evaluateRules(String triggerType, UUID projectId, Task task, Map<String, Object> eventContext) {
-        List<AutomationRule> rules = ruleRepository.findByProjectIdAndTriggerTypeAndIsActive(projectId, triggerType, true);
+        UUID orgId = task.getOrganizationId();
+        UUID teamId = task.getTeamId();
+        List<AutomationRule> rules = ruleRepository.findActiveRulesByScope(orgId, projectId, teamId, triggerType, true);
 
         for (AutomationRule rule : rules) {
             AutomationExecution execution = AutomationExecution.builder()

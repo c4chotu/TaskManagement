@@ -30,7 +30,10 @@ export const Route = createFileRoute("/_app/tasks/new")({
 function NewTaskPage() {
   const nav = useNavigate();
   const { data: projects = [] } = useProjects();
-  const { data: statuses = [] } = useStatuses();
+  const [projectId, setProjectId] = useState("");
+  const activeProjectId = projectId || projects[0]?.id || "";
+
+  const { data: statuses = [] } = useStatuses(activeProjectId);
   const { data: users = [] } = useUsers();
   const { data: teams = [] } = useTeams();
   const create = useCreateTask();
@@ -38,10 +41,9 @@ function NewTaskPage() {
   const [taskType, setTaskType] = useState<Task["taskType"]>("TASK");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
   const [parentTaskId, setParentTaskId] = useState("none");
 
-  const { data: allProjectTasks = [] } = useTasks(projectId ? { projectId } : undefined);
+  const { data: allProjectTasks = [] } = useTasks(activeProjectId ? { projectId: activeProjectId } : undefined);
   const standardTasks = allProjectTasks.filter((t) => t.taskType === "TASK");
   const [teamId, setTeamId] = useState("none");
   const [statusId, setStatusId] = useState("s-todo");
@@ -58,6 +60,10 @@ function NewTaskPage() {
   const [badges, setBadges] = useState<TaskBadge[]>([]);
   const [storyPoints, setStoryPoints] = useState("");
 
+  const activeStatusId = statuses.some((s) => s.id === statusId)
+    ? statusId
+    : (statuses.find((s) => s.isDefault)?.id || statuses[0]?.id || statusId);
+
   const toggle = (id: string) =>
     setAssignees((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
@@ -70,12 +76,15 @@ function NewTaskPage() {
 
   const submit = async (mode: "save" | "another") => {
     if (!title.trim()) return toast.error("Title is required");
-    if (!projectId) return toast.error("Pick a project");
+    if (!activeProjectId) return toast.error("Pick a project");
     try {
       await create.mutateAsync({
         title: title.trim(),
         description: description.trim() || undefined,
-        projectId, statusId, taskType, priority,
+        projectId: activeProjectId,
+        statusId: activeStatusId,
+        taskType,
+        priority,
         dueDate: dueDate || undefined,
         estimatedHours: estimatedHours ? Number(estimatedHours) : undefined,
         assigneeIds: assignees,
@@ -188,7 +197,7 @@ function NewTaskPage() {
               <h4 className="mb-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Details</h4>
               <div className="space-y-3">
                 <Field label="Project *">
-                  <Select value={projectId} onValueChange={setProjectId}>
+                  <Select value={activeProjectId} onValueChange={setProjectId}>
                     <SelectTrigger className="h-8"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
                       {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
@@ -205,7 +214,7 @@ function NewTaskPage() {
                   </Select>
                 </Field>
                 <Field label="Status">
-                  <Select value={statusId} onValueChange={setStatusId}>
+                  <Select value={activeStatusId} onValueChange={setStatusId}>
                     <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {statuses.map((s) => (

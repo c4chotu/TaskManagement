@@ -32,7 +32,12 @@ public class AutomationController {
 
     @PostMapping
     public ResponseEntity<AutomationRule> createRule(@RequestBody Map<String, Object> body) {
-        UUID projectId = UUID.fromString((String) body.get("projectId"));
+        String projectIdStr = (String) body.get("projectId");
+        UUID projectId = (projectIdStr != null && !projectIdStr.trim().isEmpty()) ? UUID.fromString(projectIdStr) : null;
+
+        String teamIdStr = (String) body.get("teamId");
+        UUID teamId = (teamIdStr != null && !teamIdStr.trim().isEmpty()) ? UUID.fromString(teamIdStr) : null;
+
         String name = (String) body.get("name");
         String description = (String) body.get("description");
         String triggerType = (String) body.get("triggerType");
@@ -42,7 +47,7 @@ public class AutomationController {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> actions = (List<Map<String, Object>>) body.get("actions");
 
-        return ResponseEntity.ok(automationService.createRule(projectId, name, description, triggerType, conditions, actions));
+        return ResponseEntity.ok(automationService.createRule(projectId, teamId, name, description, triggerType, conditions, actions));
     }
 
     @GetMapping("/project/{projectId}")

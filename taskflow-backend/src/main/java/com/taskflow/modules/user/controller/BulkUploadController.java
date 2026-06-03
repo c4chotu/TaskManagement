@@ -41,4 +41,11 @@ public class BulkUploadController {
             @RequestParam("file") MultipartFile file) {
         return ResponseEntity.ok(bulkUploadService.uploadAssignments(file));
     }
+
+    /** POST /api/v1/bulk/automations — CSV: name,triggerType,actionType,conditionsJson,actionsJson,projectId */
+    @PostMapping(value = "/automations", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<BulkUploadService.BulkUploadResult> uploadAutomations(
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(bulkUploadService.uploadAutomations(file));
+    }
 }

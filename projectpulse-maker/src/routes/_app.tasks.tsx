@@ -12,7 +12,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { useMemo, useState, useEffect } from "react";
-import { useProjects, useStatuses, useTasks, useUpdateTask, useUpdateTaskStatus } from "@/lib/queries";
+import { useProjects, useStatuses, useTasks, useUpdateTask, useUpdateTaskStatus, useExportReport, useExportStatus } from "@/lib/queries";
 import { format, isAfter } from "date-fns";
 import {
   Search, Plus, Filter, ArrowUpDown, Layers, Settings2, Tag,
@@ -84,6 +84,31 @@ function TasksPage() {
   const [exportStep, setExportStep] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [exportReady, setExportReady] = useState(false);
+  const [exportJobId, setExportJobId] = useState<string | null>(null);
+
+  const exportReport = useExportReport();
+  const { data: jobStatus } = useExportStatus(exportJobId || undefined);
+
+  useEffect(() => {
+    if (!exportJobId || !jobStatus) return;
+
+    if (jobStatus.status === "PENDING") {
+      setExportProgress(35);
+      setExportStep("Pending on server...");
+    } else if (jobStatus.status === "PROCESSING") {
+      setExportProgress(65);
+      setExportStep("Compiling records on server...");
+    } else if (jobStatus.status === "COMPLETED") {
+      setExportProgress(100);
+      setExportStep("Ready for download!");
+      setIsExporting(false);
+      setExportReady(true);
+    } else if (jobStatus.status === "FAILED") {
+      setIsExporting(false);
+      setExportReady(false);
+      toast.error("Report generation failed on server");
+    }
+  }, [jobStatus, exportJobId]);
 
   // Apply filters
   const filtered = useMemo(() => {
@@ -171,39 +196,58 @@ function TasksPage() {
     setExportColumns(nextCols);
   };
 
-  // Start realistic async report export progress simulation
-  const startExport = () => {
+  // Start realistic async report export
+  const startExport = async () => {
     setIsExporting(true);
     setExportReady(false);
-    setExportProgress(0);
-    setExportStep("Querying task database...");
+    setExportProgress(10);
+    setExportStep("Submitting export request...");
+    setExportJobId(null);
 
-    const steps = [
-      { prg: 25, label: "Compiling records..." },
-      { prg: 55, label: "Formatting layouts..." },
-      { prg: 80, label: "Generating export bundle..." },
-      { prg: 100, label: "Ready for download!" },
-    ];
-
-    let currentStepIdx = 0;
-    const interval = setInterval(() => {
-      setExportProgress((p) => {
-        const target = steps[currentStepIdx].prg;
-        if (p >= target) {
-          if (currentStepIdx < steps.length - 1) {
-            currentStepIdx++;
-            setExportStep(steps[currentStepIdx].label);
-          } else {
-            clearInterval(interval);
-            setIsExporting(false);
-            setExportReady(true);
-            toast.success("Report generation complete!");
-            return 100;
-          }
-        }
-        return p + 5;
+    try {
+      const selectedProj = filterProjects.length === 1 ? filterProjects[0] : undefined;
+      const cols = exportColumns.filter((c) => c.checked).map((c) => c.id);
+      const res = await exportReport.mutateAsync({
+        projectId: selectedProj,
+        filterType: filter,
+        columns: cols,
       });
-    }, 150);
+      setExportJobId(res.jobId);
+      setExportProgress(25);
+      setExportStep("Waiting for server...");
+    } catch (e) {
+      setIsExporting(false);
+      toast.error(e instanceof Error ? e.message : "Failed to start export");
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!exportJobId) return;
+    try {
+      const token = localStorage.getItem("tfp.accessToken");
+      const headers: HeadersInit = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "";
+      const response = await fetch(`${baseUrl}/api/v1/reports/export-async/${exportJobId}/download`, {
+        headers,
+      });
+      if (!response.ok) throw new Error("Download failed");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `report_${exportJobId}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      setIsExportOpen(false);
+      toast.success("Download started!");
+    } catch (e) {
+      toast.error("Failed to download file");
+    }
   };
 
   return (
@@ -627,10 +671,7 @@ function TasksPage() {
                 <p className="text-xs text-muted-foreground">Your {exportFormat.toUpperCase()} report is compiled and ready for delivery.</p>
               </div>
               <Button
-                onClick={() => {
-                  toast.success(`Downloading report_${Date.now()}.${exportFormat}`);
-                  setIsExportOpen(false);
-                }}
+                onClick={handleDownload}
                 className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold px-6"
               >
                 Download File

@@ -28,6 +28,7 @@ public class StatusWorkflowService {
     private final TaskDependencyRepository taskDependencyRepository;
     private final RoleHierarchyService roleHierarchyService;
     private final IssueDetailRepository issueDetailRepository;
+    private final TaskStatusRepository taskStatusRepository;
     private final RestTemplate restTemplate;
 
     public StatusWorkflowService(TaskRepository taskRepository,
@@ -36,7 +37,8 @@ public class StatusWorkflowService {
                                  StatusHistoryRepository statusHistoryRepository,
                                  TaskDependencyRepository taskDependencyRepository,
                                  RoleHierarchyService roleHierarchyService,
-                                 IssueDetailRepository issueDetailRepository) {
+                                 IssueDetailRepository issueDetailRepository,
+                                 TaskStatusRepository taskStatusRepository) {
         this.taskRepository = taskRepository;
         this.customTaskStatusRepository = customTaskStatusRepository;
         this.statusTransitionRepository = statusTransitionRepository;
@@ -44,6 +46,7 @@ public class StatusWorkflowService {
         this.taskDependencyRepository = taskDependencyRepository;
         this.roleHierarchyService = roleHierarchyService;
         this.issueDetailRepository = issueDetailRepository;
+        this.taskStatusRepository = taskStatusRepository;
         this.restTemplate = new RestTemplate();
     }
 
@@ -106,6 +109,10 @@ public class StatusWorkflowService {
 
         // 4. Update task status
         task.setCurrentStatusId(newStatusId);
+        UUID resolvedStatusId = resolveStandardStatusId(task.getProjectId(), newStatusId);
+        if (resolvedStatusId != null) {
+            task.setStatusId(resolvedStatusId);
+        }
         Task savedTask = taskRepository.save(task);
 
         // 5. Execute side-effect actions (e.g. Webhooks)
@@ -116,6 +123,31 @@ public class StatusWorkflowService {
 
         log.info("Task {} transitioned to status {}", taskId, newStatus.getName());
         return savedTask;
+    }
+
+    private UUID resolveStandardStatusId(UUID projectId, UUID customStatusId) {
+        CustomTaskStatus customStatus = customTaskStatusRepository.findById(customStatusId).orElse(null);
+        if (customStatus == null) return null;
+        
+        List<TaskStatus> projectStatuses = taskStatusRepository.findByProjectIdOrderBySortOrderAsc(projectId);
+        if (projectStatuses.isEmpty()) {
+            return null;
+        }
+        
+        String category = customStatus.getCategory();
+        String targetStandardName = "To Do";
+        if ("ACTIVE".equalsIgnoreCase(category)) {
+            targetStandardName = "In Progress";
+        } else if ("COMPLETED".equalsIgnoreCase(category)) {
+            targetStandardName = "Done";
+        }
+        
+        String finalTargetStandardName = targetStandardName;
+        return projectStatuses.stream()
+                .filter(s -> s.getName().equalsIgnoreCase(finalTargetStandardName))
+                .findFirst()
+                .map(TaskStatus::getId)
+                .orElse(projectStatuses.get(0).getId());
     }
 
     public void validateTransition(Task task, UUID oldStatusId, CustomTaskStatus newStatus, UUID userId, String comment) {

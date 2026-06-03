@@ -86,6 +86,9 @@ public class Task {
     @Column(name = "phase_id")
     private UUID phaseId;
 
+    @Column(name = "sprint_id")
+    private UUID sprintId;
+
     @Column(name = "organization_id", nullable = false)
     private UUID organizationId;
 

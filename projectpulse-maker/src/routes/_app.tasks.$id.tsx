@@ -91,6 +91,7 @@ function TaskDetail() {
   const updateTask = useUpdateTask();
   const addDependency = useAddDependency();
   const removeDependency = useRemoveDependency();
+  const createTask = useCreateTask();
 
   // Manual time log state
   const [logHours, setLogHours] = useState("");
@@ -225,8 +226,6 @@ function TaskDetail() {
     await removeDependency.mutateAsync(depId);
     toast.success("Dependency relation removed");
   };
-
-  const createTask = useCreateTask();
 
   const handleCreateAssociatedIssueSubmit = async () => {
     if (!newIssueTitle.trim()) {
@@ -876,7 +875,7 @@ function TaskDetail() {
                           </SelectItem>
                         ))}
                         {availableIssuesToLink.length === 0 && (
-                          <SelectItem value="" disabled>No issues available</SelectItem>
+                          <SelectItem value="_none" disabled>No issues available</SelectItem>
                         )}
                       </SelectContent>
                     </Select>

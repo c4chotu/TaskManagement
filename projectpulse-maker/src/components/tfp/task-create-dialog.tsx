@@ -34,14 +34,16 @@ export function TaskCreateDialog({
 }) {
   const [open, setOpen] = useState(false);
   const { data: projects = [] } = useProjects();
-  const { data: statuses = [] } = useStatuses();
+  const [projectId, setProjectId] = useState(defaultProjectId ?? "");
+  const activeProjectId = projectId || projects[0]?.id || "";
+
+  const { data: statuses = [] } = useStatuses(activeProjectId);
   const { data: users = [] } = useUsers();
   const { data: teams = [] } = useTeams();
   const create = useCreateTask();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [projectId, setProjectId] = useState(defaultProjectId ?? "");
   const [teamId, setTeamId] = useState("");
   const [statusId, setStatusId] = useState("s-todo");
   const [taskType, setTaskType] = useState<Task["taskType"]>("TASK");
@@ -50,6 +52,10 @@ export function TaskCreateDialog({
   const [estimatedHours, setEstimatedHours] = useState("");
   const [assignees, setAssignees] = useState<string[]>([]);
   const [recurrenceRule, setRecurrenceRule] = useState("");
+
+  const activeStatusId = statuses.some((s) => s.id === statusId)
+    ? statusId
+    : (statuses.find((s) => s.isDefault)?.id || statuses[0]?.id || statusId);
 
   const reset = () => {
     setTitle("");
@@ -66,13 +72,13 @@ export function TaskCreateDialog({
 
   const submit = async () => {
     if (!title.trim()) return toast.error("Title is required");
-    if (!projectId) return toast.error("Pick a project");
+    if (!activeProjectId) return toast.error("Pick a project");
     try {
       await create.mutateAsync({
         title: title.trim(),
         description: description.trim() || undefined,
-        projectId,
-        statusId,
+        projectId: activeProjectId,
+        statusId: activeStatusId,
         taskType,
         priority,
         dueDate: dueDate || undefined,
@@ -166,7 +172,7 @@ export function TaskCreateDialog({
               <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Project *
               </Label>
-              <Select value={projectId} onValueChange={setProjectId}>
+              <Select value={activeProjectId} onValueChange={setProjectId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
@@ -201,7 +207,7 @@ export function TaskCreateDialog({
               <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Status
               </Label>
-              <Select value={statusId} onValueChange={setStatusId}>
+              <Select value={activeStatusId} onValueChange={setStatusId}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

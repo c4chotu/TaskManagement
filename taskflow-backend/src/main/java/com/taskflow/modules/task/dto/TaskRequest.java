@@ -40,4 +40,8 @@ public class TaskRequest {
     // Optional categorization and badge assignment
     private String category;
     private UUID badgeId;
+
+    // Sprints and assignments support
+    private java.util.List<UUID> assigneeIds;
+    private UUID sprintId;
 }

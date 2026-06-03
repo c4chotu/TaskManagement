@@ -1,5 +1,7 @@
 package com.taskflow.modules.task.controller;
 
+import com.taskflow.modules.project.domain.Project;
+import com.taskflow.modules.project.repository.ProjectRepository;
 import com.taskflow.common.security.SecurityContextHelper;
 import com.taskflow.modules.task.domain.CustomTaskStatus;
 import com.taskflow.modules.task.domain.StatusHistory;
@@ -26,17 +28,20 @@ public class StatusWorkflowController {
     private final StatusTransitionRepository statusTransitionRepository;
     private final StatusHistoryRepository statusHistoryRepository;
     private final TaskRepository taskRepository;
+    private final ProjectRepository projectRepository;
 
     public StatusWorkflowController(StatusWorkflowService statusWorkflowService,
                                     CustomTaskStatusRepository customTaskStatusRepository,
                                     StatusTransitionRepository statusTransitionRepository,
                                     StatusHistoryRepository statusHistoryRepository,
-                                    TaskRepository taskRepository) {
+                                    TaskRepository taskRepository,
+                                    ProjectRepository projectRepository) {
         this.statusWorkflowService = statusWorkflowService;
         this.customTaskStatusRepository = customTaskStatusRepository;
         this.statusTransitionRepository = statusTransitionRepository;
         this.statusHistoryRepository = statusHistoryRepository;
         this.taskRepository = taskRepository;
+        this.projectRepository = projectRepository;
     }
 
     @GetMapping("/statuses/available/{taskId}")
@@ -65,7 +70,58 @@ public class StatusWorkflowController {
 
     @GetMapping("/projects/{projectId}/statuses")
     public ResponseEntity<List<CustomTaskStatus>> getProjectStatuses(@PathVariable UUID projectId) {
-        return ResponseEntity.ok(customTaskStatusRepository.findByProjectIdOrderBySortOrderAsc(projectId));
+        UUID orgId = SecurityContextHelper.getCurrentOrgId();
+        Optional<Project> projectOpt = projectRepository.findById(projectId);
+        if (projectOpt.isPresent()) {
+            orgId = projectOpt.get().getOrganizationId();
+        }
+        
+        List<CustomTaskStatus> projectStatuses = customTaskStatusRepository.findByProjectIdOrderBySortOrderAsc(projectId);
+        List<CustomTaskStatus> orgStatuses = Collections.emptyList();
+        if (orgId != null) {
+            orgStatuses = customTaskStatusRepository.findByOrganizationIdAndProjectIdIsNullOrderBySortOrderAsc(orgId);
+        }
+
+        List<CustomTaskStatus> merged = new ArrayList<>();
+        merged.addAll(projectStatuses);
+        merged.addAll(orgStatuses);
+        merged.sort(Comparator.comparingInt(CustomTaskStatus::getSortOrder));
+
+        return ResponseEntity.ok(merged);
+    }
+
+    @GetMapping("/organizations/statuses")
+    public ResponseEntity<List<CustomTaskStatus>> getOrganizationStatuses() {
+        UUID orgId = SecurityContextHelper.getCurrentOrgId();
+        if (orgId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(customTaskStatusRepository.findByOrganizationIdAndProjectIdIsNullOrderBySortOrderAsc(orgId));
+    }
+
+    @PostMapping("/organizations/statuses")
+    public ResponseEntity<CustomTaskStatus> addCustomStatusToOrganization(@RequestBody CustomStatusRequest request) {
+        UUID orgId = SecurityContextHelper.getCurrentOrgId();
+        if (orgId == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        CustomTaskStatus status = CustomTaskStatus.builder()
+                .id(UUID.randomUUID())
+                .organizationId(orgId)
+                .projectId(null)
+                .departmentId(request.getDepartmentId())
+                .name(request.getName())
+                .category(request.getCategory())
+                .color(request.getColor())
+                .sortOrder(request.getSortOrder())
+                .isDefault(request.isDefault())
+                .requiresComment(request.isRequiresComment())
+                .requiresApproval(request.isRequiresApproval())
+                .autoTransitionDays(request.getAutoTransitionDays())
+                .transitionToOnAuto(request.getTransitionToOnAuto())
+                .build();
+        return ResponseEntity.ok(customTaskStatusRepository.save(status));
     }
 
     @PostMapping("/projects/{id}/statuses")

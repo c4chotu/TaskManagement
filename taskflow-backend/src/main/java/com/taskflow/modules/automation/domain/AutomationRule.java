@@ -24,8 +24,11 @@ public class AutomationRule {
     @Id
     private UUID id;
 
-    @Column(name = "project_id", nullable = false)
+    @Column(name = "project_id")
     private UUID projectId;
+
+    @Column(name = "team_id")
+    private UUID teamId;
 
     @Column(name = "organization_id", nullable = false)
     private UUID organizationId;
