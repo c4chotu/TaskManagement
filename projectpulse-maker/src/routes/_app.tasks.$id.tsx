@@ -33,6 +33,7 @@ import {
   useRemoveDependency,
   useTasks,
   useCreateTask,
+  useProjectMembers,
 } from "@/lib/queries";
 import { toast } from "sonner";
 import { SlaCountdown } from "@/components/tfp/sla";
@@ -84,6 +85,13 @@ function TaskDetail() {
   const manuallyRoute = useManuallyRouteTask();
   const reassign = useReassignTask();
   const { data: users = [] } = useUsers();
+  const { data: projectMembers = [] } = useProjectMembers(task?.projectId);
+
+  const projectMemberUserIds = useMemo(() => new Set(projectMembers.map((m: any) => m.userId)), [projectMembers]);
+  const filteredUsers = useMemo(() => {
+    if (!task?.projectId) return [];
+    return users.filter((u) => projectMemberUserIds.has(u.id));
+  }, [users, projectMemberUserIds, task?.projectId]);
   
   // Dependencies & Follower queries and mutations
   const { data: allDeps = [] } = useDependencies(task?.projectId);
@@ -395,7 +403,7 @@ function TaskDetail() {
                     <SelectItem value="_none">
                       <span className="inline-flex items-center gap-2 text-muted-foreground">Unassigned</span>
                     </SelectItem>
-                    {users.map((u) => (
+                    {filteredUsers.map((u) => (
                       <SelectItem key={u.id} value={u.id}>
                         <span className="inline-flex items-center gap-2">
                           <Avatar className="h-4.5 w-4.5">

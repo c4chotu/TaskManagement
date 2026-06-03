@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useCreateTask, useProjects, useStatuses, useUsers, useTeams } from "@/lib/queries";
+import { useCreateTask, useProjects, useStatuses, useUsers, useTeams, useProjectMembers } from "@/lib/queries";
 import { Plus, Sparkles, AlertOctagon, ListChecks, Calendar, Flag, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Task } from "@/lib/types";
@@ -39,8 +39,15 @@ export function TaskCreateDialog({
 
   const { data: statuses = [] } = useStatuses(activeProjectId);
   const { data: users = [] } = useUsers();
+  const { data: projectMembers = [] } = useProjectMembers(activeProjectId);
   const { data: teams = [] } = useTeams();
   const create = useCreateTask();
+
+  const projectMemberUserIds = useMemo(() => new Set(projectMembers.map((m: any) => m.userId)), [projectMembers]);
+  const filteredUsers = useMemo(() => {
+    if (!activeProjectId) return [];
+    return users.filter((u) => projectMemberUserIds.has(u.id));
+  }, [users, projectMemberUserIds, activeProjectId]);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -52,6 +59,18 @@ export function TaskCreateDialog({
   const [estimatedHours, setEstimatedHours] = useState("");
   const [assignees, setAssignees] = useState<string[]>([]);
   const [recurrenceRule, setRecurrenceRule] = useState("");
+  const [categories, setCategories] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("tfp.customCategories");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+    return ["FRONTEND", "BACKEND", "INFRA", "DESIGN", "QA", "SECURITY", "DOCS", "RESEARCH", "BUG", "FEATURE"];
+  });
+  const [category, setCategory] = useState<string>("none");
 
   const activeStatusId = statuses.some((s) => s.id === statusId)
     ? statusId
@@ -68,6 +87,7 @@ export function TaskCreateDialog({
     setAssignees([]);
     setTeamId("");
     setRecurrenceRule("");
+    setCategory("none");
   };
 
   const submit = async () => {
@@ -86,6 +106,7 @@ export function TaskCreateDialog({
         assigneeIds: assignees,
         teamId: teamId === "none" ? undefined : teamId || undefined,
         recurrenceRule: recurrenceRule === "none" ? undefined : recurrenceRule || undefined,
+        category: category === "none" ? undefined : category,
       });
       toast.success("Task created");
       reset();
@@ -262,20 +283,65 @@ export function TaskCreateDialog({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Recurrence
-            </Label>
-            <Select value={recurrenceRule} onValueChange={setRecurrenceRule}>
-              <SelectTrigger>
-                <SelectValue placeholder="Does not repeat" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Does not repeat</SelectItem>
-                <SelectItem value="WEEKLY">Weekly</SelectItem>
-                <SelectItem value="MONTHLY">Monthly</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Recurrence
+              </Label>
+              <Select value={recurrenceRule} onValueChange={setRecurrenceRule}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Does not repeat" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Does not repeat</SelectItem>
+                  <SelectItem value="WEEKLY">Weekly</SelectItem>
+                  <SelectItem value="MONTHLY">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Category
+              </Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Category</SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                  <div className="p-1 border-t border-border mt-1">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full justify-start text-[11px] h-7 text-primary hover:text-primary-foreground hover:bg-primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const name = prompt("Enter new category name:");
+                        if (name && name.trim()) {
+                          const clean = name.trim().toUpperCase();
+                          if (!categories.includes(clean)) {
+                            const updated = [...categories, clean];
+                            setCategories(updated);
+                            localStorage.setItem("tfp.customCategories", JSON.stringify(updated));
+                            setCategory(clean);
+                            toast.success(`Category "${clean}" added`);
+                          } else {
+                            setCategory(clean);
+                          }
+                        }
+                      }}
+                    >
+                      + Add Category
+                    </Button>
+                  </div>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -283,7 +349,7 @@ export function TaskCreateDialog({
               Assignees
             </Label>
             <div className="flex flex-wrap gap-1.5 rounded-md border border-border bg-background/40 p-2">
-              {users.map((u) => {
+              {filteredUsers.map((u) => {
                 const on = assignees.includes(u.id);
                 return (
                   <button

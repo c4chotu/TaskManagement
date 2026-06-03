@@ -8,7 +8,8 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { useStatuses, useUpdateTask, useUpdateTaskStatus, useUsers } from "@/lib/queries";
+import { useMemo } from "react";
+import { useStatuses, useUpdateTask, useUpdateTaskStatus, useUsers, useProjectMembers } from "@/lib/queries";
 import { findUser } from "@/lib/mock-data";
 import { StatusDot } from "@/components/tfp/badges";
 import type { Task } from "@/lib/types";
@@ -60,6 +61,7 @@ export function TaskStatusSelect({ task, compact }: { task: Task; compact?: bool
 
 export function TaskAssignPopover({ task }: { task: Task }) {
   const { data: users = [] } = useUsers();
+  const { data: projectMembers = [] } = useProjectMembers(task.projectId);
   const update = useUpdateTask();
   const toggle = async (uid: string) => {
     const next = task.assigneeIds.includes(uid)
@@ -67,6 +69,13 @@ export function TaskAssignPopover({ task }: { task: Task }) {
       : [...task.assigneeIds, uid];
     await update.mutateAsync({ id: task.id, patch: { assigneeIds: next } });
   };
+
+  const projectMemberUserIds = useMemo(() => new Set(projectMembers.map((m: any) => m.userId)), [projectMembers]);
+  const filteredUsers = useMemo(() => {
+    if (!task.projectId) return [];
+    return users.filter((u) => projectMemberUserIds.has(u.id));
+  }, [users, projectMemberUserIds, task.projectId]);
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -76,7 +85,7 @@ export function TaskAssignPopover({ task }: { task: Task }) {
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64 p-1">
         <div className="max-h-64 overflow-y-auto">
-          {users.map((u) => {
+          {filteredUsers.map((u) => {
             const on = task.assigneeIds.includes(u.id);
             return (
               <button

@@ -96,7 +96,24 @@ public class StatusWorkflowController {
         if (orgId == null) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(customTaskStatusRepository.findByOrganizationIdAndProjectIdIsNullOrderBySortOrderAsc(orgId));
+        List<CustomTaskStatus> list = new java.util.ArrayList<>(customTaskStatusRepository.findByOrganizationIdOrderBySortOrderAsc(orgId));
+        if (list.isEmpty()) {
+            List<String> defaultNames = List.of("Backlog", "To Do", "In Progress", "In Review", "Done");
+            List<String> defaultCategories = List.of("PLANNING", "PLANNING", "ACTIVE", "ACTIVE", "COMPLETED");
+            List<String> defaultColors = List.of("#6B7280", "#9CA3AF", "#3B82F6", "#F59E0B", "#10B981");
+            for (int i = 0; i < defaultNames.size(); i++) {
+                list.add(CustomTaskStatus.builder()
+                        .id(UUID.nameUUIDFromBytes(("default-org-status-" + defaultNames.get(i)).getBytes()))
+                        .organizationId(orgId)
+                        .name(defaultNames.get(i))
+                        .color(defaultColors.get(i))
+                        .category(defaultCategories.get(i))
+                        .sortOrder(i * 10)
+                        .isDefault(i == 1)
+                        .build());
+            }
+        }
+        return ResponseEntity.ok(list);
     }
 
     @PostMapping("/organizations/statuses")

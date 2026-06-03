@@ -41,13 +41,14 @@ public class AutomationController {
         String name = (String) body.get("name");
         String description = (String) body.get("description");
         String triggerType = (String) body.get("triggerType");
+        String ruleType = (String) body.getOrDefault("ruleType", "STANDARD");
 
         @SuppressWarnings("unchecked")
         List<Map<String, String>> conditions = (List<Map<String, String>>) body.get("conditions");
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> actions = (List<Map<String, Object>>) body.get("actions");
 
-        return ResponseEntity.ok(automationService.createRule(projectId, teamId, name, description, triggerType, conditions, actions));
+        return ResponseEntity.ok(automationService.createRule(projectId, teamId, name, description, triggerType, ruleType, conditions, actions));
     }
 
     @GetMapping("/project/{projectId}")

@@ -48,6 +48,7 @@ public class AutomationService {
 
     @Transactional
     public AutomationRule createRule(UUID projectId, UUID teamId, String name, String description, String triggerType,
+                                     String ruleType,
                                      List<Map<String, String>> conditionDefs,
                                      List<Map<String, Object>> actionDefs) {
         UUID userId = SecurityContextHelper.getCurrentUserId();
@@ -61,6 +62,7 @@ public class AutomationService {
                 .name(name)
                 .description(description)
                 .triggerType(triggerType)
+                .ruleType(ruleType != null ? ruleType : "STANDARD")
                 .createdBy(userId)
                 .isActive(true)
                 .conditions(new ArrayList<>())
@@ -103,6 +105,13 @@ public class AutomationService {
         return ruleRepository.save(rule);
     }
 
+    @Transactional
+    public AutomationRule createRule(UUID projectId, UUID teamId, String name, String description, String triggerType,
+                                     List<Map<String, String>> conditionDefs,
+                                     List<Map<String, Object>> actionDefs) {
+        return createRule(projectId, teamId, name, description, triggerType, "STANDARD", conditionDefs, actionDefs);
+    }
+
     @Transactional(readOnly = true)
     public List<AutomationRule> listRulesForProject(UUID projectId) {
         return ruleRepository.findByProjectIdAndIsActive(projectId, true);
@@ -141,6 +150,11 @@ public class AutomationService {
         List<AutomationRule> rules = ruleRepository.findActiveRulesByScope(orgId, projectId, teamId, triggerType, true);
 
         for (AutomationRule rule : rules) {
+            StringBuilder businessLog = new StringBuilder();
+            businessLog.append(String.format("Starting evaluation of Rule: '%s' (ID: %s, Scope: %s)\n", rule.getName(), rule.getId(), rule.getRuleType()));
+            businessLog.append(String.format("Trigger Type: %s, Entity Type: TASK, Entity ID: %s\n", triggerType, task.getId()));
+            businessLog.append("Context values: ").append(eventContext.toString()).append("\n\n");
+
             AutomationExecution execution = AutomationExecution.builder()
                     .id(UUID.randomUUID())
                     .ruleId(rule.getId())
@@ -150,20 +164,46 @@ public class AutomationService {
                     .build();
 
             try {
-                boolean allConditionsMet = rule.getConditions().isEmpty() ||
-                        rule.getConditions().stream().allMatch(c -> evaluateCondition(c, eventContext));
+                boolean allConditionsMet = true;
+                if (rule.getConditions().isEmpty()) {
+                    businessLog.append("Conditions: NONE (Trigger fires immediately)\n");
+                } else {
+                    businessLog.append("Evaluating conditions:\n");
+                    for (AutomationCondition c : rule.getConditions()) {
+                        boolean met = evaluateCondition(c, eventContext);
+                        Object actualVal = eventContext.get(c.getFieldName());
+                        businessLog.append(String.format("  - Condition field '%s' %s '%s' (Actual value: '%s') -> %s\n", 
+                                c.getFieldName(), c.getOperator(), c.getFieldValue(), actualVal, met ? "MET" : "NOT MET"));
+                        if (!met) {
+                            allConditionsMet = false;
+                        }
+                    }
+                }
 
                 if (allConditionsMet) {
-                    rule.getActions().forEach(action -> dispatchAction(action, task, eventContext));
+                    businessLog.append("\nAll conditions MET. Executing actions:\n");
+                    for (AutomationAction action : rule.getActions()) {
+                        try {
+                            businessLog.append(String.format("  - Dispatching action: %s with config %s\n", action.getActionType(), action.getActionConfig()));
+                            dispatchAction(action, task, eventContext);
+                            businessLog.append("    -> Action executed successfully.\n");
+                        } catch (Exception ae) {
+                            businessLog.append(String.format("    -> Action FAILED: %s\n", ae.getMessage()));
+                            throw ae;
+                        }
+                    }
                     execution.setStatus("SUCCESS");
                 } else {
+                    businessLog.append("\nEvaluation outcome: SKIPPED (One or more conditions were not met).\n");
                     execution.setStatus("SKIPPED");
                 }
             } catch (Exception e) {
+                businessLog.append(String.format("\nRule execution FAILED with exception: %s\n", e.getMessage()));
                 execution.setStatus("FAILED");
                 execution.setErrorMessage(e.getMessage());
             }
 
+            execution.setExecutionLog(businessLog.toString());
             executionRepository.save(execution);
         }
     }

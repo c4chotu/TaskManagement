@@ -37,6 +37,7 @@ public class TaskService {
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final RecurringTaskRepository recurringTaskRepository;
+    private final IssueDetailRepository issueDetailRepository;
 
     private static final Logger log = LoggerFactory.getLogger(TaskService.class);
 
@@ -63,7 +64,8 @@ public class TaskService {
                        TaskActivityRepository taskActivityRepository,
                        ProjectRepository projectRepository,
                        ProjectMemberRepository projectMemberRepository,
-                       RecurringTaskRepository recurringTaskRepository) {
+                       RecurringTaskRepository recurringTaskRepository,
+                       IssueDetailRepository issueDetailRepository) {
         this.taskRepository = taskRepository;
         this.taskStatusRepository = taskStatusRepository;
         this.customTaskStatusRepository = customTaskStatusRepository;
@@ -76,6 +78,7 @@ public class TaskService {
         this.projectRepository = projectRepository;
         this.projectMemberRepository = projectMemberRepository;
         this.recurringTaskRepository = recurringTaskRepository;
+        this.issueDetailRepository = issueDetailRepository;
     }
 
     @Transactional
@@ -226,9 +229,31 @@ public class TaskService {
             ctx.put("triggeredBy", currentUserId != null ? currentUserId.toString() : null);
             ctx.put("priority", savedTask.getPriority());
             ctx.put("category", savedTask.getCategory());
+            ctx.put("title", savedTask.getTitle());
+            ctx.put("description", savedTask.getDescription());
+            ctx.put("teamId", savedTask.getTeamId() != null ? savedTask.getTeamId().toString() : null);
+            ctx.put("projectId", savedTask.getProjectId().toString());
+            ctx.put("statusId", savedTask.getCurrentStatusId() != null ? savedTask.getCurrentStatusId().toString() : (savedTask.getStatusId() != null ? savedTask.getStatusId().toString() : null));
+            ctx.put("taskType", savedTask.getTaskType());
             automationService.evaluateRules("TASK_CREATED", savedTask.getProjectId(), savedTask, ctx);
         } catch (Exception e) {
             log.error("Automation evaluation failed on create: {}", e.getMessage());
+        }
+
+        if ("ISSUE".equals(savedTask.getTaskType())) {
+            Instant now = Instant.now();
+            IssueDetail issueDetail = IssueDetail.builder()
+                    .id(UUID.randomUUID())
+                    .taskId(savedTask.getId())
+                    .severity("SEV2")
+                    .reportedBy(currentUserId)
+                    .reportedAt(now)
+                    .environment("PRODUCTION")
+                    .responseDueAt(now.plus(java.time.Duration.ofHours(2)))
+                    .fixDueAt(now.plus(java.time.Duration.ofHours(8)))
+                    .customerReported(false)
+                    .build();
+            issueDetailRepository.save(issueDetail);
         }
 
         return mapToResponse(savedTask);
@@ -348,6 +373,14 @@ public class TaskService {
                 ctx.put("changedBy", currentUserId != null ? currentUserId.toString() : null);
                 ctx.put("oldStatus", oldCurrentStatusId != null ? oldCurrentStatusId.toString() : null);
                 ctx.put("newStatus", request.getCurrentStatusId().toString());
+                ctx.put("priority", updatedTask.getPriority());
+                ctx.put("category", updatedTask.getCategory());
+                ctx.put("title", updatedTask.getTitle());
+                ctx.put("description", updatedTask.getDescription());
+                ctx.put("teamId", updatedTask.getTeamId() != null ? updatedTask.getTeamId().toString() : null);
+                ctx.put("projectId", updatedTask.getProjectId().toString());
+                ctx.put("statusId", updatedTask.getCurrentStatusId() != null ? updatedTask.getCurrentStatusId().toString() : (updatedTask.getStatusId() != null ? updatedTask.getStatusId().toString() : null));
+                ctx.put("taskType", updatedTask.getTaskType());
                 automationService.evaluateRules("TASK_STATUS_CHANGED", updatedTask.getProjectId(), updatedTask, ctx);
             }
 
@@ -356,10 +389,36 @@ public class TaskService {
                 ctx2.put("changedBy", currentUserId != null ? currentUserId.toString() : null);
                 ctx2.put("oldDueDate", oldDueDate != null ? oldDueDate.toString() : null);
                 ctx2.put("newDueDate", request.getDueDate() != null ? request.getDueDate().toString() : null);
+                ctx2.put("priority", updatedTask.getPriority());
+                ctx2.put("category", updatedTask.getCategory());
+                ctx2.put("title", updatedTask.getTitle());
+                ctx2.put("description", updatedTask.getDescription());
+                ctx2.put("teamId", updatedTask.getTeamId() != null ? updatedTask.getTeamId().toString() : null);
+                ctx2.put("projectId", updatedTask.getProjectId().toString());
+                ctx2.put("statusId", updatedTask.getCurrentStatusId() != null ? updatedTask.getCurrentStatusId().toString() : (updatedTask.getStatusId() != null ? updatedTask.getStatusId().toString() : null));
+                ctx2.put("taskType", updatedTask.getTaskType());
                 automationService.evaluateRules("TASK_DUE_DATE_CHANGED", updatedTask.getProjectId(), updatedTask, ctx2);
             }
         } catch (Exception e) {
             log.error("Automation evaluation failed on update: {}", e.getMessage());
+        }
+
+        if ("ISSUE".equals(updatedTask.getTaskType())) {
+            if (!issueDetailRepository.findByTaskId(updatedTask.getId()).isPresent()) {
+                Instant now = Instant.now();
+                IssueDetail issueDetail = IssueDetail.builder()
+                        .id(UUID.randomUUID())
+                        .taskId(updatedTask.getId())
+                        .severity("SEV2")
+                        .reportedBy(currentUserId != null ? currentUserId : updatedTask.getCreatedBy())
+                        .reportedAt(now)
+                        .environment("PRODUCTION")
+                        .responseDueAt(now.plus(java.time.Duration.ofHours(2)))
+                        .fixDueAt(now.plus(java.time.Duration.ofHours(8)))
+                        .customerReported(false)
+                        .build();
+                issueDetailRepository.save(issueDetail);
+            }
         }
 
         return mapToResponse(updatedTask);
@@ -391,18 +450,28 @@ public class TaskService {
             throw new TenantIsolationException("Unauthorized access request");
         }
 
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new EntityNotFoundException("Project not found: " + projectId));
-        if (!Objects.equals(project.getOrganizationId(), orgId)) {
-            throw new TenantIsolationException("Unauthorized cross-tenant access request blocked");
+        if (projectId != null) {
+            Project project = projectRepository.findById(projectId)
+                    .orElseThrow(() -> new EntityNotFoundException("Project not found: " + projectId));
+            if (!Objects.equals(project.getOrganizationId(), orgId)) {
+                throw new TenantIsolationException("Unauthorized cross-tenant access request blocked");
+            }
+
+            // Verify user project access
+            verifyProjectAccess(projectId);
+
+            return taskRepository.findByProjectIdAndDeletedAtIsNull(projectId).stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+        } else {
+            UUID currentUserId = SecurityContextHelper.getCurrentUserId();
+            if (currentUserId == null) {
+                throw new UnauthorizedException("Authenticated session context required");
+            }
+            return taskRepository.findMyTasks(orgId, currentUserId).stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
         }
-
-        // Verify user project access
-        verifyProjectAccess(projectId);
-
-        return taskRepository.findByProjectIdAndDeletedAtIsNull(projectId).stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
     }
 
     @Transactional

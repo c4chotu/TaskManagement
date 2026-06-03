@@ -5,7 +5,7 @@ import { tokenStore } from "@/lib/api";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: () => {
-    if (!tokenStore.get()) {
+    if (typeof window !== "undefined" && !tokenStore.get()) {
       throw redirect({ to: "/login" });
     }
   },

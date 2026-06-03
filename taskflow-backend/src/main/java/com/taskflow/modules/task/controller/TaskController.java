@@ -56,7 +56,7 @@ public class TaskController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TaskResponse>> listTasks(@RequestParam UUID projectId) {
+    public ResponseEntity<List<TaskResponse>> listTasks(@RequestParam(required = false) UUID projectId) {
         return ResponseEntity.ok(taskService.listTasks(projectId));
     }
 

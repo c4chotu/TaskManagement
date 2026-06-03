@@ -40,6 +40,9 @@ public class AutomationExecution {
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
+    @Column(name = "execution_log", columnDefinition = "TEXT")
+    private String executionLog;
+
     @CreationTimestamp
     @Column(name = "executed_at", updatable = false)
     private Instant executedAt;

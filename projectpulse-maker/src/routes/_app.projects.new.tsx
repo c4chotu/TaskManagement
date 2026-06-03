@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { useCreateProject, useCreateSprint, useCreateTask, useUsers } from "@/lib/queries";
+import { useCreateProject, useCreateSprint, useCreateTask, useUsers, useAddProjectMember } from "@/lib/queries";
+import { tokenStore } from "@/lib/api";
 import { Plus, Trash2, Calendar, ArrowLeft, Layers, CheckSquare, Save, User, Clock, AlertCircle, Settings, Check, UploadCloud, X, FileText, Paperclip } from "lucide-react";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
@@ -53,6 +54,7 @@ function CreateProjectPage() {
   const createProject = useCreateProject();
   const createSprint = useCreateSprint();
   const createTask = useCreateTask();
+  const addProjectMember = useAddProjectMember();
 
   // Project General Details State
   const [name, setName] = useState("");
@@ -198,6 +200,26 @@ function CreateProjectPage() {
         progress: 0,
         estimatedHours,
       });
+
+      // Collect unique assignee IDs (excluding empty ones and the current user who is auto-owner)
+      const currentUser = tokenStore.getUser<{ userId: string }>() || tokenStore.getUser<{ id: string }>();
+      const currentUserId = currentUser?.userId || currentUser?.id;
+      const assigneeIdsToAdd = new Set<string>();
+      for (const phase of phases) {
+        for (const t of phase.tasks) {
+          if (t.assigneeId && t.assigneeId !== currentUserId) {
+            assigneeIdsToAdd.add(t.assigneeId);
+          }
+        }
+      }
+
+      for (const userId of assigneeIdsToAdd) {
+        await addProjectMember.mutateAsync({
+          projectId: proj.id,
+          userId,
+          role: "PROJECT_MEMBER",
+        });
+      }
 
       // Save staged project files to mock attachments
       projectFiles.forEach((fileObj) => {

@@ -43,7 +43,7 @@ public class Sprint {
     @Builder.Default
     private String status = "PLANNED"; // PLANNED, ACTIVE, COMPLETED
 
-    @Column(name = "estimated_hours")
+    @Column(name = "estimated_hours", columnDefinition = "numeric")
     private Double estimatedHours;
 
     @CreationTimestamp

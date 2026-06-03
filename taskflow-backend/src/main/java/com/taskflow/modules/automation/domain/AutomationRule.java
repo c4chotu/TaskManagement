@@ -46,6 +46,10 @@ public class AutomationRule {
     @Builder.Default
     private boolean isActive = true;
 
+    @Column(name = "rule_type", nullable = false, length = 100)
+    @Builder.Default
+    private String ruleType = "STANDARD";
+
     @Column(name = "created_by", nullable = false)
     private UUID createdBy;
 

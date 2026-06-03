@@ -51,6 +51,7 @@ public class DataInitializer implements CommandLineRunner {
     private final ProjectMemberRepository projectMemberRepository;
     private final CustomTaskStatusRepository customTaskStatusRepository;
     private final PasswordEncoder passwordEncoder;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     public DataInitializer(UserRepository userRepository,
                            UserRoleRepository userRoleRepository,
@@ -61,7 +62,8 @@ public class DataInitializer implements CommandLineRunner {
                            ProjectRepository projectRepository,
                            ProjectMemberRepository projectMemberRepository,
                            CustomTaskStatusRepository customTaskStatusRepository,
-                           PasswordEncoder passwordEncoder) {
+                           PasswordEncoder passwordEncoder,
+                           org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
         this.userProfileRepository = userProfileRepository;
@@ -72,6 +74,7 @@ public class DataInitializer implements CommandLineRunner {
         this.projectMemberRepository = projectMemberRepository;
         this.customTaskStatusRepository = customTaskStatusRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
@@ -105,6 +108,40 @@ public class DataInitializer implements CommandLineRunner {
         // ----------------------------------------------------------------
         // 2. Skip if Avendum is already fully seeded (check for projects)
         // ----------------------------------------------------------------
+        boolean alreadyHasNewStatuses = false;
+        try {
+            alreadyHasNewStatuses = customTaskStatusRepository.findAll().stream()
+                    .anyMatch(s -> "Dev Done".equalsIgnoreCase(s.getName()));
+        } catch (Exception ignored) {}
+
+        if (!alreadyHasNewStatuses) {
+            log.info("Clearing old Avendum Tech seeding to apply new custom statuses...");
+            try {
+                jdbcTemplate.execute("DELETE FROM tasks.task_dependencies WHERE task_id IN (SELECT id FROM tasks.tasks WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
+                jdbcTemplate.execute("DELETE FROM tasks.task_assignments WHERE task_id IN (SELECT id FROM tasks.tasks WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
+                jdbcTemplate.execute("DELETE FROM tasks.comments WHERE entity_id IN (SELECT id FROM tasks.tasks WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
+                jdbcTemplate.execute("DELETE FROM tasks.issue_details WHERE task_id IN (SELECT id FROM tasks.tasks WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
+                jdbcTemplate.execute("DELETE FROM tasks.custom_field_values WHERE task_id IN (SELECT id FROM tasks.tasks WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
+                jdbcTemplate.execute("DELETE FROM tasks.task_activities WHERE task_id IN (SELECT id FROM tasks.tasks WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
+                jdbcTemplate.execute("DELETE FROM tasks.status_history WHERE task_id IN (SELECT id FROM tasks.tasks WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
+                jdbcTemplate.execute("DELETE FROM tasks.recurring_tasks WHERE template_task_id IN (SELECT id FROM tasks.tasks WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
+                jdbcTemplate.execute("DELETE FROM tasks.tasks WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
+                jdbcTemplate.execute("DELETE FROM tasks.status_transitions WHERE from_status_id IN (SELECT id FROM tasks.custom_task_statuses WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000') OR to_status_id IN (SELECT id FROM tasks.custom_task_statuses WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
+                jdbcTemplate.execute("DELETE FROM tasks.custom_task_statuses WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
+                
+                jdbcTemplate.execute("DELETE FROM projects.project_members WHERE project_id IN (SELECT id FROM projects.projects WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
+                jdbcTemplate.execute("DELETE FROM projects.projects WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
+                jdbcTemplate.execute("DELETE FROM users.team_members WHERE team_id IN (SELECT id FROM users.teams WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
+                jdbcTemplate.execute("DELETE FROM users.teams WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
+                jdbcTemplate.execute("DELETE FROM users.departments WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
+                jdbcTemplate.execute("DELETE FROM auth.user_roles WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
+                jdbcTemplate.execute("DELETE FROM users.user_profiles WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
+                jdbcTemplate.execute("DELETE FROM auth.users WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
+            } catch (Exception e) {
+                log.error("Failed to clear old seeded database elements: {}", e.getMessage());
+            }
+        }
+
         if (!projectRepository.findByOrganizationId(AVENDUM_ORG_ID).isEmpty()) {
             log.info("Avendum Tech already seeded — skipping.");
             return;
@@ -225,8 +262,33 @@ public class DataInitializer implements CommandLineRunner {
                         .projectId(projectId).userId(memId).role("PROJECT_MEMBER").build());
             }
 
-            seedCustomStatuses(AVENDUM_ORG_ID, projectId, deptId);
-            log.info("  ✔ Project '{}'  (key={})", cfg.projName(), derivedKey);
+            projectRepository.flush();
+            teamRepository.flush();
+            userRepository.flush();
+
+            UUID openStatusId = seedCustomStatuses(AVENDUM_ORG_ID, projectId, deptId);
+            customTaskStatusRepository.flush();
+            
+            // Seed Team Automation Rule: Auto-assign task to Lead and set Status to Open when Team is selected
+            UUID ruleId = UUID.randomUUID();
+            jdbcTemplate.update("INSERT INTO automations.automation_rules (id, project_id, organization_id, name, description, trigger_type, is_active, created_by, rule_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    ruleId, projectId, AVENDUM_ORG_ID, "Auto-assign " + cfg.teamName() + " tasks", "Auto-assigns to team lead and sets status to Open when " + cfg.teamName() + " is selected", "TASK_CREATED", true, vpId, "TEAM_SPECIFIC");
+
+            // Seed condition: teamId EQUALS teamId
+            jdbcTemplate.update("INSERT INTO automations.automation_conditions (id, rule_id, field_name, operator, field_value, position) VALUES (?, ?, ?, ?, ?, ?)",
+                    UUID.randomUUID(), ruleId, "teamId", "EQUALS", teamId.toString(), 0);
+
+            // Seed Action 1: ASSIGN_USER
+            String assignConfig = String.format("{\"userId\":\"%s\",\"role\":\"ASSIGNEE\"}", leadId.toString());
+            jdbcTemplate.update("INSERT INTO automations.automation_actions (id, rule_id, action_type, action_config, position) VALUES (?, ?, ?, ?::jsonb, ?)",
+                    UUID.randomUUID(), ruleId, "ASSIGN_USER", assignConfig, 0);
+
+            // Seed Action 2: CHANGE_STATUS
+            String statusConfig = String.format("{\"statusId\":\"%s\"}", openStatusId.toString());
+            jdbcTemplate.update("INSERT INTO automations.automation_actions (id, rule_id, action_type, action_config, position) VALUES (?, ?, ?, ?::jsonb, ?)",
+                    UUID.randomUUID(), ruleId, "CHANGE_STATUS", statusConfig, 1);
+
+            log.info("  ✔ Project '{}'  (key={}) and custom auto-assign rule", cfg.projName(), derivedKey);
 
             seededTeams.add(new TeamData(teamId, mgrId, leadId, memberIds, cfg.teamName()));
         }
@@ -261,22 +323,27 @@ public class DataInitializer implements CommandLineRunner {
     // ----------------------------------------------------------------
     // Helper: seed Kanban columns for a project
     // ----------------------------------------------------------------
-    private void seedCustomStatuses(UUID orgId, UUID projectId, UUID deptId) {
-        String[] names      = {"Backlog", "To Do", "In Progress", "In Review", "Blocked", "Done"};
-        String[] categories = {"PLANNING","PLANNING","ACTIVE","ACTIVE","BLOCKED","COMPLETED"};
-        String[] colors     = {"#64748b","#3b82f6","#10b981","#a855f7","#ef4444","#22c55e"};
-        int[]    limits     = {5, 5, 3, 3, 1, 0};
-        boolean[] reqComment = {false, false, false, false, true, false};
+    private UUID seedCustomStatuses(UUID orgId, UUID projectId, UUID deptId) {
+        String[] names      = {"Open", "In Progress", "Dev Done", "In Review", "To Be Deployed", "Ready For QA", "Reopened", "Rejected", "Closed"};
+        String[] categories = {"PLANNING","ACTIVE","ACTIVE","ACTIVE","ACTIVE","ACTIVE","PLANNING","BLOCKED","COMPLETED"};
+        String[] colors     = {"#3b82f6","#10b981","#6366f1","#a855f7","#f59e0b","#14b8a6","#ec4899","#ef4444","#22c55e"};
+        UUID openStatusId = null;
 
         for (int i = 0; i < names.length; i++) {
+            UUID statusId = UUID.randomUUID();
+            if (i == 0) {
+                openStatusId = statusId;
+            }
             customTaskStatusRepository.save(CustomTaskStatus.builder()
-                    .id(UUID.randomUUID())
+                    .id(statusId)
                     .organizationId(orgId).projectId(projectId).departmentId(deptId)
                     .name(names[i]).category(categories[i]).color(colors[i])
                     .sortOrder((i + 1) * 10).isDefault(i == 0)
-                    .requiresComment(reqComment[i]).requiresApproval(false)
+                    .requiresComment(names[i].equalsIgnoreCase("Rejected"))
+                    .requiresApproval(false)
                     .build());
         }
+        return openStatusId;
     }
 
     // ----------------------------------------------------------------

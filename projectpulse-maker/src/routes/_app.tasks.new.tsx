@@ -10,9 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
-  useCreateTask, useProjects, useStatuses, useUsers, useTeams, useTasks,
+  useCreateTask, useProjects, useStatuses, useUsers, useTeams, useTasks, useProjectMembers,
 } from "@/lib/queries";
 import { toast } from "sonner";
 import {
@@ -35,8 +35,15 @@ function NewTaskPage() {
 
   const { data: statuses = [] } = useStatuses(activeProjectId);
   const { data: users = [] } = useUsers();
+  const { data: projectMembers = [] } = useProjectMembers(activeProjectId);
   const { data: teams = [] } = useTeams();
   const create = useCreateTask();
+
+  const projectMemberUserIds = useMemo(() => new Set(projectMembers.map((m: any) => m.userId)), [projectMembers]);
+  const filteredUsers = useMemo(() => {
+    if (!activeProjectId) return [];
+    return users.filter((u) => projectMemberUserIds.has(u.id));
+  }, [users, projectMemberUserIds, activeProjectId]);
 
   const [taskType, setTaskType] = useState<Task["taskType"]>("TASK");
   const [title, setTitle] = useState("");
@@ -56,7 +63,18 @@ function NewTaskPage() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [recurrence, setRecurrence] = useState("none");
-  const [category, setCategory] = useState<TaskCategory | "none">("none");
+  const [categories, setCategories] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("tfp.customCategories");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+    return ["FRONTEND", "BACKEND", "INFRA", "DESIGN", "QA", "SECURITY", "DOCS", "RESEARCH", "BUG", "FEATURE"];
+  });
+  const [category, setCategory] = useState<string>("none");
   const [badges, setBadges] = useState<TaskBadge[]>([]);
   const [storyPoints, setStoryPoints] = useState("");
 
@@ -272,13 +290,38 @@ function NewTaskPage() {
                   </Select>
                 </Field>
                 <Field label={<span className="flex items-center gap-1"><Tag className="h-3 w-3" /> Category</span>}>
-                  <Select value={category} onValueChange={(v) => setCategory(v as any)}>
+                  <Select value={category} onValueChange={setCategory}>
                     <SelectTrigger className="h-8"><SelectValue placeholder="Select category" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">No Category</SelectItem>
-                      {(["FRONTEND","BACKEND","INFRA","DESIGN","QA","SECURITY","DOCS","RESEARCH","BUG","FEATURE"] as TaskCategory[]).map(c => (
+                      {categories.map(c => (
                         <SelectItem key={c} value={c}>{c}</SelectItem>
                       ))}
+                      <div className="p-1 border-t border-border mt-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="w-full justify-start text-[11px] h-7 text-primary hover:text-primary-foreground hover:bg-primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const name = prompt("Enter new category name:");
+                            if (name && name.trim()) {
+                              const clean = name.trim().toUpperCase();
+                              if (!categories.includes(clean)) {
+                                const updated = [...categories, clean];
+                                setCategories(updated);
+                                localStorage.setItem("tfp.customCategories", JSON.stringify(updated));
+                                setCategory(clean);
+                                toast.success(`Category "${clean}" added`);
+                              } else {
+                                setCategory(clean);
+                              }
+                            }
+                          }}
+                        >
+                          + Add Category
+                        </Button>
+                      </div>
                     </SelectContent>
                   </Select>
                 </Field>
@@ -293,7 +336,7 @@ function NewTaskPage() {
                 <Users className="h-3 w-3" /> Assignees
               </h4>
               <div className="flex flex-wrap gap-1.5">
-                {users.map((u) => {
+                {filteredUsers.map((u) => {
                   const on = assignees.includes(u.id);
                   return (
                     <button key={u.id} onClick={() => toggle(u.id)}
