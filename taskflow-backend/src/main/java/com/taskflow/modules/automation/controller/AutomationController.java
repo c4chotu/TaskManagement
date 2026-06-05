@@ -3,6 +3,8 @@ package com.taskflow.modules.automation.controller;
 import com.taskflow.common.security.SecurityContextHelper;
 import com.taskflow.modules.automation.domain.AutomationExecution;
 import com.taskflow.modules.automation.domain.AutomationRule;
+import com.taskflow.modules.automation.domain.AutomationRuleType;
+import com.taskflow.modules.automation.repository.AutomationRuleTypeRepository;
 import com.taskflow.modules.automation.service.AutomationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,9 +18,12 @@ import java.util.UUID;
 public class AutomationController {
 
     private final AutomationService automationService;
+    private final AutomationRuleTypeRepository ruleTypeRepository;
 
-    public AutomationController(AutomationService automationService) {
+    public AutomationController(AutomationService automationService,
+                                AutomationRuleTypeRepository ruleTypeRepository) {
         this.automationService = automationService;
+        this.ruleTypeRepository = ruleTypeRepository;
     }
 
     @GetMapping
@@ -51,6 +56,27 @@ public class AutomationController {
         return ResponseEntity.ok(automationService.createRule(projectId, teamId, name, description, triggerType, ruleType, conditions, actions));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<AutomationRule> updateRule(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
+        String projectIdStr = (String) body.get("projectId");
+        UUID projectId = (projectIdStr != null && !projectIdStr.trim().isEmpty()) ? UUID.fromString(projectIdStr) : null;
+
+        String teamIdStr = (String) body.get("teamId");
+        UUID teamId = (teamIdStr != null && !teamIdStr.trim().isEmpty()) ? UUID.fromString(teamIdStr) : null;
+
+        String name = (String) body.get("name");
+        String description = (String) body.get("description");
+        String triggerType = (String) body.get("triggerType");
+        String ruleType = (String) body.getOrDefault("ruleType", "STANDARD");
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, String>> conditions = (List<Map<String, String>>) body.get("conditions");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> actions = (List<Map<String, Object>>) body.get("actions");
+
+        return ResponseEntity.ok(automationService.updateRule(id, projectId, teamId, name, description, triggerType, ruleType, conditions, actions));
+    }
+
     @GetMapping("/project/{projectId}")
     public ResponseEntity<List<AutomationRule>> listProjectRules(@PathVariable UUID projectId) {
         return ResponseEntity.ok(automationService.listRulesForProject(projectId));
@@ -70,5 +96,10 @@ public class AutomationController {
     @GetMapping("/{id}/executions")
     public ResponseEntity<List<AutomationExecution>> getExecutionLog(@PathVariable UUID id) {
         return ResponseEntity.ok(automationService.getExecutionLog(id));
+    }
+
+    @GetMapping("/rule-types")
+    public ResponseEntity<List<AutomationRuleType>> listRuleTypes() {
+        return ResponseEntity.ok(ruleTypeRepository.findAll());
     }
 }

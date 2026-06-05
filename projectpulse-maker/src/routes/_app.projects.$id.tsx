@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { Topbar } from "@/components/tfp/topbar";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import { useIssues, useProject, useProjectMembers, useSprints, useStatuses, useTasks, useProjectAttachments, useUploadProjectAttachment, useDeleteProjectAttachment, useCreateSprint } from "@/lib/queries";
+import { useIssues, useProject, useProjectMembers, useSprints, useStatuses, useTasks, useProjectAttachments, useUploadProjectAttachment, useDeleteProjectAttachment, useCreateSprint, useUpdateSprint, useUsers, useTimeEntries } from "@/lib/queries";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -39,13 +39,41 @@ function ProjectDetail() {
   const { data: issues = [] } = useIssues();
   const { data: statuses = [] } = useStatuses(id);
   const { data: members = [] } = useProjectMembers(id);
+  const { data: users = [] } = useUsers();
   const { data: sprints = [] } = useSprints(id);
   const { data: projectAttachments = [] } = useProjectAttachments(id);
+  const { data: timeEntries = [] } = useTimeEntries();
+
+  const projectTaskIds = useMemo(() => new Set(tasks.map((t) => t.id)), [tasks]);
+  const projectTimeEntries = useMemo(() => {
+    return timeEntries.filter((te) => projectTaskIds.has(te.taskId));
+  }, [timeEntries, projectTaskIds]);
   const uploadAttachment = useUploadProjectAttachment();
   const deleteAttachment = useDeleteProjectAttachment();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const createSprintMutation = useCreateSprint();
+  const updateSprintMutation = useUpdateSprint();
+
+  // Auto-activate phases/sprints according to timeline schedule
+  useEffect(() => {
+    if (sprints.length > 0) {
+      const today = new Date();
+      sprints.forEach((s) => {
+        if (s.status === "PLANNED") {
+          const start = new Date(s.startDate);
+          const end = new Date(s.endDate);
+          if (today >= start && today <= end) {
+            updateSprintMutation.mutate({
+              id: s.id,
+              payload: { status: "ACTIVE" }
+            });
+            toast.info(`Phase "${s.name}" auto-activated based on timeline schedule.`);
+          }
+        }
+      });
+    }
+  }, [sprints]);
 
   // Dialog State for Phase creation
   const [newPhaseOpen, setNewPhaseOpen] = useState(false);
@@ -173,12 +201,15 @@ function ProjectDetail() {
   // User workload distribution
   const teamWorkload = useMemo(() => {
     return members.map((m) => {
-      const userTasks = tasks.filter((t) => t.assigneeIds.includes(m.id));
+      const u = users.find((x) => x.id === m.userId);
+      const userTasks = tasks.filter((t) => t.assigneeIds.includes(m.userId));
       const hours = userTasks.reduce((sum, t) => sum + (t.estimatedHours ?? 0), 0);
       const doneHours = userTasks.filter((t) => t.statusId === "s-done").reduce((sum, t) => sum + (t.loggedHours ?? 0), 0);
       const capacityPct = Math.min(Math.round((hours / 40) * 100), 120); // 40h standard workload
       return {
         ...m,
+        name: u?.name ?? "Team Member",
+        avatarUrl: u?.avatarUrl,
         taskCount: userTasks.length,
         hours,
         doneHours,
@@ -186,7 +217,7 @@ function ProjectDetail() {
         overloaded: hours > 35,
       };
     });
-  }, [members, tasks]);
+  }, [members, tasks, users]);
 
   if (!project) {
     return (
@@ -224,7 +255,7 @@ function ProjectDetail() {
               </div>
               <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{project.name}</h1>
               <p className="max-w-3xl text-sm text-muted-foreground leading-relaxed">{project.description}</p>
-              
+
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground pt-2">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4 text-primary" />
@@ -330,6 +361,9 @@ function ProjectDetail() {
             <TabsTrigger value="documents" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
               Project Documents ({projectAttachments.length})
             </TabsTrigger>
+            <TabsTrigger value="timelogs" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
+              Project Timelogs ({projectTimeEntries.length})
+            </TabsTrigger>
           </TabsList>
 
           {/* TAB 1: DASHBOARD & ROADMAP */}
@@ -344,7 +378,7 @@ function ProjectDetail() {
                       <Milestone className="h-5 w-5 text-primary" />
                       <h3 className="font-semibold text-base">Project Milestone Roadmap</h3>
                     </div>
-                    
+
                     <Dialog open={newPhaseOpen} onOpenChange={setNewPhaseOpen}>
                       <DialogTrigger asChild>
                         <Button size="sm" variant="outline" className="text-xs bg-background/50 border-white/10 rounded-xl gap-1">
@@ -359,18 +393,18 @@ function ProjectDetail() {
                               Define a new development sprint or milestone objective for this project.
                             </DialogDescription>
                           </DialogHeader>
-                          
+
                           <div className="space-y-3">
                             <div className="space-y-1">
                               <Label htmlFor="phaseName" className="text-[10px] uppercase font-bold text-muted-foreground">Phase Name</Label>
                               <Input id="phaseName" placeholder="e.g. Phase 4: Integration testing" value={newPhaseName} onChange={(e) => setNewPhaseName(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" required />
                             </div>
-                            
+
                             <div className="space-y-1">
                               <Label htmlFor="phaseGoal" className="text-[10px] uppercase font-bold text-muted-foreground">Goal / Deliverables</Label>
                               <Input id="phaseGoal" placeholder="e.g. Complete ingress route migration" value={newPhaseGoal} onChange={(e) => setNewPhaseGoal(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" />
                             </div>
-                            
+
                             <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1">
                                 <Label htmlFor="phaseStart" className="text-[10px] uppercase font-bold text-muted-foreground">Start Date</Label>
@@ -381,13 +415,13 @@ function ProjectDetail() {
                                 <Input id="phaseEnd" type="date" value={newPhaseEnd} onChange={(e) => setNewPhaseEnd(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" required />
                               </div>
                             </div>
-                            
+
                             <div className="space-y-1">
                               <Label htmlFor="phaseHours" className="text-[10px] uppercase font-bold text-muted-foreground">Estimated Hours</Label>
                               <Input id="phaseHours" type="number" value={newPhaseHours} onChange={(e) => setNewPhaseHours(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" />
                             </div>
                           </div>
-                          
+
                           <DialogFooter className="pt-2">
                             <Button type="button" variant="ghost" onClick={() => setNewPhaseOpen(false)} className="text-xs">Cancel</Button>
                             <Button type="submit" className="bg-gradient-primary text-primary-foreground text-xs font-semibold rounded-lg px-4">
@@ -398,7 +432,7 @@ function ProjectDetail() {
                       </DialogContent>
                     </Dialog>
                   </div>
-                  
+
                   <div className="relative pl-6 border-l border-border space-y-6 py-2">
                     {sprintsRoadmap.map((m, idx) => {
                       const isActive = m.status === "ACTIVE";
@@ -422,6 +456,46 @@ function ProjectDetail() {
                               <Badge variant={isDone ? "outline" : isActive ? "default" : "secondary"} className={`text-[10px] uppercase ${isDone ? "border-green-500/35 bg-green-50 text-green-700" : ""}`}>
                                 {m.status}
                               </Badge>
+                              {m.status === "PLANNED" && m.id && (
+                                <Button
+                                  // size="xs"
+                                  variant="outline"
+                                  className="h-6 px-2 text-[10px] border-primary/20 text-primary hover:bg-primary/5 rounded-lg font-semibold"
+                                  onClick={async () => {
+                                    try {
+                                      await updateSprintMutation.mutateAsync({
+                                        id: m.id,
+                                        payload: { status: "ACTIVE" }
+                                      });
+                                      toast.success(`Phase "${m.name}" is now active!`);
+                                    } catch {
+                                      toast.error("Failed to activate phase");
+                                    }
+                                  }}
+                                >
+                                  Activate
+                                </Button>
+                              )}
+                              {m.status === "ACTIVE" && m.id && (
+                                <Button
+                                  // size="xs"
+                                  variant="outline"
+                                  className="h-6 px-2 text-[10px] border-green-500/20 text-green-600 hover:bg-green-50 rounded-lg font-semibold"
+                                  onClick={async () => {
+                                    try {
+                                      await updateSprintMutation.mutateAsync({
+                                        id: m.id,
+                                        payload: { status: "COMPLETED" }
+                                      });
+                                      toast.success(`Phase "${m.name}" completed!`);
+                                    } catch {
+                                      toast.error("Failed to complete phase");
+                                    }
+                                  }}
+                                >
+                                  Complete
+                                </Button>
+                              )}
                             </div>
                           </div>
                           {/* Mini Progress */}
@@ -815,6 +889,93 @@ function ProjectDetail() {
               )}
             </Card>
           </TabsContent>
+
+          {/* TAB 6: PROJECT TIMELOGS */}
+          <TabsContent value="timelogs" className="p-0 outline-none">
+            <Card className="p-6 border border-white/10 bg-card/65 backdrop-blur-md rounded-2xl shadow-xl shadow-indigo-500/5 hover:border-primary/10 transition-all space-y-6">
+              <div className="flex items-center justify-between border-b border-border/50 pb-3">
+                <div className="space-y-1">
+                  <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-emerald-600" /> Project Time Tracking & Logs
+                  </h3>
+                  <p className="text-xs text-muted-foreground">Detailed logs of billable and non-billable hours recorded by team members on this project.</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block">Total Project Spent</span>
+                  <span className="text-base font-bold text-emerald-600 font-mono">
+                    {projectTimeEntries.reduce((sum, te) => sum + (te.hours || 0), 0).toFixed(1)} hrs
+                  </span>
+                </div>
+              </div>
+
+              {projectTimeEntries.length === 0 ? (
+                <div className="text-center py-16 border-2 border-dashed border-border/40 rounded-2xl bg-muted/15 flex flex-col items-center justify-center space-y-3">
+                  <Clock className="h-8 w-8 text-muted-foreground" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">No hours logged yet</p>
+                    <p className="text-xs text-muted-foreground">Timesheet entries will appear here once team members log hours on tasks in this project.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-border/60 text-muted-foreground uppercase text-[10px] font-bold">
+                        <th className="py-2.5">Task</th>
+                        <th className="py-2.5">Logged By</th>
+                        <th className="py-2.5">Time Period</th>
+                        <th className="py-2.5">Duration</th>
+                        <th className="py-2.5">Billable</th>
+                        <th className="py-2.5">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {projectTimeEntries.map((te) => {
+                        const task = tasks.find((t) => t.id === te.taskId);
+                        const userObj = users.find((u) => u.id === te.userId);
+                        const startStr = te.startTime ? format(new Date(te.startTime), "MMM d, h:mm a") : "—";
+                        const endStr = te.endTime ? format(new Date(te.endTime), "h:mm a") : "Active";
+
+                        return (
+                          <tr key={te.id} className="border-b border-border/30 hover:bg-muted/5 transition">
+                            <td className="py-3 font-semibold text-foreground">
+                              {task ? (
+                                <Link to="/tasks/$id" params={{ id: task.id }} className="hover:underline text-primary">
+                                  {task.title}
+                                </Link>
+                              ) : (
+                                "Unknown Task"
+                              )}
+                              <span className="block text-[10px] text-muted-foreground font-mono mt-0.5">
+                                {task?.displayId || te.taskId}
+                              </span>
+                            </td>
+                            <td className="py-3 font-medium text-foreground">
+                              {userObj?.name ?? te.userId ?? "Unknown"}
+                            </td>
+                            <td className="py-3 text-muted-foreground font-mono">
+                              {startStr} — {endStr}
+                            </td>
+                            <td className="py-3 font-bold font-mono text-foreground">
+                              {te.hours ? `${te.hours.toFixed(1)}h` : "In Progress"}
+                            </td>
+                            <td className="py-3">
+                              <Badge variant={te.billable ? "default" : "secondary"} className="text-[9px] uppercase px-1.5 py-0 font-bold">
+                                {te.billable ? "Yes" : "No"}
+                              </Badge>
+                            </td>
+                            <td className="py-3 text-muted-foreground italic truncate max-w-xs" title={te.description || ""}>
+                              {te.description || "No description"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          </TabsContent>
         </Tabs>
       </main>
     </>
@@ -842,7 +1003,7 @@ function StatCard({
     <Card className="p-5 border border-border/80 shadow-sm bg-card hover:shadow-md transition">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs uppercase font-semibold text-muted-foreground tracking-wide">{label}</p>
+          <p className="text-[10px] overflow-hidden  uppercase font-semibold text-muted-foreground tracking-wide">{label}</p>
           <p className="mt-2 text-2xl font-bold tracking-tight text-foreground font-mono">{value}</p>
         </div>
         <div className={`rounded-xl border p-2.5 ${colorMap[color]}`}>

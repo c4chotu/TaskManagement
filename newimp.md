@@ -8,6 +8,9 @@ and also create bulk upload of automation in backend as it is in frontend
 
 
 automation not working not able to create as we want to create as per new api
+no automation working
 
 not able to edit automation
-not able to assin plan and not able to change the status as well
+not able to assin plan and not able to change the status as well in task and issues
+
+

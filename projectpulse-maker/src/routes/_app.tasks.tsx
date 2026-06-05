@@ -9,24 +9,17 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { useMemo, useState, useEffect } from "react";
-import { useProjects, useStatuses, useTasks, useUpdateTask, useUpdateTaskStatus, useExportReport, useExportStatus } from "@/lib/queries";
+import { Badge } from "@/components/ui/badge";
+import { useMemo, useState } from "react";
+import { useProjects, useStatuses, useTasks, useUpdateTaskStatus, useSprints, useUsers, useUpdateTask, useProjectMembers, useTeams } from "@/lib/queries";
 import { format, isAfter } from "date-fns";
 import {
-  Search, Plus, Filter, ArrowUpDown, Layers, Settings2, Tag,
-  Trash2, UserPlus, MoreHorizontal, AlertOctagon, ArrowUp, ArrowDown, Check, Download, Loader2,
-  CheckSquare
+  Search, Plus, Filter, Layers, Settings2, Tag,
+  Trash2, UserPlus, MoreHorizontal, Check,
+  CheckSquare, X, ChevronDown, ChevronUp, SlidersHorizontal, FolderOpen,
+  AlertTriangle, TrendingUp, BarChart3, ChevronLeft, ChevronRight,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import {
-  ZGroupBar, ZToolbar, ZChip,
-} from "@/components/tfp/zoho";
-import {
-  ZPageHeader, ZViewSwitcher, type ZView, ZAvatarStack, ZPriorityPill, ZBulkBar,
-  ZToolStrip, ZToolBtn,
-} from "@/components/zoho/components";
+import { ZViewSwitcher, type ZView, ZPriorityPill, ZBulkBar, ZToolStrip, ZToolBtn } from "@/components/zoho/components";
 import { GanttChart } from "@/components/tfp/gantt-chart";
 import { toast } from "sonner";
 
@@ -35,25 +28,88 @@ export const Route = createFileRoute("/_app/tasks")({
   component: TasksPage,
 });
 
-type GroupBy = "status" | "project" | "priority" | "assignee" | "none";
-type FilterMode = "all" | "open" | "closed" | "mine" | "overdue";
+type GroupBy = "status" | "project" | "priority" | "assignee" | "category" | "phase" | "none";
+type FilterMode = "all" | "open" | "closed" | "overdue";
 
-type ExportColumn = {
-  id: string;
-  label: string;
-  checked: boolean;
-};
+const ROWS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
+
+function AssigneeSelectorDropdown({ task, users }: { task: any; users: any[] }) {
+  const { data: members = [] } = useProjectMembers(task.projectId);
+  const updateTask = useUpdateTask();
+
+  const projectUsers = useMemo(() => {
+    return members.map((m: any) => users.find(u => u.id === m.userId)).filter(Boolean);
+  }, [members, users]);
+
+  const toggleAssignee = (userId: string) => {
+    const isAssigned = task.assigneeIds.includes(userId);
+    const newAssigneeIds = isAssigned
+      ? task.assigneeIds.filter((id: string) => id !== userId)
+      : [...task.assigneeIds, userId];
+    updateTask.mutate({ id: task.id, patch: { assigneeIds: newAssigneeIds } });
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-1 focus:outline-none transition-transform active:scale-95 hover:opacity-85">
+          {task.assigneeIds.length === 0 ? (
+            <div className="h-6 w-6 rounded-full border border-dashed border-muted-foreground flex items-center justify-center text-[10px] font-bold text-muted-foreground hover:bg-muted" title="Assign User">
+              <UserPlus className="h-3.5 w-3.5" />
+            </div>
+          ) : (
+            <div className="flex -space-x-1.5">
+              {task.assigneeIds.slice(0, 3).map((uid: string) => {
+                const u = users.find(x => x.id === uid);
+                return (
+                  <div key={uid} className="h-6 w-6 rounded-full bg-primary/15 border border-border flex items-center justify-center text-[9px] font-bold text-primary" title={u?.name}>
+                    {u?.name?.slice(0,2).toUpperCase() ?? "?"}
+                  </div>
+                );
+              })}
+              {task.assigneeIds.length > 3 && (
+                <div className="h-6 w-6 rounded-full bg-muted border border-border flex items-center justify-center text-[9px] font-bold text-muted-foreground">
+                  +{task.assigneeIds.length - 3}
+                </div>
+              )}
+            </div>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="text-[10px] uppercase">Assign Members</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {projectUsers.length === 0 ? (
+          <div className="p-2 text-xs text-muted-foreground text-center">No project members found</div>
+        ) : (
+          projectUsers.map((u: any) => {
+            const isAssigned = task.assigneeIds.includes(u.id);
+            return (
+              <DropdownMenuItem
+                key={u.id}
+                className="text-xs flex items-center gap-2 cursor-pointer"
+                onSelect={(e) => {
+                  e.preventDefault();
+                  toggleAssignee(u.id);
+                }}
+              >
+                <Checkbox checked={isAssigned} readOnly className="mr-2" />
+                <span className="truncate">{u.name}</span>
+              </DropdownMenuItem>
+            );
+          })
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 function TasksPage() {
   const nav = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isTasksRoot = pathname === "/tasks";
-  const { data: tasks = [] } = useTasks();
-  const { data: statuses = [] } = useStatuses();
-  const { data: projects = [] } = useProjects();
-  const updateStatus = useUpdateTaskStatus();
+  const updateTask = useUpdateTask();
 
-  // Search/Filters states
   const [q, setQ] = useState("");
   const [view, setView] = useState<ZView>("list");
   const [groupBy, setGroupBy] = useState<GroupBy>("status");
@@ -61,117 +117,342 @@ function TasksPage() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // Modern Popover Filter States
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // Filters
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [filterPriorities, setFilterPriorities] = useState<string[]>([]);
   const [filterProjects, setFilterProjects] = useState<string[]>([]);
+  const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
+  const [filterCategories, setFilterCategories] = useState<string[]>([]);
+  const [filterPhases, setFilterPhases] = useState<string[]>([]);
+  const [filterAssignees, setFilterAssignees] = useState<string[]>([]);
   const [filterDueDateStart, setFilterDueDateStart] = useState<string>("");
   const [filterDueDateEnd, setFilterDueDateEnd] = useState<string>("");
 
-  // Export Dialog States
-  const [isExportOpen, setIsExportOpen] = useState(false);
-  const [exportFormat, setExportFormat] = useState<"csv" | "pdf" | "excel">("csv");
-  const [exportColumns, setExportColumns] = useState<ExportColumn[]>([
-    { id: "id", label: "Task ID", checked: true },
-    { id: "title", label: "Title", checked: true },
-    { id: "project", label: "Project", checked: true },
-    { id: "status", label: "Status", checked: true },
-    { id: "priority", label: "Priority", checked: true },
-    { id: "assignees", label: "Assignees", checked: true },
-    { id: "dueDate", label: "Due Date", checked: true },
-    { id: "progress", label: "Progress", checked: true },
-  ]);
-  const [exportProgress, setExportProgress] = useState(0);
-  const [exportStep, setExportStep] = useState("");
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportReady, setExportReady] = useState(false);
-  const [exportJobId, setExportJobId] = useState<string | null>(null);
+  // Zoho-style Accordion Filter states
+  const [filterSearchQuery, setFilterSearchQuery] = useState("");
+  const [filterTaskName, setFilterTaskName] = useState("");
+  const [filterProjectGroups, setFilterProjectGroups] = useState<string[]>([]);
+  const [filterProjectStatuses, setFilterProjectStatuses] = useState<string[]>([]);
+  const [filterCompletionPercentage, setFilterCompletionPercentage] = useState<number | null>(null);
+  const [filterCompletionOperator, setFilterCompletionOperator] = useState<"eq" | "gt" | "lt">("eq");
+  const [filterPriorityOperator, setFilterPriorityOperator] = useState<"is" | "is_not">("is");
+  const [filterStartDateOperator, setFilterStartDateOperator] = useState<string>("Custom"); // Today, Yesterday, Tomorrow, Custom, etc.
+  const [filterRecurrences, setFilterRecurrences] = useState<string[]>([]);
+  const [filterTimeSpanOperator, setFilterTimeSpanOperator] = useState<"eq" | "gt" | "lt">("eq");
+  const [filterTimeSpanVal, setFilterTimeSpanVal] = useState<number | null>(null);
+  const [filterCreatedTimeOperator, setFilterCreatedTimeOperator] = useState<string>("Custom");
+  const [matchMode, setMatchMode] = useState<"any" | "all">("all");
+  const [filterTeams, setFilterTeams] = useState<string[]>([]);
 
-  const exportReport = useExportReport();
-  const { data: jobStatus } = useExportStatus(exportJobId || undefined);
+  const [filterSections, setFilterSections] = useState<Record<string, boolean>>({
+    taskName: false,
+    project: false,
+    projectGroup: false,
+    projectStatus: false,
+    status: false,
+    completionPercentage: false,
+    owner: false,
+    associatedTeam: false,
+    priority: true, // expanded by default
+    startDate: true, // expanded by default
+    dueDate: false,
+    timeSpan: false,
+    recurrence: false,
+    createdTime: false,
+  });
 
-  useEffect(() => {
-    if (!exportJobId || !jobStatus) return;
-
-    if (jobStatus.status === "PENDING") {
-      setExportProgress(35);
-      setExportStep("Pending on server...");
-    } else if (jobStatus.status === "PROCESSING") {
-      setExportProgress(65);
-      setExportStep("Compiling records on server...");
-    } else if (jobStatus.status === "COMPLETED") {
-      setExportProgress(100);
-      setExportStep("Ready for download!");
-      setIsExporting(false);
-      setExportReady(true);
-    } else if (jobStatus.status === "FAILED") {
-      setIsExporting(false);
-      setExportReady(false);
-      toast.error("Report generation failed on server");
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem("tfp-visible-columns");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
     }
-  }, [jobStatus, exportJobId]);
+    return {
+      task: true,
+      project: true,
+      projectGroup: false,
+      projectStatus: false,
+      priority: true,
+      assignees: true,
+      associatedTeam: false,
+      startDate: false,
+      due: true,
+      timeSpan: false,
+      recurrence: false,
+      createdTime: false,
+      progress: true,
+      completionPercentage: false,
+      category: true,
+      storyPoints: true,
+      taskType: true,
+    };
+  });
+
+  const gridTemplateColumns = useMemo(() => {
+    const cols = ["40px"];
+    if (visibleColumns.task) cols.push("1fr");
+    if (visibleColumns.project) cols.push("140px");
+    if (visibleColumns.projectGroup) cols.push("120px");
+    if (visibleColumns.projectStatus) cols.push("100px");
+    if (visibleColumns.priority) cols.push("100px");
+    if (visibleColumns.assignees) cols.push("110px");
+    if (visibleColumns.associatedTeam) cols.push("120px");
+    if (visibleColumns.startDate) cols.push("100px");
+    if (visibleColumns.due) cols.push("120px");
+    if (visibleColumns.timeSpan) cols.push("95px");
+    if (visibleColumns.recurrence) cols.push("95px");
+    if (visibleColumns.createdTime) cols.push("130px");
+    if (visibleColumns.progress) cols.push("100px");
+    if (visibleColumns.completionPercentage) cols.push("100px");
+    if (visibleColumns.category) cols.push("100px");
+    if (visibleColumns.storyPoints) cols.push("85px");
+    if (visibleColumns.taskType) cols.push("90px");
+    cols.push("40px");
+    return cols.join(" ");
+  }, [visibleColumns]);
+
+  const filterParams = useMemo(() => {
+    return {
+      projectId: filterProjects.length === 1 ? filterProjects[0] : undefined,
+      priority: filterPriorities.length === 1 && filterPriorityOperator === "is" ? filterPriorities[0] : undefined,
+      phaseId: filterPhases.length === 1 ? filterPhases[0] : undefined,
+      category: filterCategories.length === 1 ? filterCategories[0] : undefined,
+      statusId: filterStatuses.length === 1 ? filterStatuses[0] : undefined,
+      assigneeId: filterAssignees.length === 1 ? filterAssignees[0] : undefined,
+      dueDateFrom: filterDueDateStart || undefined,
+      dueDateTo: filterDueDateEnd || undefined,
+      taskType: "TASK" as const,
+    };
+  }, [filterProjects, filterPriorities, filterPriorityOperator, filterPhases, filterCategories, filterStatuses, filterAssignees, filterDueDateStart, filterDueDateEnd]);
+
+  const { data: tasks = [] } = useTasks(filterParams);
+  const { data: statuses = [] } = useStatuses();
+  const { data: projects = [] } = useProjects();
+  const { data: phases = [] } = useSprints(); // Used as phases/sprints for filter
+  const { data: users = [] } = useUsers();
+  const { data: teams = [] } = useTeams();
+  const updateStatus = useUpdateTaskStatus();
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (q || filterTaskName) count++;
+    if (filterPriorities.length > 0) count++;
+    if (filterProjects.length > 0) count++;
+    if (filterStatuses.length > 0) count++;
+    if (filterCategories.length > 0) count++;
+    if (filterPhases.length > 0) count++;
+    if (filterAssignees.length > 0) count++;
+    if (filterTeams.length > 0) count++;
+    if (filterProjectGroups.length > 0) count++;
+    if (filterProjectStatuses.length > 0) count++;
+    if (filterCompletionPercentage !== null) count++;
+    if (filterDueDateStart || filterDueDateEnd) count++;
+    if (filterStartDateOperator !== "Custom") count++;
+    if (filterTimeSpanVal !== null) count++;
+    if (filterRecurrences.length > 0) count++;
+    return count;
+  }, [q, filterTaskName, filterPriorities, filterProjects, filterStatuses, filterCategories, filterPhases, filterAssignees, filterTeams, filterProjectGroups, filterProjectStatuses, filterCompletionPercentage, filterDueDateStart, filterDueDateEnd, filterStartDateOperator, filterTimeSpanVal, filterRecurrences]);
+
+  const ALL_CATEGORIES = ["FRONTEND", "BACKEND", "INFRA", "DESIGN", "QA", "SECURITY", "DOCS", "RESEARCH", "BUG", "FEATURE"];
+
+  const resetFilters = () => {
+    setFilterPriorities([]); setFilterProjects([]); setFilterStatuses([]);
+    setFilterCategories([]); setFilterPhases([]); setFilterAssignees([]);
+    setFilterDueDateStart(""); setFilterDueDateEnd(""); setFilterTaskName("");
+    setFilterProjectGroups([]); setFilterProjectStatuses([]); setFilterCompletionPercentage(null);
+    setFilterStartDateOperator("Custom"); setFilterTimeSpanVal(null); setFilterRecurrences([]);
+    setFilterTeams([]);
+    setPage(1);
+  };
 
   // Apply filters
   const filtered = useMemo(() => {
     const today = new Date();
     return tasks.filter((t) => {
       if (t.taskType !== "TASK") return false;
-      if (q && !t.title.toLowerCase().includes(q.toLowerCase())) return false;
+
+      // Define check results for each active filter
+      const checks: Array<{ active: boolean; matches: boolean }> = [];
+
+      // 1. Text Search Query / Task Name
+      const activeSearch = !!(q || filterTaskName);
+      if (activeSearch) {
+        const queryText = (q || filterTaskName).toLowerCase();
+        checks.push({
+          active: true,
+          matches: t.title.toLowerCase().includes(queryText) || t.id.toLowerCase().includes(queryText)
+        });
+      }
+
+      // 2. Project
+      checks.push({
+        active: filterProjects.length > 0,
+        matches: filterProjects.includes(t.projectId)
+      });
+
+      // 3. Project Group
+      checks.push({
+        active: filterProjectGroups.length > 0,
+        matches: filterProjectGroups.includes(projects.find(p => p.id === t.projectId)?.group || "Engineering")
+      });
+
+      // 4. Project Status
+      checks.push({
+        active: filterProjectStatuses.length > 0,
+        matches: filterProjectStatuses.includes("Active") // mock project status match
+      });
+
+      // 5. Status
+      checks.push({
+        active: filterStatuses.length > 0,
+        matches: filterStatuses.includes(t.statusId)
+      });
+
+      // 6. Completion Percentage
+      const localComp = Number(localStorage.getItem(`task-completion-${t.id}`) || 0);
+      checks.push({
+        active: filterCompletionPercentage !== null,
+        matches: filterCompletionOperator === "eq" ? localComp === filterCompletionPercentage :
+                 filterCompletionOperator === "gt" ? localComp > (filterCompletionPercentage ?? 0) :
+                 localComp < (filterCompletionPercentage ?? 0)
+      });
+
+      // 7. Owner
+      checks.push({
+        active: filterAssignees.length > 0,
+        matches: t.assigneeIds.some((id: string) => filterAssignees.includes(id))
+      });
+
+      // 8. Associated Team
+      checks.push({
+        active: filterTeams.length > 0,
+        matches: filterTeams.includes(t.teamId || "")
+      });
+
+      // 9. Priority
+      checks.push({
+        active: filterPriorities.length > 0,
+        matches: filterPriorityOperator === "is" 
+          ? filterPriorities.includes(t.priority ?? "MEDIUM")
+          : !filterPriorities.includes(t.priority ?? "MEDIUM")
+      });
+
+      // 10. Start Date
+      if (filterStartDateOperator && filterStartDateOperator !== "Custom") {
+        let matchesDate = false;
+        if (t.startDate) {
+          const startDateObj = new Date(t.startDate);
+          const diffDays = Math.floor((startDateObj.getTime() - today.getTime()) / (1000 * 3600 * 24));
+          if (filterStartDateOperator === "Today") {
+            matchesDate = diffDays === 0;
+          } else if (filterStartDateOperator === "Yesterday") {
+            matchesDate = diffDays === -1;
+          } else if (filterStartDateOperator === "Tomorrow") {
+            matchesDate = diffDays === 1;
+          }
+        }
+        checks.push({ active: true, matches: matchesDate });
+      }
+
+      // 11. Due Date
+      const hasDueDateFilter = !!(filterDueDateStart || filterDueDateEnd);
+      if (hasDueDateFilter) {
+        let matchesDue = true;
+        if (filterDueDateStart && (!t.dueDate || new Date(t.dueDate) < new Date(filterDueDateStart + "T00:00:00"))) matchesDue = false;
+        if (filterDueDateEnd && (!t.dueDate || new Date(t.dueDate) > new Date(filterDueDateEnd + "T23:59:59"))) matchesDue = false;
+        checks.push({ active: true, matches: matchesDue });
+      }
+
+      // 12. Time Span
+      const localTimeSpan = Number(localStorage.getItem(`task-duration-${t.id}`) || 0);
+      checks.push({
+        active: filterTimeSpanVal !== null,
+        matches: filterTimeSpanOperator === "eq" ? localTimeSpan === filterTimeSpanVal :
+                 filterTimeSpanOperator === "gt" ? localTimeSpan > (filterTimeSpanVal ?? 0) :
+                 localTimeSpan < (filterTimeSpanVal ?? 0)
+      });
+
+      // 13. Recurrence
+      const localRecur = localStorage.getItem(`task-recurrence-${t.id}`) || "None";
+      checks.push({
+        active: filterRecurrences.length > 0,
+        matches: filterRecurrences.includes(localRecur)
+      });
+
+      // filter quick filter mode (all, open, closed, overdue)
       if (filter === "open" && t.statusId === "s-done") return false;
       if (filter === "closed" && t.statusId !== "s-done") return false;
       if (filter === "overdue" && (!t.dueDate || isAfter(new Date(t.dueDate), today) || t.statusId === "s-done")) return false;
 
-      // Multi-select Priority filter
-      if (filterPriorities.length > 0 && !filterPriorities.includes(t.priority ?? "MEDIUM")) return false;
+      // evaluate active checks based on matchMode
+      const activeChecks = checks.filter(c => c.active);
+      if (activeChecks.length === 0) return true;
 
-      // Multi-select Project filter
-      if (filterProjects.length > 0 && !filterProjects.includes(t.projectId)) return false;
-
-      // Due date range filter
-      if (filterDueDateStart) {
-        if (!t.dueDate || new Date(t.dueDate) < new Date(filterDueDateStart + "T00:00:00")) return false;
+      if (matchMode === "all") {
+        return activeChecks.every(c => c.matches);
+      } else {
+        return activeChecks.some(c => c.matches);
       }
-      if (filterDueDateEnd) {
-        if (!t.dueDate || new Date(t.dueDate) > new Date(filterDueDateEnd + "T23:59:59")) return false;
-      }
-
-      return true;
     });
-  }, [tasks, q, filter, filterPriorities, filterProjects, filterDueDateStart, filterDueDateEnd]);
+  }, [tasks, q, filter, filterTaskName, filterProjects, filterProjectGroups, filterProjectStatuses, filterStatuses, filterCompletionPercentage, filterCompletionOperator, filterAssignees, filterTeams, filterPriorities, filterPriorityOperator, filterStartDateOperator, filterDueDateStart, filterDueDateEnd, filterTimeSpanOperator, filterTimeSpanVal, filterRecurrences, matchMode, projects]);
 
+  // Quick stats for hero
+  const totalActive = filtered.filter(t => t.statusId !== "s-done").length;
+  const totalCompleted = tasks.filter(t => t.taskType === "TASK" && t.statusId === "s-done").length;
+  const overdueCount = tasks.filter(t => t.taskType === "TASK" && t.dueDate && isAfter(new Date(), new Date(t.dueDate)) && t.statusId !== "s-done").length;
+
+  // Grouped (for list view)
   const groups = useMemo(() => {
     if (groupBy === "none") return [{ key: "all", label: "All Tasks", color: "var(--color-primary)", items: filtered }];
     if (groupBy === "project") {
       return projects
-        .map((p) => ({ key: p.id, label: p.name, color: "var(--color-info)", items: filtered.filter((t) => t.projectId === p.id) }))
+        .map((p) => ({ key: p.id, label: p.name, color: "#6366f1", items: filtered.filter((t) => t.projectId === p.id) }))
         .filter((g) => g.items.length);
     }
     if (groupBy === "priority") {
-      const buckets = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
-      const colors = ["#dc2626", "#ea580c", "#ca8a04", "#0891b2"];
-      return buckets.map((p, i) => ({
-        key: p, label: p, color: colors[i],
-        items: filtered.filter((t) => (t.priority ?? "MEDIUM") === p),
-      })).filter((g) => g.items.length);
+      const buckets = [
+        { key: "CRITICAL", label: "Critical", color: "#dc2626" },
+        { key: "HIGH", label: "High", color: "#ea580c" },
+        { key: "MEDIUM", label: "Medium", color: "#ca8a04" },
+        { key: "LOW", label: "Low", color: "#0891b2" },
+      ];
+      return buckets.map((b) => ({ ...b, items: filtered.filter((t) => (t.priority ?? "MEDIUM") === b.key) })).filter((g) => g.items.length);
+    }
+    if (groupBy === "category") {
+      const cats = Array.from(new Set(filtered.map((t) => t.category ?? "UNCATEGORIZED")));
+      return cats.map((cat) => ({ key: cat, label: cat, color: "#8b5cf6", items: filtered.filter((t) => (t.category ?? "UNCATEGORIZED") === cat) })).filter((g) => g.items.length);
+    }
+    if (groupBy === "phase") {
+      const phaseIds = Array.from(new Set(filtered.map((t) => t.sprintId ?? "_no_phase")));
+      return phaseIds.map((pid) => {
+        const ph = phases.find((p) => p.id === pid);
+        return { key: pid, label: ph?.name ?? (pid === "_no_phase" ? "No Phase" : pid), color: "#06b6d4", items: filtered.filter((t) => (t.sprintId ?? "_no_phase") === pid) };
+      }).filter((g) => g.items.length);
     }
     if (groupBy === "assignee") {
       const uids = Array.from(new Set(filtered.flatMap((t) => t.assigneeIds.length ? t.assigneeIds : ["_un"])));
-      return uids.map((uid) => ({
-        key: uid, label: uid === "_un" ? "Unassigned" : uid, color: "var(--color-primary)",
-        items: filtered.filter((t) => uid === "_un" ? t.assigneeIds.length === 0 : t.assigneeIds.includes(uid)),
-      })).filter((g) => g.items.length);
+      return uids.map((uid) => {
+        const u = users.find((x) => x.id === uid);
+        return { key: uid, label: uid === "_un" ? "Unassigned" : (u?.name ?? uid), color: "#10b981", items: filtered.filter((t) => uid === "_un" ? t.assigneeIds.length === 0 : t.assigneeIds.includes(uid)) };
+      }).filter((g) => g.items.length);
     }
-    return statuses.map((s) => ({
-      key: s.id, label: s.name, color: s.color,
-      items: filtered.filter((t) => t.statusId === s.id),
-    })).filter((g) => g.items.length);
-  }, [filtered, groupBy, statuses, projects]);
+    return statuses.map((s) => ({ key: s.id, label: s.name, color: s.color, items: filtered.filter((t) => t.statusId === s.id) })).filter((g) => g.items.length);
+  }, [filtered, groupBy, statuses, projects, phases, users]);
+
+  // Pagination on flat filtered (for "none" grouping or overall count)
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const paginatedFiltered = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
+  // Paginate within each group
+  const paginateGroup = (items: typeof filtered) => items.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   const toggleSelect = (id: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+    setSelected((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
 
   const bulkSetStatus = async (statusId: string) => {
     for (const id of selected) await updateStatus.mutateAsync({ taskId: id, statusId });
@@ -179,75 +460,30 @@ function TasksPage() {
     setSelected(new Set());
   };
 
-  // Reordering columns for export dialog
-  const moveColumn = (index: number, direction: "up" | "down") => {
-    const nextIndex = direction === "up" ? index - 1 : index + 1;
-    if (nextIndex < 0 || nextIndex >= exportColumns.length) return;
-    const nextCols = [...exportColumns];
-    const temp = nextCols[index];
-    nextCols[index] = nextCols[nextIndex];
-    nextCols[nextIndex] = temp;
-    setExportColumns(nextCols);
+  // Task icon color per status category
+  const getTaskIcon = (t: typeof filtered[0]) => {
+    const s = statuses.find((x) => x.id === t.statusId);
+    const isDone = t.statusId === "s-done" || s?.name?.toLowerCase().includes("done");
+    return isDone ? (
+      <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-emerald-500/15 border border-emerald-500/20 shrink-0">
+        <Check className="h-4 w-4 text-emerald-500" />
+      </div>
+    ) : t.taskType === "ISSUE" ? (
+      <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-orange-500/15 border border-orange-500/20 shrink-0">
+        <AlertTriangle className="h-4 w-4 text-orange-400" />
+      </div>
+    ) : (
+      <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-primary/10 border border-primary/20 shrink-0">
+        <CheckSquare className="h-4 w-4 text-primary" />
+      </div>
+    );
   };
 
-  const toggleColumnCheck = (index: number) => {
-    const nextCols = [...exportColumns];
-    nextCols[index] = { ...nextCols[index], checked: !nextCols[index].checked };
-    setExportColumns(nextCols);
-  };
-
-  // Start realistic async report export
-  const startExport = async () => {
-    setIsExporting(true);
-    setExportReady(false);
-    setExportProgress(10);
-    setExportStep("Submitting export request...");
-    setExportJobId(null);
-
-    try {
-      const selectedProj = filterProjects.length === 1 ? filterProjects[0] : undefined;
-      const cols = exportColumns.filter((c) => c.checked).map((c) => c.id);
-      const res = await exportReport.mutateAsync({
-        projectId: selectedProj,
-        filterType: filter,
-        columns: cols,
-      });
-      setExportJobId(res.jobId);
-      setExportProgress(25);
-      setExportStep("Waiting for server...");
-    } catch (e) {
-      setIsExporting(false);
-      toast.error(e instanceof Error ? e.message : "Failed to start export");
-    }
-  };
-
-  const handleDownload = async () => {
-    if (!exportJobId) return;
-    try {
-      const token = localStorage.getItem("tfp.accessToken");
-      const headers: HeadersInit = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-      const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "";
-      const response = await fetch(`${baseUrl}/api/v1/reports/export-async/${exportJobId}/download`, {
-        headers,
-      });
-      if (!response.ok) throw new Error("Download failed");
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `report_${exportJobId}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      setIsExportOpen(false);
-      toast.success("Download started!");
-    } catch (e) {
-      toast.error("Failed to download file");
-    }
+  const PRIORITY_PILL: Record<string, string> = {
+    CRITICAL: "bg-red-500/10 text-red-500 border-red-500/25",
+    HIGH: "bg-orange-500/10 text-orange-500 border-orange-500/25",
+    MEDIUM: "bg-yellow-500/10 text-yellow-600 border-yellow-500/25",
+    LOW: "bg-blue-500/10 text-blue-500 border-blue-500/25",
   };
 
   return (
@@ -255,304 +491,1055 @@ function TasksPage() {
       {isTasksRoot && (
         <>
           <Topbar title="Tasks" />
-          <main className="flex-1 space-y-6 p-6 max-w-[1600px] mx-auto text-xs relative overflow-hidden">
-            {/* Large Background Decorative Route Icon */}
-            <div className="absolute top-16 right-16 text-primary/5 pointer-events-none select-none z-0">
-              <CheckSquare className="h-[420px] w-[420px] opacity-[0.02] -rotate-12 stroke-[1] animate-pulse" />
-            </div>
+          <div className="flex flex-1 overflow-hidden">
+            {/* ── Main Content ──────────────────────────────────────────── */}
+            <main className="flex-1 flex flex-col overflow-hidden">
+              {/* Hero Banner */}
+              <div className="px-6 pt-5 pb-3 flex-shrink-0">
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-tr from-emerald-600/10 via-indigo-600/5 to-transparent border border-white/10 p-5 shadow-lg">
+                  {/* Decorative background shapes */}
+                  <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
+                  <div className="absolute right-32 top-4 h-24 w-24 rounded-full bg-indigo-500/10 blur-xl pointer-events-none" />
 
-            {/* Hero header banner */}
-            <div className="relative overflow-hidden border border-emerald-500/20 bg-gradient-to-tr from-emerald-600/10 via-indigo-600/5 to-transparent p-6 shadow-md rounded-2xl backdrop-blur-md z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
-                    <CheckSquare className="h-5 w-5" />
-                  </span>
-                  <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Task Pipeline</h1>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Organize, sequence, and execute work items across projects. Balance user load and track completion metrics.
-                </p>
-                <div className="flex gap-4 text-[11px] text-muted-foreground pt-1.5 font-medium">
-                  <span className="flex items-center gap-1"><CheckSquare className="h-3.5 w-3.5 text-emerald-500" /> {filtered.length} active tasks</span>
-                  <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5 text-indigo-500" /> {tasks.filter((t) => t.taskType === "TASK" && t.statusId === "s-done").length} completed</span>
+                  <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl p-2 rounded-xl bg-emerald-500/10  flex items-center justify-center shadow-lg shadow-primary/25">
+                          <CheckSquare className="h-5 w-5 text-emerald-500" />
+                        </div>
+                        <div>
+                          <h1 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+                            Task Pipeline
+                            <span className="text-xs font-normal text-muted-foreground">✦</span>
+                          </h1>
+                          <p className="text-[11px] text-muted-foreground">
+                            Organize, sequence, and execute work items across projects. Balance user load and track completion metrics.
+                          </p>
+                        </div>
+                      </div>
+                      {/* Stats Pills */}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1">
+                          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">{totalActive} Active Tasks</span>
+                          <span className="text-[10px] text-muted-foreground">In Progress</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 px-3 py-1">
+                          <Check className="h-3 w-3 text-blue-500" />
+                          <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">{totalCompleted} Completed</span>
+                          <span className="text-[10px] text-muted-foreground">Tasks Finished</span>
+                        </div>
+                        {overdueCount > 0 && (
+                          <div className="flex items-center gap-1.5 rounded-full bg-red-500/10 border border-red-500/20 px-3 py-1">
+                            <AlertTriangle className="h-3 w-3 text-red-500" />
+                            <span className="text-[11px] font-semibold text-red-500">{overdueCount} Overdue</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right side: metric cards */}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="hidden lg:flex items-center gap-3">
+                        <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-3 text-center min-w-[80px]">
+                          <div className="text-[10px] text-muted-foreground mb-1">On Track</div>
+                          <div className="text-lg font-bold text-emerald-500">
+                            {filtered.length > 0 ? Math.round(((filtered.length - overdueCount) / filtered.length) * 100) : 100}%
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-3 text-center min-w-[80px]">
+                          <div className="text-[10px] text-muted-foreground mb-1">Efficiency</div>
+                          <div className="text-lg font-bold text-primary">
+                            {tasks.filter(t => t.taskType === "TASK").length > 0
+                              ? Math.round((totalCompleted / tasks.filter(t => t.taskType === "TASK").length) * 100)
+                              : 0}%
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <ZViewSwitcher value={view} onChange={setView} />
+                        <Button size="sm" onClick={() => nav({ to: "/tasks/new" })} className="bg-emerald-500/10 text-emerald-500 font-semibold shadow-lg shadow-primary/25 hover:opacity-90 hover:text-white transition-opacity rounded-xl text-xs">
+                          <Plus className="mr-1 h-3.5 w-3.5" /> Add Task
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2.5 shrink-0 z-10">
-                <ZViewSwitcher value={view} onChange={setView} />
-                <Button size="sm" onClick={() => setIsExportOpen(true)} variant="outline" className="border-white/10 bg-background/40 hover-lift font-semibold text-xs rounded-xl shadow-xs">
-                  <Download className="mr-1 h-3.5 w-3.5" /> Export Report
-                </Button>
-                <Button size="sm" onClick={() => nav({ to: "/tasks/new" })} className="bg-gradient-primary text-primary-foreground font-semibold hover-lift text-xs rounded-xl shadow-md">
-                  <Plus className="mr-1 h-3.5 w-3.5" /> Add Task
-                </Button>
-              </div>
-            </div>
-            <ZToolbar
-              left={
-                <>
-                  <ZChip active={filter === "all"} onClick={() => setFilter("all")}>All</ZChip>
-                  <ZChip active={filter === "open"} onClick={() => setFilter("open")}>Open</ZChip>
-                  <ZChip active={filter === "overdue"} onClick={() => setFilter("overdue")}>Overdue</ZChip>
-                  <ZChip active={filter === "closed"} onClick={() => setFilter("closed")}>Closed</ZChip>
 
-                  <span className="mx-2 h-4 w-px bg-border" />
+              {/* Toolbar */}
+              <div className="px-6 py-2 flex-shrink-0">
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm px-4 py-2.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Filter Panel Toggle */}
+                    <button
+                      onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-medium transition-all
+                        ${filterPanelOpen || activeFilterCount > 0
+                          ? "border-primary/40 bg-primary/10 text-primary shadow-sm"
+                          : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-border/80"}`}
+                    >
+                      <Filter className="h-3 w-3" />
+                      Filters
+                      {activeFilterCount > 0 && (
+                        <span className="ml-1 h-4 min-w-4 rounded-full bg-primary text-[9px] text-white font-bold flex items-center justify-center px-1">
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </button>
 
-                  <ZToolStrip>
-                    <GroupByMenu value={groupBy} onChange={setGroupBy} />
+                    <span className="h-4 w-px bg-border" />
 
-                    {/* Modern Popover Filter Panel */}
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground">
-                          <Filter className="h-3 w-3" /> Filters
-                          {(filterPriorities.length > 0 || filterProjects.length > 0 || filterDueDateStart || filterDueDateEnd) && (
-                            <Badge variant="default" className="ml-1 h-4 min-w-4 rounded-full px-1 text-[8px]">
-                              {(filterPriorities.length ? 1 : 0) + (filterProjects.length ? 1 : 0) + (filterDueDateStart || filterDueDateEnd ? 1 : 0)}
-                            </Badge>
-                          )}
+                    {/* Quick filter chips */}
+                    {(["all","open","overdue","closed"] as FilterMode[]).map((f) => (
+                      <button key={f} onClick={() => { setFilter(f); setPage(1); }}
+                        className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all border
+                          ${filter === f
+                            ? "bg-primary text-white border-primary shadow-sm"
+                            : "border-border text-muted-foreground hover:text-foreground hover:border-border/80 bg-transparent"}`}>
+                        {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
+                        {f === "overdue" && overdueCount > 0 && (
+                          <span className="ml-1.5 text-[9px] bg-red-500 text-white rounded-full px-1 py-0.5">{overdueCount}</span>
+                        )}
+                      </button>
+                    ))}
+
+                    <span className="h-4 w-px bg-border" />
+
+                    {/* Group By dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground bg-background transition-colors">
+                          <Layers className="h-3 w-3" />
+                          Group: <span className="text-foreground font-semibold capitalize">{groupBy === "none" ? "None" : groupBy}</span>
                         </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80 p-4 space-y-4" align="start">
-                        <div className="flex items-center justify-between border-b border-border pb-2">
-                          <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">Filter Panel</h4>
-                          <button
-                            onClick={() => {
-                              setFilterPriorities([]);
-                              setFilterProjects([]);
-                              setFilterDueDateStart("");
-                              setFilterDueDateEnd("");
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuLabel className="text-[10px] uppercase">Group By</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {(["status","project","priority","assignee","category","phase","none"] as GroupBy[]).map(g => (
+                          <DropdownMenuItem key={g} onClick={() => setGroupBy(g)} className="text-xs capitalize">
+                            {groupBy === g && <Check className="h-3 w-3 mr-2" />}
+                            {g === "none" ? "No Grouping" : g}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground bg-background transition-colors">
+                          <Settings2 className="h-3 w-3" /> Layout
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuLabel className="text-[10px] uppercase">Toggle Columns</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {Object.keys(visibleColumns).map((col) => (
+                          <DropdownMenuItem
+                            key={col}
+                            className="text-xs flex items-center justify-between cursor-pointer"
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              setVisibleColumns((prev) => {
+                                const next = { ...prev, [col]: !prev[col] };
+                                localStorage.setItem("tfp-visible-columns", JSON.stringify(next));
+                                return next;
+                              });
                             }}
-                            className="text-[10px] text-muted-foreground hover:text-primary transition"
                           >
-                            Reset All
-                          </button>
-                        </div>
+                            <span className="capitalize">{col.replace(/([A-Z])/g, " $1")}</span>
+                            {visibleColumns[col] && <Check className="h-3.5 w-3.5 text-primary" />}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
 
-                        {/* Priority Filter */}
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Priorities</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {["CRITICAL", "HIGH", "MEDIUM", "LOW"].map((p) => {
-                              const checked = filterPriorities.includes(p);
-                              return (
-                                <div key={p} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`prio-${p}`}
-                                    checked={checked}
-                                    onCheckedChange={(val) => {
-                                      if (val) setFilterPriorities((prev) => [...prev, p]);
-                                      else setFilterPriorities((prev) => prev.filter((x) => x !== p));
-                                    }}
-                                  />
-                                  <Label htmlFor={`prio-${p}`} className="text-xs font-normal cursor-pointer capitalize">{p.toLowerCase()}</Label>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Project Filter */}
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Projects</Label>
-                          <div className="max-h-24 overflow-y-auto space-y-2 pr-1">
-                            {projects.map((p) => {
-                              const checked = filterProjects.includes(p.id);
-                              return (
-                                <div key={p.id} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`proj-${p.id}`}
-                                    checked={checked}
-                                    onCheckedChange={(val) => {
-                                      if (val) setFilterProjects((prev) => [...prev, p.id]);
-                                      else setFilterProjects((prev) => prev.filter((x) => x !== p.id));
-                                    }}
-                                  />
-                                  <Label htmlFor={`proj-${p.id}`} className="text-xs font-normal cursor-pointer truncate max-w-[200px]" title={p.name}>
-                                    {p.name}
-                                  </Label>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Due Date Range */}
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Due Date Range</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label htmlFor="dueStart" className="text-[9px] text-muted-foreground">Start</Label>
-                              <Input id="dueStart" type="date" value={filterDueDateStart} onChange={(e) => setFilterDueDateStart(e.target.value)} className="h-7 text-[10px] px-1.5" />
-                            </div>
-                            <div>
-                              <Label htmlFor="dueEnd" className="text-[9px] text-muted-foreground">End</Label>
-                              <Input id="dueEnd" type="date" value={filterDueDateEnd} onChange={(e) => setFilterDueDateEnd(e.target.value)} className="h-7 text-[10px] px-1.5" />
-                            </div>
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-
-                    <ZToolBtn icon={ArrowUpDown} label="Sort" />
-                    <ZToolBtn icon={Settings2} label="Layout" />
-                  </ZToolStrip>
-                </>
-              }
-              right={
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search tasks…" value={q} onChange={(e) => setQ(e.target.value)}
-                    className="h-8 w-60 pl-8 text-[12.5px]"
-                  />
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search tasks…  ⌘K" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }}
+                      className="h-8 w-52 pl-9 text-[12px] rounded-lg bg-background border-border/60"
+                    />
+                  </div>
                 </div>
-              }
-            />
+              </div>
 
-            {view === "list" && (
-              <div className="glass-card-green overflow-hidden rounded-2xl relative z-10 p-2 shadow-lg transition-all duration-300">
-                {groups.length === 0 ? (
-                  <div className="px-4 py-12 text-center text-sm text-muted-foreground">No tasks match.</div>
-                ) : (
-                  groups.map((g) => {
-                    const isCollapsed = collapsed[g.key];
-                    return (
-                      <div key={g.key}>
-                        <ZGroupBar
-                          label={g.label} count={g.items.length} color={g.color}
-                          collapsed={isCollapsed}
-                          onToggle={() => setCollapsed((c) => ({ ...c, [g.key]: !c[g.key] }))}
-                        />
-                        {!isCollapsed && (
-                          /* Scrolling enabled within the Accordion container */
-                          <div className="max-h-[350px] overflow-y-auto">
-                            <table className="w-full text-[12.5px]">
-                              <thead className="text-left text-[10px] uppercase tracking-wide text-muted-foreground sticky top-0 bg-card z-10 border-b border-border">
-                                <tr>
-                                  <th className="w-8 px-3 py-1.5"></th>
-                                  <th className="px-2 py-1.5 font-medium">Task</th>
-                                  <th className="px-2 py-1.5 font-medium">Project</th>
-                                  <th className="px-2 py-1.5 font-medium">Priority</th>
-                                  <th className="px-2 py-1.5 font-medium">Assignees</th>
-                                  <th className="px-2 py-1.5 font-medium">Due</th>
-                                  <th className="px-2 py-1.5 font-medium">Progress</th>
-                                  <th className="px-2 py-1.5"></th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {g.items.map((t) => {
+              {/* Table Content */}
+              <div className="flex-1 overflow-auto px-6 pb-6 space-y-2">
+                {view === "list" && (
+                  <>
+                    {groups.length === 0 ? (
+                      <div className="rounded-2xl border border-border/60 bg-card p-12 text-center text-sm text-muted-foreground">
+                        <CheckSquare className="h-8 w-8 mx-auto mb-3 text-muted-foreground/30" />
+                        No tasks match the current filters.
+                      </div>
+                    ) : (
+                      groups.map((g) => {
+                        const isCollapsed = collapsed[g.key];
+                        const groupItems = paginateGroup(g.items);
+                        return (
+                          <div key={g.key} className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-sm">
+                            {/* Group Header */}
+                            <button
+                              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors border-b border-border/40"
+                              onClick={() => setCollapsed(c => ({ ...c, [g.key]: !c[g.key] }))}
+                            >
+                              <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: g.color }} />
+                              <span className="font-semibold text-sm text-foreground">{g.label}</span>
+                              <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5 font-medium">({g.items.length})</span>
+                              <span className="ml-auto text-muted-foreground">
+                                {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                              </span>
+                            </button>
+
+                            {!isCollapsed && (
+                              <>
+                                {/* Column Headers */}
+                                <div
+                                  className="grid gap-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/30 border-b border-border/40 px-4 py-2"
+                                  style={{ gridTemplateColumns }}
+                                >
+                                  <div className="w-8" />
+                                  {visibleColumns.task && (
+                                    <div>
+                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                        Task Name <Filter className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {visibleColumns.project && (
+                                    <div>
+                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                        Project <Filter className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {visibleColumns.projectGroup && (
+                                    <div>
+                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                        Project Group <Filter className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {visibleColumns.projectStatus && (
+                                    <div>
+                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                        Project Status <Filter className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {visibleColumns.priority && (
+                                    <div>
+                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                        Priority <Filter className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {visibleColumns.assignees && <div>Owner</div>}
+                                  {visibleColumns.associatedTeam && (
+                                    <div>
+                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                        Associated Team <Filter className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {visibleColumns.startDate && (
+                                    <div>
+                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                        Start Date <Filter className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {visibleColumns.due && (
+                                    <div>
+                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                        Due Date <Filter className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {visibleColumns.timeSpan && (
+                                    <div>
+                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                        Time Span <Filter className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {visibleColumns.recurrence && (
+                                    <div>
+                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                        Recurrence <Filter className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {visibleColumns.createdTime && (
+                                    <div>
+                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                        Created Time <Filter className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {visibleColumns.progress && <div>Progress</div>}
+                                  {visibleColumns.completionPercentage && (
+                                    <div>
+                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                        Completion % <Filter className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {visibleColumns.category && <div>Category</div>}
+                                  {visibleColumns.storyPoints && <div>Story Points</div>}
+                                  {visibleColumns.taskType && <div>Task Type</div>}
+                                  <div />
+                                </div>
+
+                                {/* Task Rows */}
+                                {groupItems.map((t) => {
                                   const p = projects.find((x) => x.id === t.projectId);
                                   const s = statuses.find((x) => x.id === t.statusId);
                                   const pct = t.estimatedHours && t.estimatedHours > 0
                                     ? Math.min(100, Math.round(((t.loggedHours ?? 0) / t.estimatedHours) * 100)) : 0;
-                                  const overdue = t.dueDate && isAfter(new Date(), new Date(t.dueDate)) && t.statusId !== "s-done";
+                                  const isDone = s?.name?.toLowerCase().includes("done") || t.statusId === "s-done";
+
                                   return (
-                                    <tr key={t.id} className={`border-t border-border/60 hover:bg-muted/30 ${selected.has(t.id) ? "bg-primary/5" : ""}`}>
-                                      <td className="px-3 py-1.5">
+                                    <div key={t.id}
+                                      className={`grid gap-0 items-center px-4 py-3 border-b border-border/30 hover:bg-muted/20 cursor-pointer transition-colors group ${selected.has(t.id) ? "bg-primary/5" : ""}`}
+                                      style={{ gridTemplateColumns }}
+                                      onClick={() => nav({ to: "/tasks/$id", params: { id: t.id } })}
+                                    >
+                                      <div className="w-8 flex-shrink-0" onClick={e => e.stopPropagation()}>
                                         <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggleSelect(t.id)} />
-                                      </td>
-                                      <td className="px-2 py-1.5">
-                                        <div className="flex items-center gap-2">
-                                          {s && <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} title={s.name} />}
-                                          <Link to="/tasks/$id" params={{ id: t.id }}
-                                            className="truncate font-medium text-foreground hover:text-primary hover:underline">
-                                            {t.title}
-                                          </Link>
-                                        </div>
-                                        <div className="mt-0.5 ml-4 font-mono text-[10px] text-muted-foreground">{t.id.toUpperCase()}</div>
-                                      </td>
-                                      <td className="px-2 py-1.5">
-                                        {p && <span className="text-[11px] text-muted-foreground">{p.name}</span>}
-                                      </td>
-                                      <td className="px-2 py-1.5"><ZPriorityPill p={t.priority} /></td>
-                                      <td className="px-2 py-1.5"><ZAvatarStack ids={t.assigneeIds} /></td>
-                                      <td className={`px-2 py-1.5 font-mono text-[11px] ${overdue ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
-                                        {t.dueDate ? format(new Date(t.dueDate), "MMM d") : "—"}
-                                      </td>
-                                      <td className="px-2 py-1.5">
-                                        <div className="flex items-center gap-2">
-                                          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-                                            <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                                      </div>
+
+                                      {/* Task name + ID */}
+                                      {visibleColumns.task && (
+                                        <div className="flex items-center gap-2.5 min-w-0 pr-3">
+                                          {/* Status-colored icon */}
+                                          <div onClick={e => e.stopPropagation()}>
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger asChild>
+                                                <button
+                                                  className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 border transition-all hover:bg-muted/80 active:scale-95 ${isDone ? "bg-emerald-500/10 border-emerald-500/20" : "bg-primary/8 border-primary/15"}`}
+                                                  title={`Change status (current: ${s?.name ?? "Unknown"})`}
+                                                >
+                                                  {isDone
+                                                    ? <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                                    : <CheckSquare className="h-3.5 w-3.5 text-primary" />
+                                                  }
+                                                </button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent align="start" className="w-48">
+                                                <DropdownMenuLabel className="text-[10px] uppercase">Set Status</DropdownMenuLabel>
+                                                <DropdownMenuSeparator />
+                                                {statuses.map(st => (
+                                                  <DropdownMenuItem
+                                                    key={st.id}
+                                                    className="text-xs flex items-center gap-2 cursor-pointer"
+                                                    onClick={() => updateStatus.mutate({ taskId: t.id, statusId: st.id })}
+                                                  >
+                                                    <span className="h-2 w-2 rounded-full" style={{ background: st.color }} />
+                                                    <span>{st.name}</span>
+                                                    {t.statusId === st.id && <Check className="h-3 w-3 ml-auto text-primary" />}
+                                                  </DropdownMenuItem>
+                                                ))}
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
                                           </div>
-                                          <span className="font-mono text-[10px] text-muted-foreground">{pct}%</span>
+                                          <div className="min-w-0">
+                                            <div className="font-semibold text-xs text-foreground truncate group-hover:text-primary transition-colors">
+                                              {t.title}
+                                            </div>
+                                            <div className="font-mono text-[9px] text-muted-foreground truncate">{t.id?.toUpperCase()}</div>
+                                          </div>
                                         </div>
-                                      </td>
-                                      <td className="px-2 py-1.5 text-right">
-                                        <Button asChild size="icon" variant="ghost" className="h-6 w-6">
-                                          <Link to="/tasks/$id" params={{ id: t.id }}>
-                                            <MoreHorizontal className="h-3.5 w-3.5" />
-                                          </Link>
-                                        </Button>
-                                      </td>
-                                    </tr>
+                                      )}
+
+                                      {/* Project */}
+                                      {visibleColumns.project && (
+                                        <div className="flex items-center gap-1.5 min-w-0 pr-2" onClick={e => e.stopPropagation()}>
+                                          <FolderOpen className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                          <button
+                                            onClick={() => nav({ to: "/projects/$id", params: { id: t.projectId } })}
+                                            className="text-[11px] text-muted-foreground truncate hover:text-primary hover:underline font-semibold"
+                                          >
+                                            {p?.name ?? "—"}
+                                          </button>
+                                        </div>
+                                      )}
+
+                                      {/* Project Group */}
+                                      {visibleColumns.projectGroup && (
+                                        <div className="text-[11px] text-muted-foreground truncate pr-2">
+                                          {p?.group || "Engineering"}
+                                        </div>
+                                      )}
+
+                                      {/* Project Status */}
+                                      {visibleColumns.projectStatus && (
+                                        <div className="text-[11px] text-muted-foreground truncate pr-2">
+                                          <Badge variant="outline" className="text-[9px] px-1.5 py-0.5 rounded bg-muted/30">Active</Badge>
+                                        </div>
+                                      )}
+
+                                      {/* Priority */}
+                                      {visibleColumns.priority && (
+                                        <div onClick={e => e.stopPropagation()}>
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <button className="focus:outline-none transition-transform active:scale-95">
+                                                {t.priority ? (
+                                                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${PRIORITY_PILL[t.priority] ?? ""}`}>
+                                                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                                                    {t.priority.charAt(0) + t.priority.slice(1).toLowerCase()}
+                                                  </span>
+                                                ) : <span className="text-muted-foreground text-[11px]">—</span>}
+                                              </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start">
+                                              <DropdownMenuLabel className="text-[10px] uppercase">Set Priority</DropdownMenuLabel>
+                                              <DropdownMenuSeparator />
+                                              {["CRITICAL", "HIGH", "MEDIUM", "LOW"].map(prio => (
+                                                <DropdownMenuItem
+                                                  key={prio}
+                                                  className="text-xs capitalize cursor-pointer"
+                                                  onClick={() => updateTask.mutate({ id: t.id, patch: { priority: prio } })}
+                                                >
+                                                  {prio.toLowerCase()}
+                                                  {t.priority === prio && <Check className="h-3 w-3 ml-auto text-primary" />}
+                                                </DropdownMenuItem>
+                                              ))}
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        </div>
+                                      )}
+
+                                      {/* Assignees */}
+                                      {visibleColumns.assignees && (
+                                        <div onClick={e => e.stopPropagation()}>
+                                          <AssigneeSelectorDropdown task={t} users={users} />
+                                        </div>
+                                      )}
+
+                                      {/* Associated Team */}
+                                      {visibleColumns.associatedTeam && (
+                                        <div className="text-[11px] text-muted-foreground truncate font-medium pr-2">
+                                          {teams.find(tm => tm.id === t.teamId)?.name || "—"}
+                                        </div>
+                                      )}
+
+                                      {/* Start Date */}
+                                      {visibleColumns.startDate && (
+                                        <div className="text-[11px] text-muted-foreground font-mono pr-2">
+                                          {t.startDate ? format(new Date(t.startDate), "yyyy-MM-dd") : "—"}
+                                        </div>
+                                      )}
+
+                                      {/* Due */}
+                                      {visibleColumns.due && (
+                                        <div className="flex items-center min-w-0" onClick={e => e.stopPropagation()}>
+                                          <Input
+                                            type="date"
+                                            value={t.dueDate ? t.dueDate.split("T")[0] : ""}
+                                            onChange={(e) => {
+                                              const val = e.target.value;
+                                              const formattedDate = val ? new Date(val).toISOString() : null;
+                                              updateTask.mutate({ id: t.id, patch: { dueDate: formattedDate } });
+                                            }}
+                                            className="h-7 border-0 bg-transparent hover:bg-muted/40 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring text-[11px] font-mono p-1 rounded min-w-[110px]"
+                                          />
+                                        </div>
+                                      )}
+
+                                      {/* Time Span */}
+                                      {visibleColumns.timeSpan && (
+                                        <div className="text-[11px] text-muted-foreground font-mono pr-2">
+                                          {localStorage.getItem(`task-duration-${t.id}`) ? `${localStorage.getItem(`task-duration-${t.id}`)} days` : "—"}
+                                        </div>
+                                      )}
+
+                                      {/* Recurrence */}
+                                      {visibleColumns.recurrence && (
+                                        <div className="text-[11px] text-muted-foreground pr-2">
+                                          {localStorage.getItem(`task-recurrence-${t.id}`) || "None"}
+                                        </div>
+                                      )}
+
+                                      {/* Created Time */}
+                                      {visibleColumns.createdTime && (
+                                        <div className="text-[11px] text-muted-foreground font-mono pr-2">
+                                          {t.createdAt ? format(new Date(t.createdAt), "yyyy-MM-dd HH:mm") : "—"}
+                                        </div>
+                                      )}
+
+                                      {/* Progress */}
+                                      {visibleColumns.progress && (
+                                        <div className="flex items-center gap-2">
+                                          <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                                            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                                          </div>
+                                          <span className="text-[9px] font-mono text-muted-foreground w-7 text-right">{pct}%</span>
+                                        </div>
+                                      )}
+
+                                      {/* Completion Percentage */}
+                                      {visibleColumns.completionPercentage && (
+                                        <div className="text-[11px] font-mono text-muted-foreground pr-2 text-center w-full">
+                                          {localStorage.getItem(`task-completion-${t.id}`) || "0"}%
+                                        </div>
+                                      )}
+
+                                      {/* Category */}
+                                      {visibleColumns.category && (
+                                        <div onClick={e => e.stopPropagation()}>
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <button className="focus:outline-none transition-transform active:scale-95 text-[11px] hover:bg-muted/40 px-2 py-0.5 rounded border border-transparent hover:border-border/40">
+                                                {t.category ? (
+                                                  <span className="font-semibold text-primary truncate max-w-[80px] block">
+                                                    {t.category}
+                                                  </span>
+                                                ) : <span className="text-muted-foreground">—</span>}
+                                              </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start">
+                                              <DropdownMenuLabel className="text-[10px] uppercase">Set Category</DropdownMenuLabel>
+                                              <DropdownMenuSeparator />
+                                              {ALL_CATEGORIES.map(cat => (
+                                                <DropdownMenuItem
+                                                  key={cat}
+                                                  className="text-xs cursor-pointer"
+                                                  onClick={() => updateTask.mutate({ id: t.id, patch: { category: cat } })}
+                                                >
+                                                  {cat}
+                                                  {t.category === cat && <Check className="h-3 w-3 ml-auto text-primary" />}
+                                                </DropdownMenuItem>
+                                              ))}
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        </div>
+                                      )}
+
+                                      {/* Story Points */}
+                                      {visibleColumns.storyPoints && (
+                                        <div className="flex items-center min-w-0" onClick={e => e.stopPropagation()}>
+                                          <Input
+                                            type="number"
+                                            value={t.storyPoints ?? ""}
+                                            onChange={(e) => {
+                                              const val = e.target.value === "" ? null : Number(e.target.value);
+                                              updateTask.mutate({ id: t.id, patch: { storyPoints: val } });
+                                            }}
+                                            placeholder="—"
+                                            className="h-7 border-0 bg-transparent hover:bg-muted/40 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring text-[11px] font-mono p-1 rounded w-16 text-center"
+                                          />
+                                        </div>
+                                      )}
+
+                                      {/* Task Type */}
+                                      {visibleColumns.taskType && (
+                                        <div onClick={e => e.stopPropagation()}>
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <button className="focus:outline-none transition-transform active:scale-95 text-[11px] hover:bg-muted/40 px-2 py-0.5 rounded border border-transparent hover:border-border/40">
+                                                <span className="font-semibold truncate max-w-[80px] block">
+                                                  {t.taskType ?? "—"}
+                                                </span>
+                                              </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start">
+                                              <DropdownMenuLabel className="text-[10px] uppercase">Set Type</DropdownMenuLabel>
+                                              <DropdownMenuSeparator />
+                                              {["TASK", "ISSUE"].map(type => (
+                                                <DropdownMenuItem
+                                                  key={type}
+                                                  className="text-xs cursor-pointer"
+                                                  onClick={() => updateTask.mutate({ id: t.id, patch: { taskType: type } })}
+                                                >
+                                                  {type}
+                                                  {t.taskType === type && <Check className="h-3 w-3 ml-auto text-primary" />}
+                                                </DropdownMenuItem>
+                                              ))}
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        </div>
+                                      )}
+
+                                      {/* Actions */}
+                                      <div onClick={e => e.stopPropagation()}>
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => nav({ to: "/tasks/$id", params: { id: t.id } })}>
+                                              Open Details
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            {statuses.map(s => (
+                                              <DropdownMenuItem key={s.id} className="text-xs" onClick={() => updateStatus.mutateAsync({ taskId: t.id, statusId: s.id })}>
+                                                <span className="h-2 w-2 rounded-full mr-2" style={{ background: s.color }} />
+                                                Set as {s.name}
+                                              </DropdownMenuItem>
+                                            ))}
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      </div>
+                                    </div>
                                   );
                                 })}
-                              </tbody>
-                            </table>
+                              </>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
+                        );
+                      })
+                    )}
 
-            {view === "kanban" && (
-              <div className="flex gap-3 overflow-x-auto pb-4 relative z-10">
-                {statuses.map((col) => (
-                  <div key={col.id} className="flex w-72 shrink-0 flex-col rounded-2xl border border-white/10 bg-card/40 backdrop-blur-md p-3 shadow-md glass-card-green relative z-10 transition-all duration-300">
-                    <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-                      <span className="h-2 w-2 rounded-full" style={{ background: col.color }} />
-                      <span className="text-[12px] font-semibold">{col.name}</span>
-                      <span className="ml-auto text-[10px] text-muted-foreground">
-                        {filtered.filter((t) => t.statusId === col.id).length}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-2 p-2">
-                      {filtered.filter((t) => t.statusId === col.id).map((t) => (
-                        <Link key={t.id} to="/tasks/$id" params={{ id: t.id }}
-                          className="rounded-xl border border-border bg-card p-3 text-[12px] shadow-sm hover:border-emerald-500/40 hover:shadow-[0_0_12px_rgba(16,185,129,0.1)] transition-all">
-                          {t.category && (
-                            <span className="inline-block mb-1 text-[8px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">{t.category}</span>
-                          )}
-                          <p className="font-medium leading-snug">{t.title}</p>
-                          {t.badges && t.badges.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {t.badges.map(b => (
-                                <span key={b} className="text-[8px] font-bold uppercase tracking-wide bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 rounded px-1 py-0.5">{b.replace(/_/g,' ')}</span>
-                              ))}
-                            </div>
-                          )}
-                          <div className="mt-2 flex items-center justify-between">
-                            <ZPriorityPill p={t.priority} />
-                            <ZAvatarStack ids={t.assigneeIds} size={20} max={2} />
+                    {/* Pagination Footer */}
+                    {filtered.length > 0 && (
+                      <div className="flex items-center justify-between px-2 py-3 text-xs text-muted-foreground">
+                        <span>Showing {Math.min((page - 1) * rowsPerPage + 1, filtered.length)}–{Math.min(page * rowsPerPage, filtered.length)} of {filtered.length} tasks</span>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                              className="h-7 w-7 rounded-full border border-border flex items-center justify-center disabled:opacity-40 hover:bg-muted/60 transition-colors">
+                              <ChevronLeft className="h-3.5 w-3.5" />
+                            </button>
+                            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                              const pg = totalPages <= 5 ? i + 1 : i + Math.max(1, page - 2);
+                              return (
+                                <button key={pg} onClick={() => setPage(pg)}
+                                  className={`h-7 w-7 rounded-full text-xs font-medium transition-colors ${page === pg ? "bg-primary text-white" : "border border-border hover:bg-muted/60"}`}>
+                                  {pg}
+                                </button>
+                              );
+                            })}
+                            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                              className="h-7 w-7 rounded-full border border-border flex items-center justify-center disabled:opacity-40 hover:bg-muted/60 transition-colors">
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            </button>
                           </div>
-                          {t.storyPoints && (
-                            <div className="mt-1.5 text-[9px] text-muted-foreground">SP: {t.storyPoints}</div>
-                          )}
-                        </Link>
-                      ))}
+                          <div className="flex items-center gap-1.5">
+                            <span>Rows per page:</span>
+                            <Select value={String(rowsPerPage)} onValueChange={v => { setRowsPerPage(Number(v)); setPage(1); }}>
+                              <SelectTrigger className="h-7 w-16 text-xs border-border/60">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ROWS_PER_PAGE_OPTIONS.map(n => <SelectItem key={n} value={String(n)} className="text-xs">{n}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {view === "kanban" && (
+                  <div className="flex gap-3 overflow-x-auto pb-4">
+                    {statuses.map((col) => (
+                      <div key={col.id} className="flex w-64 shrink-0 flex-col rounded-2xl border border-border/60 bg-card p-3">
+                        <div className="flex items-center gap-2 border-b border-border px-1 pb-2 mb-2">
+                          <span className="h-2 w-2 rounded-full" style={{ background: col.color }} />
+                          <span className="text-xs font-semibold">{col.name}</span>
+                          <span className="ml-auto text-[9px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                            {filtered.filter((t) => t.statusId === col.id).length}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {filtered.filter((t) => t.statusId === col.id).map((t) => (
+                            <div key={t.id} onClick={() => nav({ to: "/tasks/$id", params: { id: t.id } })}
+                              className="rounded-xl border border-border bg-background p-2.5 text-xs shadow-sm hover:border-primary/30 hover:shadow-md transition-all cursor-pointer">
+                              {t.category && (
+                                <span className="inline-block mb-1 text-[8px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">{t.category}</span>
+                              )}
+                              <p className="font-medium leading-snug">{t.title}</p>
+                              <div className="mt-2 flex items-center justify-between">
+                                <ZPriorityPill p={t.priority} />
+                                {t.assigneeIds[0] && (
+                                  <div className="h-5 w-5 rounded-full bg-primary/15 flex items-center justify-center text-[8px] font-bold text-primary">
+                                    {users.find(u => u.id === t.assigneeIds[0])?.name?.slice(0,2).toUpperCase() ?? "?"}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {view === "gantt" && <GanttChart tasks={filtered} statuses={statuses} projects={projects} />}
+              </div>
+            </main>
+
+            {/* ── Right Filter Panel ─────────────────────────────────────── */}
+            <aside
+              className={`flex-shrink-0 overflow-y-auto border-l border-border/60 bg-card/50 backdrop-blur-md transition-all duration-300 ease-in-out ${filterPanelOpen ? "w-64" : "w-0 overflow-hidden"}`}
+              style={{ minWidth: filterPanelOpen ? "16rem" : "0" }}
+            >
+              {filterPanelOpen && (
+                <div className="p-4 space-y-4 text-xs flex flex-col h-full overflow-hidden">
+                  <div className="flex items-center justify-between shrink-0">
+                    <span className="text-[14px] font-bold text-foreground">Filter</span>
+                    <div className="flex items-center gap-2">
+                      <button onClick={resetFilters} className="text-[11px] font-semibold text-emerald-500 hover:text-emerald-600 transition-colors">Reset</button>
+                      <button onClick={() => setFilterPanelOpen(false)} className="text-muted-foreground hover:text-foreground rounded p-0.5">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
 
-            {view === "calendar" && (
-              <CalendarView tasks={filtered} />
-            )}
+                  {/* Filter Search Input */}
+                  <div className="relative shrink-0">
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Filter Search"
+                      value={filterSearchQuery}
+                      onChange={e => setFilterSearchQuery(e.target.value)}
+                      className="h-8 pl-8 text-[11px] bg-muted/20 border-border/50 rounded-md focus-visible:ring-1 focus-visible:ring-emerald-500"
+                    />
+                  </div>
 
-            {view === "gantt" && (
-              <GanttChart tasks={filtered} statuses={statuses} projects={projects} />
-            )}
-          </main>
+                  {/* Accordion Sections */}
+                  <div className="space-y-1 overflow-y-auto flex-1 pr-1">
+                    {[
+                      { key: "taskName", label: "Task Name" },
+                      { key: "project", label: "Project" },
+                      { key: "projectGroup", label: "Project Group" },
+                      { key: "projectStatus", label: "Project Status" },
+                      { key: "status", label: "Status" },
+                      { key: "completionPercentage", label: "Completion Percentage" },
+                      { key: "owner", label: "Owner" },
+                      { key: "associatedTeam", label: "Associated Team" },
+                      { key: "priority", label: "Priority" },
+                      { key: "startDate", label: "Start date" },
+                      { key: "dueDate", label: "Due Date" },
+                      { key: "timeSpan", label: "Time Span" },
+                      { key: "recurrence", label: "Recurrence" },
+                      { key: "createdTime", label: "Created Time" },
+                    ]
+                      .filter(sec => sec.label.toLowerCase().includes(filterSearchQuery.toLowerCase()))
+                      .map(sec => {
+                        const isOpen = filterSections[sec.key];
+                        return (
+                          <div key={sec.key} className="border-b border-border/20 last:border-0 py-0.5">
+                            <button
+                              onClick={() => setFilterSections(prev => ({ ...prev, [sec.key]: !prev[sec.key] }))}
+                              className={`w-full flex items-center justify-between py-1.5 px-2 text-[11px] font-semibold hover:bg-muted/40 transition-all rounded ${
+                                isOpen ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/5" : "text-foreground"
+                              }`}
+                            >
+                              <span>{sec.label}</span>
+                              {isOpen ? <ChevronUp className="h-3 w-3 text-current" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+                            </button>
+
+                            {isOpen && (
+                              <div className="p-2.5 bg-muted/10 rounded-md mt-1 mb-2 space-y-2 border border-border/30">
+                                {sec.key === "taskName" && (
+                                  <Input
+                                    placeholder="Filter Search"
+                                    value={filterTaskName}
+                                    onChange={e => { setFilterTaskName(e.target.value); setPage(1); }}
+                                    className="h-8 text-xs bg-background"
+                                  />
+                                )}
+
+                                {sec.key === "project" && (
+                                  <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                                    {projects.map(p => (
+                                      <div key={p.id} className="flex items-center space-x-2 py-0.5">
+                                        <Checkbox
+                                          id={`f-proj-${p.id}`}
+                                          checked={filterProjects.includes(p.id)}
+                                          onCheckedChange={val => {
+                                            if (val) setFilterProjects(prev => [...prev, p.id]);
+                                            else setFilterProjects(prev => prev.filter(x => x !== p.id));
+                                            setPage(1);
+                                          }}
+                                        />
+                                        <Label htmlFor={`f-proj-${p.id}`} className="text-[11px] cursor-pointer truncate font-medium">{p.name}</Label>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {sec.key === "projectGroup" && (
+                                  <div className="space-y-1">
+                                    {["Engineering", "Design", "Marketing", "Core"].map(g => (
+                                      <div key={g} className="flex items-center space-x-2 py-0.5">
+                                        <Checkbox
+                                          id={`f-pg-${g}`}
+                                          checked={filterProjectGroups.includes(g)}
+                                          onCheckedChange={val => {
+                                            if (val) setFilterProjectGroups(prev => [...prev, g]);
+                                            else setFilterProjectGroups(prev => prev.filter(x => x !== g));
+                                            setPage(1);
+                                          }}
+                                        />
+                                        <Label htmlFor={`f-pg-${g}`} className="text-[11px] cursor-pointer font-medium">{g}</Label>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {sec.key === "projectStatus" && (
+                                  <div className="space-y-1">
+                                    {["Active", "Planning", "Completed", "On Hold"].map(st => (
+                                      <div key={st} className="flex items-center space-x-2 py-0.5">
+                                        <Checkbox
+                                          id={`f-pstat-${st}`}
+                                          checked={filterProjectStatuses.includes(st)}
+                                          onCheckedChange={val => {
+                                            if (val) setFilterProjectStatuses(prev => [...prev, st]);
+                                            else setFilterProjectStatuses(prev => prev.filter(x => x !== st));
+                                            setPage(1);
+                                          }}
+                                        />
+                                        <Label htmlFor={`f-pstat-${st}`} className="text-[11px] cursor-pointer font-medium">{st}</Label>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {sec.key === "status" && (
+                                  <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                                    {statuses.map(s => (
+                                      <div key={s.id} className="flex items-center space-x-2 py-0.5">
+                                        <Checkbox
+                                          id={`f-stat-${s.id}`}
+                                          checked={filterStatuses.includes(s.id)}
+                                          onCheckedChange={val => {
+                                            if (val) setFilterStatuses(prev => [...prev, s.id]);
+                                            else setFilterStatuses(prev => prev.filter(x => x !== s.id));
+                                            setPage(1);
+                                          }}
+                                        />
+                                        <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: s.color }} />
+                                        <Label htmlFor={`f-stat-${s.id}`} className="text-[11px] cursor-pointer truncate font-medium">{s.name}</Label>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {sec.key === "completionPercentage" && (
+                                  <div className="space-y-2">
+                                    <Select value={filterCompletionOperator} onValueChange={(val: any) => setFilterCompletionOperator(val)}>
+                                      <SelectTrigger className="h-8 text-[11px]"><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="eq" className="text-xs">Is Equal To</SelectItem>
+                                        <SelectItem value="gt" className="text-xs">Is Greater Than</SelectItem>
+                                        <SelectItem value="lt" className="text-xs">Is Less Than</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      placeholder="Percentage (0-100)"
+                                      value={filterCompletionPercentage ?? ""}
+                                      onChange={e => {
+                                        const val = e.target.value === "" ? null : Number(e.target.value);
+                                        setFilterCompletionPercentage(val);
+                                        setPage(1);
+                                      }}
+                                      className="h-8 text-xs bg-background"
+                                    />
+                                  </div>
+                                )}
+
+                                {sec.key === "owner" && (
+                                  <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                                    {users.map(u => (
+                                      <div key={u.id} className="flex items-center space-x-2 py-0.5">
+                                        <Checkbox
+                                          id={`f-owner-${u.id}`}
+                                          checked={filterAssignees.includes(u.id)}
+                                          onCheckedChange={val => {
+                                            if (val) setFilterAssignees(prev => [...prev, u.id]);
+                                            else setFilterAssignees(prev => prev.filter(x => x !== u.id));
+                                            setPage(1);
+                                          }}
+                                        />
+                                        <Label htmlFor={`f-owner-${u.id}`} className="text-[11px] cursor-pointer truncate font-medium">{u.name}</Label>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {sec.key === "associatedTeam" && (
+                                  <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                                    {teams.map(t => (
+                                      <div key={t.id} className="flex items-center space-x-2 py-0.5">
+                                        <Checkbox
+                                          id={`f-team-${t.id}`}
+                                          checked={filterTeams.includes(t.id)}
+                                          onCheckedChange={val => {
+                                            if (val) setFilterTeams(prev => [...prev, t.id]);
+                                            else setFilterTeams(prev => prev.filter(x => x !== t.id));
+                                            setPage(1);
+                                          }}
+                                        />
+                                        <Label htmlFor={`f-team-${t.id}`} className="text-[11px] cursor-pointer truncate font-medium">{t.name}</Label>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {sec.key === "priority" && (
+                                  <div className="space-y-2">
+                                    <Select value={filterPriorityOperator} onValueChange={(val: any) => setFilterPriorityOperator(val)}>
+                                      <SelectTrigger className="h-8 text-[11px] bg-background"><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="is" className="text-xs">Is</SelectItem>
+                                        <SelectItem value="is_not" className="text-xs">Is Not</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <div className="space-y-1 pt-1">
+                                      {["CRITICAL","HIGH","MEDIUM","LOW"].map((p) => {
+                                        const colors: Record<string,string> = { CRITICAL:"text-red-500", HIGH:"text-orange-500", MEDIUM:"text-yellow-500", LOW:"text-blue-400" };
+                                        return (
+                                          <div key={p} className="flex items-center space-x-2">
+                                            <Checkbox id={`f-prio-${p}`} checked={filterPriorities.includes(p)} onCheckedChange={(val) => {
+                                              if (val) setFilterPriorities(prev => [...prev, p]);
+                                              else setFilterPriorities(prev => prev.filter(x => x !== p));
+                                              setPage(1);
+                                            }} />
+                                            <Label htmlFor={`f-prio-${p}`} className={`text-[11px] font-medium cursor-pointer capitalize ${colors[p]}`}>{p.toLowerCase()}</Label>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {sec.key === "startDate" && (
+                                  <div className="space-y-2">
+                                    <Select value={filterStartDateOperator} onValueChange={(val) => { setFilterStartDateOperator(val); setPage(1); }}>
+                                      <SelectTrigger className="h-8 text-[11px] bg-background"><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Today" className="text-xs">Today</SelectItem>
+                                        <SelectItem value="Yesterday" className="text-xs">Yesterday</SelectItem>
+                                        <SelectItem value="Tomorrow" className="text-xs">Tomorrow</SelectItem>
+                                        <SelectItem value="Custom" className="text-xs">Custom</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    {filterStartDateOperator !== "Custom" ? (
+                                      <Input
+                                        readOnly
+                                        value={`\${${filterStartDateOperator.toUpperCase()}}`}
+                                        className="h-8 text-xs bg-muted/40 font-mono text-muted-foreground"
+                                      />
+                                    ) : (
+                                      <span className="text-[10px] text-muted-foreground italic">No custom start date set</span>
+                                    )}
+                                  </div>
+                                )}
+
+                                {sec.key === "dueDate" && (
+                                  <div className="space-y-2">
+                                    <div>
+                                      <Label className="text-[9px] text-muted-foreground">From</Label>
+                                      <Input type="date" value={filterDueDateStart} onChange={(e) => { setFilterDueDateStart(e.target.value); setPage(1); }} className="h-7 text-[10px] bg-background" />
+                                    </div>
+                                    <div>
+                                      <Label className="text-[9px] text-muted-foreground">To</Label>
+                                      <Input type="date" value={filterDueDateEnd} onChange={(e) => { setFilterDueDateEnd(e.target.value); setPage(1); }} className="h-7 text-[10px] bg-background" />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {sec.key === "timeSpan" && (
+                                  <div className="space-y-2">
+                                    <Select value={filterTimeSpanOperator} onValueChange={(val: any) => setFilterTimeSpanOperator(val)}>
+                                      <SelectTrigger className="h-8 text-[11px]"><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="eq" className="text-xs">Is Equal To</SelectItem>
+                                        <SelectItem value="gt" className="text-xs">Is Greater Than</SelectItem>
+                                        <SelectItem value="lt" className="text-xs">Is Less Than</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Input
+                                      type="number"
+                                      placeholder="Duration in days"
+                                      value={filterTimeSpanVal ?? ""}
+                                      onChange={e => {
+                                        const val = e.target.value === "" ? null : Number(e.target.value);
+                                        setFilterTimeSpanVal(val);
+                                        setPage(1);
+                                      }}
+                                      className="h-8 text-xs bg-background"
+                                    />
+                                  </div>
+                                )}
+
+                                {sec.key === "recurrence" && (
+                                  <div className="space-y-1">
+                                    {["None", "Daily", "Weekly", "Monthly"].map(r => (
+                                      <div key={r} className="flex items-center space-x-2 py-0.5">
+                                        <Checkbox
+                                          id={`f-rec-${r}`}
+                                          checked={filterRecurrences.includes(r)}
+                                          onCheckedChange={val => {
+                                            if (val) setFilterRecurrences(prev => [...prev, r]);
+                                            else setFilterRecurrences(prev => prev.filter(x => x !== r));
+                                            setPage(1);
+                                          }}
+                                        />
+                                        <Label htmlFor={`f-rec-${r}`} className="text-[11px] cursor-pointer font-medium">{r}</Label>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {sec.key === "createdTime" && (
+                                  <div className="space-y-2">
+                                    <Select value={filterCreatedTimeOperator} onValueChange={(val) => { setFilterCreatedTimeOperator(val); setPage(1); }}>
+                                      <SelectTrigger className="h-8 text-[11px] bg-background"><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Today" className="text-xs">Today</SelectItem>
+                                        <SelectItem value="Yesterday" className="text-xs">Yesterday</SelectItem>
+                                        <SelectItem value="ThisWeek" className="text-xs">This Week</SelectItem>
+                                        <SelectItem value="Custom" className="text-xs">Custom</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+
+                  {/* Match logic toggles */}
+                  <div className="pt-3 border-t border-border/40 space-y-2 shrink-0">
+                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">Match Condition</Label>
+                    <div className="flex flex-col gap-2 bg-muted/10 p-2 rounded border border-border/30">
+                      <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setMatchMode("any")}>
+                        <input type="radio" checked={matchMode === "any"} readOnly className="text-emerald-500 focus:ring-emerald-500 h-3.5 w-3.5" />
+                        <span className="text-[11px] font-medium text-foreground">Any of these</span>
+                      </div>
+                      <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setMatchMode("all")}>
+                        <input type="radio" checked={matchMode === "all"} readOnly className="text-emerald-500 focus:ring-emerald-500 h-3.5 w-3.5" />
+                        <span className="text-[11px] font-medium text-foreground">All of these</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </aside>
+          </div>
         </>
       )}
 
-      <Outlet />
+      <Outlet context={{ filteredTasks: filtered, statuses, projects, users, teams }} />
 
+      {/* Bulk Action Bar */}
       <ZBulkBar count={selected.size} onClear={() => setSelected(new Set())}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -574,167 +1561,6 @@ function TasksPage() {
           <Trash2 className="h-3 w-3" /> Archive
         </Button>
       </ZBulkBar>
-
-      {/* Async Export Dialog */}
-      <Dialog open={isExportOpen} onOpenChange={(open) => {
-        setIsExportOpen(open);
-        if (!open) {
-          setIsExporting(false);
-          setExportReady(false);
-          setExportProgress(0);
-        }
-      }}>
-        <DialogContent className="sm:max-w-[480px]">
-          <DialogHeader>
-            <DialogTitle>Asynchronous Report Export</DialogTitle>
-            <DialogDescription>
-              Select export formats and customize/reorder columns to generate report.
-            </DialogDescription>
-          </DialogHeader>
-
-          {!isExporting && !exportReady && (
-            <div className="space-y-4 py-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="expFormat">Export Format</Label>
-                <Select value={exportFormat} onValueChange={(val: any) => setExportFormat(val)}>
-                  <SelectTrigger id="expFormat">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="csv">CSV (Flat Text)</SelectItem>
-                    <SelectItem value="excel">Excel (.xlsx Sheets)</SelectItem>
-                    <SelectItem value="pdf">PDF (Printable Document)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Choose & Reorder Columns</Label>
-                <div className="border border-border rounded-lg divide-y divide-border/60 max-h-[220px] overflow-y-auto">
-                  {exportColumns.map((col, idx) => (
-                    <div key={col.id} className="flex items-center justify-between p-2 hover:bg-muted/30">
-                      <div className="flex items-center space-x-2.5">
-                        <Checkbox
-                          id={`col-${col.id}`}
-                          checked={col.checked}
-                          onCheckedChange={() => toggleColumnCheck(idx)}
-                        />
-                        <Label htmlFor={`col-${col.id}`} className="text-xs font-normal cursor-pointer select-none">
-                          {col.label}
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Button
-                          size="icon" variant="ghost" className="h-6 w-6"
-                          disabled={idx === 0}
-                          onClick={() => moveColumn(idx, "up")}
-                          title="Move up"
-                        >
-                          <ArrowUp className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="icon" variant="ghost" className="h-6 w-6"
-                          disabled={idx === exportColumns.length - 1}
-                          onClick={() => moveColumn(idx, "down")}
-                          title="Move down"
-                        >
-                          <ArrowDown className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {isExporting && (
-            <div className="py-8 flex flex-col items-center justify-center space-y-4 text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <div className="space-y-1.5 w-full max-w-[280px]">
-                <h4 className="font-semibold text-sm">{exportStep}</h4>
-                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${exportProgress}%` }} />
-                </div>
-                <p className="text-[10px] text-muted-foreground">{exportProgress}% completed</p>
-              </div>
-            </div>
-          )}
-
-          {exportReady && (
-            <div className="py-8 flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                <Check className="h-6 w-6 text-emerald-500" />
-              </div>
-              <div className="space-y-1.5">
-                <h4 className="font-semibold text-sm">Export Complete!</h4>
-                <p className="text-xs text-muted-foreground">Your {exportFormat.toUpperCase()} report is compiled and ready for delivery.</p>
-              </div>
-              <Button
-                onClick={handleDownload}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold px-6"
-              >
-                Download File
-              </Button>
-            </div>
-          )}
-
-          <DialogFooter>
-            {!isExporting && !exportReady && (
-              <>
-                <Button variant="outline" onClick={() => setIsExportOpen(false)}>Cancel</Button>
-                <Button onClick={startExport} className="bg-gradient-primary text-primary-foreground font-semibold">Generate Export</Button>
-              </>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
-  );
-}
-
-function GroupByMenu({ value, onChange }: { value: GroupBy; onChange: (g: GroupBy) => void }) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground">
-          <Layers className="h-3 w-3" /> Group: <span className="font-medium text-foreground capitalize">{value}</span>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuLabel className="text-[10px] uppercase">Group by</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {(["status", "project", "priority", "assignee", "none"] as GroupBy[]).map((g) => (
-          <DropdownMenuItem key={g} onClick={() => onChange(g)} className="text-xs capitalize">{g}</DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function CalendarView({ tasks }: { tasks: ReturnType<typeof useTasks>["data"] }) {
-  const today = new Date();
-  const days = Array.from({ length: 30 }, (_, i) => {
-    const d = new Date(today); d.setDate(d.getDate() + i); return d;
-  });
-  return (
-    <div className="grid grid-cols-7 gap-1 rounded-md border border-border bg-card p-3">
-      {days.map((d) => {
-        const dayTasks = (tasks ?? []).filter((t) => t.dueDate && new Date(t.dueDate).toDateString() === d.toDateString());
-        return (
-          <div key={d.toISOString()} className="min-h-[80px] rounded border border-border/60 bg-background p-1.5">
-            <p className="text-[10px] font-mono text-muted-foreground">{format(d, "MMM d")}</p>
-            <div className="mt-1 space-y-0.5">
-              {dayTasks.slice(0, 3).map((t) => (
-                <Link key={t.id} to="/tasks/$id" params={{ id: t.id }}
-                  className="block truncate rounded bg-primary/10 px-1 py-0.5 text-[10px] text-primary hover:bg-primary/20">
-                  {t.title}
-                </Link>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
   );
 }

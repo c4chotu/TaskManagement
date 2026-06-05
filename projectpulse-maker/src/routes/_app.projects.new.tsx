@@ -8,8 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { useCreateProject, useCreateSprint, useCreateTask, useUsers, useAddProjectMember } from "@/lib/queries";
-import { tokenStore } from "@/lib/api";
+import { useCreateProject, useCreateSprint, useCreateTask, useUsers, useAddProjectMember, useTeams, useUploadProjectAttachment } from "@/lib/queries";
+import { tokenStore, apiRequest } from "@/lib/api";
 import { Plus, Trash2, Calendar, ArrowLeft, Layers, CheckSquare, Save, User, Clock, AlertCircle, Settings, Check, UploadCloud, X, FileText, Paperclip } from "lucide-react";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
@@ -50,11 +50,17 @@ function humanSize(b: number) {
 function CreateProjectPage() {
   const navigate = useNavigate();
   const { data: users = [] } = useUsers();
+  const { data: teams = [] } = useTeams();
   
   const createProject = useCreateProject();
   const createSprint = useCreateSprint();
   const createTask = useCreateTask();
   const addProjectMember = useAddProjectMember();
+  const uploadProjectAttachment = useUploadProjectAttachment();
+
+  // Project Owner and Teams State
+  const [ownerId, setOwnerId] = useState("");
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
 
   // Project General Details State
   const [name, setName] = useState("");
@@ -202,14 +208,37 @@ function CreateProjectPage() {
       });
 
       // Collect unique assignee IDs (excluding empty ones and the current user who is auto-owner)
-      const currentUser = tokenStore.getUser<{ userId: string }>() || tokenStore.getUser<{ id: string }>();
-      const currentUserId = currentUser?.userId || currentUser?.id;
+      const currentUser = tokenStore.getUser<{ id: string }>();
+      const currentUserId = currentUser?.id;
       const assigneeIdsToAdd = new Set<string>();
       for (const phase of phases) {
         for (const t of phase.tasks) {
           if (t.assigneeId && t.assigneeId !== currentUserId) {
             assigneeIdsToAdd.add(t.assigneeId);
           }
+        }
+      }
+
+      // Add Project Owner if specified
+      if (ownerId && ownerId !== currentUserId) {
+        await addProjectMember.mutateAsync({
+          projectId: proj.id,
+          userId: ownerId,
+          role: "PROJECT_OWNER",
+        });
+      }
+
+      // Add Team Members of selected teams
+      for (const teamId of selectedTeamIds) {
+        try {
+          const teamMembers = await apiRequest<any[]>(`/teams/${teamId}/members`);
+          for (const tm of teamMembers) {
+            if (tm.userId && tm.userId !== ownerId && tm.userId !== currentUserId) {
+              assigneeIdsToAdd.add(tm.userId);
+            }
+          }
+        } catch (teamErr) {
+          console.error("Failed to add members for team", teamId, teamErr);
         }
       }
 
@@ -221,20 +250,17 @@ function CreateProjectPage() {
         });
       }
 
-      // Save staged project files to mock attachments
-      projectFiles.forEach((fileObj) => {
-        mockAttachments.push({
-          id: `att-${Date.now()}-${Math.random()}`,
-          taskId: "",
-          projectId: proj.id,
-          fileName: fileObj.name,
-          mimeType: fileObj.type || "application/octet-stream",
-          sizeBytes: fileObj.size,
-          url: URL.createObjectURL(fileObj.file),
-          uploadedAt: new Date().toISOString(),
-          uploadedBy: "u-owner",
-        });
-      });
+      // Save staged project files to project attachments
+      for (const fileObj of projectFiles) {
+        try {
+          await uploadProjectAttachment.mutateAsync({
+            projectId: proj.id,
+            file: fileObj.file
+          });
+        } catch (uploadErr) {
+          console.error("Failed to upload project document", fileObj.name, uploadErr);
+        }
+      }
 
       // 2. Loop through phases
       for (const phase of phases) {
@@ -545,6 +571,50 @@ function CreateProjectPage() {
                   placeholder="e.g. Ingress Controller Migration"
                   className="text-xs h-9 rounded-xl focus-visible:ring-primary font-semibold bg-background/40"
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase">Project Owner</Label>
+                <Select value={ownerId} onValueChange={setOwnerId}>
+                  <SelectTrigger className="h-9 text-xs rounded-xl border-border/60 bg-background/40">
+                    <SelectValue placeholder="Select Owner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase">Associated Teams</Label>
+                <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border border-border/60 bg-background/40 rounded-xl p-3">
+                  {teams.map((t) => {
+                    const isSelected = selectedTeamIds.includes(t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedTeamIds(selectedTeamIds.filter((id) => id !== t.id));
+                          } else {
+                            setSelectedTeamIds([...selectedTeamIds, t.id]);
+                          }
+                        }}
+                        className={`flex items-center justify-between text-left p-2 rounded-lg border text-[10px] font-semibold transition-all ${
+                          isSelected
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border/60 hover:bg-muted/30 text-muted-foreground"
+                        }`}
+                      >
+                        <span className="truncate">{t.name}</span>
+                        {isSelected && <Check className="h-3 w-3 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="space-y-1.5">

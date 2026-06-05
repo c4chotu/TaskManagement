@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { useState, useMemo } from "react";
 import {
-  useCreateTask, useProjects, useStatuses, useUsers, useTeams, useTasks, useProjectMembers,
+  useCreateTask, useProjects, useStatuses, useUsers, useTeams, useTasks, useProjectMembers, useProject, useSprints, usePhases, useUploadAttachment,
 } from "@/lib/queries";
 import { toast } from "sonner";
 import {
@@ -33,11 +33,16 @@ function NewTaskPage() {
   const [projectId, setProjectId] = useState("");
   const activeProjectId = projectId || projects[0]?.id || "";
 
+  const { data: project } = useProject(activeProjectId);
+  const { data: sprints = [] } = useSprints(activeProjectId);
+  const { data: phases = [] } = usePhases(activeProjectId);
   const { data: statuses = [] } = useStatuses(activeProjectId);
   const { data: users = [] } = useUsers();
   const { data: projectMembers = [] } = useProjectMembers(activeProjectId);
   const { data: teams = [] } = useTeams();
   const create = useCreateTask();
+  const uploadAttachment = useUploadAttachment();
+  const [taskFiles, setTaskFiles] = useState<File[]>([]);
 
   const projectMemberUserIds = useMemo(() => new Set(projectMembers.map((m: any) => m.userId)), [projectMembers]);
   const filteredUsers = useMemo(() => {
@@ -53,6 +58,8 @@ function NewTaskPage() {
   const { data: allProjectTasks = [] } = useTasks(activeProjectId ? { projectId: activeProjectId } : undefined);
   const standardTasks = allProjectTasks.filter((t) => t.taskType === "TASK");
   const [teamId, setTeamId] = useState("none");
+  const [sprintId, setSprintId] = useState("none");
+  const [phaseId, setPhaseId] = useState("none");
   const [statusId, setStatusId] = useState("s-todo");
   const [priority, setPriority] = useState<NonNullable<Task["priority"]>>("MEDIUM");
   const [severity, setSeverity] = useState("SEV2");
@@ -96,7 +103,7 @@ function NewTaskPage() {
     if (!title.trim()) return toast.error("Title is required");
     if (!activeProjectId) return toast.error("Pick a project");
     try {
-      await create.mutateAsync({
+      const createdTask = await create.mutateAsync({
         title: title.trim(),
         description: description.trim() || undefined,
         projectId: activeProjectId,
@@ -109,13 +116,26 @@ function NewTaskPage() {
         teamId: teamId === "none" ? undefined : teamId,
         recurrenceRule: recurrence === "none" ? undefined : recurrence,
         parentTaskId: parentTaskId === "none" ? undefined : parentTaskId,
-        category: category === "none" ? undefined : category,
+        category: category === "none" ? undefined : (category as TaskCategory),
         badges: badges.length > 0 ? badges : undefined,
         storyPoints: storyPoints ? Number(storyPoints) : undefined,
+        sprintId: sprintId === "none" ? undefined : sprintId || undefined,
       });
+
+      for (const file of taskFiles) {
+        try {
+          await uploadAttachment.mutateAsync({
+            taskId: createdTask.id,
+            file,
+          });
+        } catch (uploadErr) {
+          console.error("Failed to upload attachment", file.name, uploadErr);
+        }
+      }
+
       toast.success(`${taskType === "ISSUE" ? "Issue" : "Task"} created`);
       if (mode === "save") nav({ to: "/tasks" });
-      else { setTitle(""); setDescription(""); setAssignees([]); setTags([]); }
+      else { setTitle(""); setDescription(""); setAssignees([]); setTags([]); setTaskFiles([]); }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to create");
     }
@@ -176,7 +196,30 @@ function NewTaskPage() {
               <div className="mt-5">
                 <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Description</Label>
                 <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
-                  rows={6} placeholder="Add details, acceptance criteria, links…" className="mt-1" />
+                  onPaste={async (e) => {
+                    const items = e.clipboardData.items;
+                    for (const item of items) {
+                      if (item.type.indexOf("image") !== -1) {
+                        e.preventDefault();
+                        const file = item.getAsFile();
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const base64 = ev.target?.result as string;
+                            const markdownImage = `\n![pasted image](${base64})\n`;
+                            const textarea = e.currentTarget;
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+                            const newVal = description.substring(0, start) + markdownImage + description.substring(end);
+                            setDescription(newVal);
+                            toast.success("Image embedded in description");
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }
+                    }
+                  }}
+                  rows={6} placeholder="Add details, acceptance criteria, links… (Paste images to embed inline)" className="mt-1" />
               </div>
 
               <div className="mt-5">
@@ -202,9 +245,60 @@ function NewTaskPage() {
                 <Label className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
                   <Paperclip className="h-3 w-3" /> Attachments
                 </Label>
-                <div className="mt-1 grid place-items-center rounded-md border border-dashed border-border bg-muted/20 py-6 text-xs text-muted-foreground">
-                  Drop files here or click to upload (mock)
+                <div
+                  onClick={() => document.getElementById("task-file-input")?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                      setTaskFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files)]);
+                    }
+                  }}
+                  className="mt-1 flex flex-col items-center justify-center rounded-md border border-dashed border-border bg-muted/20 hover:bg-muted/40 cursor-pointer py-6 text-xs text-muted-foreground transition duration-200"
+                >
+                  <Paperclip className="h-6 w-6 text-muted-foreground/60 mb-2" />
+                  <span>Drag & drop files here, or <span className="text-primary font-medium hover:underline">browse</span></span>
+                  <input
+                    id="task-file-input"
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        setTaskFiles((prev) => [...prev, ...Array.from(e.target.files)]);
+                      }
+                    }}
+                  />
                 </div>
+                {taskFiles.length > 0 && (
+                  <div className="mt-3 space-y-1.5">
+                    {taskFiles.map((file, idx) => (
+                      <div key={idx} className="flex items-center justify-between rounded border border-border bg-muted/30 px-3 py-1.5 text-xs">
+                        <div className="flex items-center gap-2 truncate">
+                          <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                          <span className="truncate font-medium">{file.name}</span>
+                          <span className="text-[10px] text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-transparent"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTaskFiles((prev) => prev.filter((_, i) => i !== idx));
+                          }}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </Card>
           </div>
@@ -244,6 +338,40 @@ function NewTaskPage() {
                     </SelectContent>
                   </Select>
                 </Field>
+                {project?.type === "SCRUM" && sprints.length > 0 && (
+                  <Field label="Sprint">
+                    <Select value={sprintId} onValueChange={setSprintId}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="Select Sprint" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {sprints.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+                 {project?.type === "WATERFALL" && sprints.length > 0 && (
+                  <Field label="Phase">
+                    <Select value={sprintId} onValueChange={setSprintId}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="Select Phase" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {sprints.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
                 <Field label={<span className="flex items-center gap-1"><Flag className="h-3 w-3" /> Priority</span>}>
                   <Select value={priority} onValueChange={(v) => setPriority(v as any)}>
                     <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>

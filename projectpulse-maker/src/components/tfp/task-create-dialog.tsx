@@ -20,10 +20,10 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useCreateTask, useProjects, useStatuses, useUsers, useTeams, useProjectMembers } from "@/lib/queries";
-import { Plus, Sparkles, AlertOctagon, ListChecks, Calendar, Flag, X } from "lucide-react";
+import { useCreateTask, useProjects, useStatuses, useUsers, useTeams, useProjectMembers, useProject, useSprints, usePhases, useUploadAttachment } from "@/lib/queries";
+import { Plus, Sparkles, AlertOctagon, ListChecks, Calendar, Flag, X, Paperclip } from "lucide-react";
 import { toast } from "sonner";
-import type { Task } from "@/lib/types";
+import type { Task, TaskCategory } from "@/lib/types";
 
 export function TaskCreateDialog({
   defaultProjectId,
@@ -37,11 +37,15 @@ export function TaskCreateDialog({
   const [projectId, setProjectId] = useState(defaultProjectId ?? "");
   const activeProjectId = projectId || projects[0]?.id || "";
 
+  const { data: project } = useProject(activeProjectId);
+  const { data: sprints = [] } = useSprints(activeProjectId);
+  const { data: phases = [] } = usePhases(activeProjectId);
   const { data: statuses = [] } = useStatuses(activeProjectId);
   const { data: users = [] } = useUsers();
   const { data: projectMembers = [] } = useProjectMembers(activeProjectId);
   const { data: teams = [] } = useTeams();
   const create = useCreateTask();
+  const uploadAttachment = useUploadAttachment();
 
   const projectMemberUserIds = useMemo(() => new Set(projectMembers.map((m: any) => m.userId)), [projectMembers]);
   const filteredUsers = useMemo(() => {
@@ -53,6 +57,8 @@ export function TaskCreateDialog({
   const [description, setDescription] = useState("");
   const [teamId, setTeamId] = useState("");
   const [statusId, setStatusId] = useState("s-todo");
+  const [sprintId, setSprintId] = useState("");
+  const [phaseId, setPhaseId] = useState("");
   const [taskType, setTaskType] = useState<Task["taskType"]>("TASK");
   const [priority, setPriority] = useState<NonNullable<Task["priority"]>>("MEDIUM");
   const [dueDate, setDueDate] = useState("");
@@ -71,6 +77,7 @@ export function TaskCreateDialog({
     return ["FRONTEND", "BACKEND", "INFRA", "DESIGN", "QA", "SECURITY", "DOCS", "RESEARCH", "BUG", "FEATURE"];
   });
   const [category, setCategory] = useState<string>("none");
+  const [taskFiles, setTaskFiles] = useState<File[]>([]);
 
   const activeStatusId = statuses.some((s) => s.id === statusId)
     ? statusId
@@ -80,6 +87,8 @@ export function TaskCreateDialog({
     setTitle("");
     setDescription("");
     setStatusId("s-todo");
+    setSprintId("");
+    setPhaseId("");
     setTaskType("TASK");
     setPriority("MEDIUM");
     setDueDate("");
@@ -88,17 +97,20 @@ export function TaskCreateDialog({
     setTeamId("");
     setRecurrenceRule("");
     setCategory("none");
+    setTaskFiles([]);
   };
 
   const submit = async () => {
     if (!title.trim()) return toast.error("Title is required");
     if (!activeProjectId) return toast.error("Pick a project");
     try {
-      await create.mutateAsync({
+      const createdTask = await create.mutateAsync({
         title: title.trim(),
         description: description.trim() || undefined,
         projectId: activeProjectId,
         statusId: activeStatusId,
+        sprintId: sprintId === "none" ? undefined : sprintId || undefined,
+        phaseId: phaseId === "none" ? undefined : phaseId || undefined,
         taskType,
         priority,
         dueDate: dueDate || undefined,
@@ -106,8 +118,20 @@ export function TaskCreateDialog({
         assigneeIds: assignees,
         teamId: teamId === "none" ? undefined : teamId || undefined,
         recurrenceRule: recurrenceRule === "none" ? undefined : recurrenceRule || undefined,
-        category: category === "none" ? undefined : category,
+        category: category === "none" ? undefined : (category as TaskCategory),
       });
+
+      for (const file of taskFiles) {
+        try {
+          await uploadAttachment.mutateAsync({
+            taskId: createdTask.id,
+            file,
+          });
+        } catch (uploadErr) {
+          console.error("Failed to upload attachment", file.name, uploadErr);
+        }
+      }
+
       toast.success("Task created");
       reset();
       setOpen(false);
@@ -152,7 +176,7 @@ export function TaskCreateDialog({
           </div>
         </div>
 
-        <div className="grid gap-4 px-6 pb-2">
+        <div className="grid gap-4 px-6 pb-4 max-h-[65vh] overflow-y-auto">
           <div className="space-y-1.5">
             <Label
               htmlFor="title"
@@ -181,9 +205,32 @@ export function TaskCreateDialog({
             </Label>
             <Textarea
               id="desc"
-              placeholder="Add detail, links, repro steps…"
+              placeholder="Add detail, links, repro steps… (Paste images to embed inline)"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              onPaste={async (e) => {
+                const items = e.clipboardData.items;
+                for (const item of items) {
+                  if (item.type.indexOf("image") !== -1) {
+                    e.preventDefault();
+                    const file = item.getAsFile();
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        const base64 = ev.target?.result as string;
+                        const markdownImage = `\n![pasted image](${base64})\n`;
+                        const textarea = e.currentTarget;
+                        const start = textarea.selectionStart;
+                        const end = textarea.selectionEnd;
+                        const newVal = description.substring(0, start) + markdownImage + description.substring(end);
+                        setDescription(newVal);
+                        toast.success("Image embedded in description");
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }
+                }
+              }}
               rows={3}
             />
           </div>
@@ -242,6 +289,47 @@ export function TaskCreateDialog({
               </Select>
             </div>
           </div>
+
+          {((project?.type === "SCRUM" && sprints.length > 0) || (project?.type === "WATERFALL" && phases.length > 0)) && (
+            <div className="grid grid-cols-1 gap-3">
+              {project?.type === "SCRUM" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sprint</Label>
+                  <Select value={sprintId} onValueChange={setSprintId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sprint" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {sprints.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {project?.type === "WATERFALL" && sprints.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Phase</Label>
+                  <Select value={sprintId} onValueChange={setSprintId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select phase" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {sprints.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
@@ -372,6 +460,66 @@ export function TaskCreateDialog({
               <Badge variant="outline" className="text-[10px]">
                 {assignees.length} selected
               </Badge>
+            )}
+          </div>
+
+          <div className="space-y-1.5 mt-2">
+            <Label className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <Paperclip className="h-3 w-3" /> Attachments
+            </Label>
+            <div
+              onClick={() => document.getElementById("dialog-task-file-input")?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  setTaskFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files)]);
+                }
+              }}
+              className="flex flex-col items-center justify-center rounded-md border border-dashed border-border bg-muted/20 hover:bg-muted/40 cursor-pointer py-4 text-xs text-muted-foreground transition duration-200"
+            >
+              <Paperclip className="h-5 w-5 text-muted-foreground/60 mb-1" />
+              <span>Drag & drop files here, or <span className="text-primary font-medium hover:underline">browse</span></span>
+              <input
+                id="dialog-task-file-input"
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    setTaskFiles((prev) => [...prev, ...Array.from(e.target.files)]);
+                  }
+                }}
+              />
+            </div>
+            {taskFiles.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {taskFiles.map((file, idx) => (
+                  <div key={idx} className="flex items-center justify-between rounded border border-border bg-muted/30 px-2 py-1 text-xs">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <Paperclip className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                      <span className="truncate font-medium">{file.name}</span>
+                      <span className="text-[10px] text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 text-muted-foreground hover:text-destructive hover:bg-transparent"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTaskFiles((prev) => prev.filter((_, i) => i !== idx));
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>

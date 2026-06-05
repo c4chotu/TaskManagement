@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface RoutingRuleRepository extends JpaRepository<RoutingRule, UUID> {
     List<RoutingRule> findByOrganizationIdAndEnabledTrueOrderByPriorityDesc(UUID organizationId);
+    List<RoutingRule> findByOrganizationIdOrderByPriorityDesc(UUID organizationId);
 }

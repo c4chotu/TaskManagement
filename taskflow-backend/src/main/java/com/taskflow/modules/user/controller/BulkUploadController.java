@@ -28,7 +28,7 @@ public class BulkUploadController {
         return ResponseEntity.ok(bulkUploadService.uploadPeople(file));
     }
 
-    /** POST /api/v1/bulk/tasks — CSV: projectKey,title,description,priority,type,dueDate,assigneeEmail */
+    /** POST /api/v1/bulk/tasks — CSV: projectKey,title,description,priority,type,dueDate,assigneeEmail,teamName,category,storyPoints */
     @PostMapping(value = "/tasks", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<BulkUploadService.BulkUploadResult> uploadTasks(
             @RequestParam("file") MultipartFile file) {

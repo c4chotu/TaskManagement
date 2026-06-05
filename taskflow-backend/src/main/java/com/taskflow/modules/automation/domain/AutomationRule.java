@@ -44,7 +44,7 @@ public class AutomationRule {
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default
-    private boolean isActive = true;
+    private boolean enabled = true;
 
     @Column(name = "rule_type", nullable = false, length = 100)
     @Builder.Default

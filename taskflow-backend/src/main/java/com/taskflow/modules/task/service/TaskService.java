@@ -366,6 +366,15 @@ public class TaskService {
             }
         }
 
+        // Trigger routing rules on status changes
+        if (taskRouterService != null && request.getCurrentStatusId() != null && !Objects.equals(oldCurrentStatusId, request.getCurrentStatusId())) {
+            try {
+                taskRouterService.routeTask(updatedTask, "TASK_STATUS_CHANGED");
+            } catch (Exception e) {
+                log.error("Failed to auto-route task on status change: {}", e.getMessage());
+            }
+        }
+
         // Trigger automation for status changes and due date updates
         try {
             if (request.getCurrentStatusId() != null && !Objects.equals(oldCurrentStatusId, request.getCurrentStatusId())) {
@@ -444,11 +453,15 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
-    public List<TaskResponse> listTasks(UUID projectId) {
+    public List<TaskResponse> listTasks(UUID projectId, String priority, UUID phaseId, String category,
+                                        UUID statusId, String taskType, String assigneeId,
+                                        String dueDateFrom, String dueDateTo) {
         UUID orgId = SecurityContextHelper.getCurrentOrgId();
         if (orgId == null) {
             throw new TenantIsolationException("Unauthorized access request");
         }
+
+        java.util.stream.Stream<Task> taskStream;
 
         if (projectId != null) {
             Project project = projectRepository.findById(projectId)
@@ -460,18 +473,80 @@ public class TaskService {
             // Verify user project access
             verifyProjectAccess(projectId);
 
-            return taskRepository.findByProjectIdAndDeletedAtIsNull(projectId).stream()
-                    .map(this::mapToResponse)
-                    .collect(Collectors.toList());
+            taskStream = taskRepository.findByProjectIdAndDeletedAtIsNull(projectId).stream();
         } else {
             UUID currentUserId = SecurityContextHelper.getCurrentUserId();
             if (currentUserId == null) {
                 throw new UnauthorizedException("Authenticated session context required");
             }
-            return taskRepository.findMyTasks(orgId, currentUserId).stream()
-                    .map(this::mapToResponse)
-                    .collect(Collectors.toList());
+            taskStream = taskRepository.findMyTasks(orgId, currentUserId).stream();
         }
+
+        // Apply optional filters
+        if (priority != null) {
+            taskStream = taskStream.filter(t -> priority.equalsIgnoreCase(t.getPriority()));
+        }
+        if (phaseId != null) {
+            taskStream = taskStream.filter(t -> phaseId.equals(t.getPhaseId()));
+        }
+        if (category != null) {
+            taskStream = taskStream.filter(t -> category.equalsIgnoreCase(t.getCategory()));
+        }
+        if (statusId != null) {
+            taskStream = taskStream.filter(t -> statusId.equals(t.getCurrentStatusId()) || statusId.equals(t.getStatusId()));
+        }
+        if (taskType != null) {
+            taskStream = taskStream.filter(t -> taskType.equalsIgnoreCase(t.getTaskType()));
+        }
+        if (assigneeId != null) {
+            UUID assigneeUUID = UUID.fromString(assigneeId);
+            taskStream = taskStream.filter(t ->
+                    taskAssignmentRepository.findByTaskId(t.getId()).stream()
+                            .anyMatch(a -> assigneeUUID.equals(a.getUserId())));
+        }
+        if (dueDateFrom != null) {
+            java.time.Instant from = java.time.LocalDate.parse(dueDateFrom)
+                    .atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+            taskStream = taskStream.filter(t -> t.getDueDate() != null && !t.getDueDate().isBefore(from));
+        }
+        if (dueDateTo != null) {
+            java.time.Instant to = java.time.LocalDate.parse(dueDateTo)
+                    .atTime(23, 59, 59).toInstant(java.time.ZoneOffset.UTC);
+            taskStream = taskStream.filter(t -> t.getDueDate() != null && !t.getDueDate().isAfter(to));
+        }
+
+        return taskStream.map(this::mapToResponse).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public TaskAssignment assignTaskInternal(UUID taskId, UUID userId, String role) {
+        Task task = getTaskEntity(taskId);
+
+        // Verify assignee is a member of the project
+        projectMemberRepository.findByProjectIdAndUserId(task.getProjectId(), userId)
+                .orElseThrow(() -> new IllegalArgumentException("Assignee must be a member of the project: " + userId));
+
+        // Check if already assigned
+        boolean alreadyAssigned = taskAssignmentRepository.findByTaskId(taskId).stream()
+                .anyMatch(a -> userId.equals(a.getUserId()));
+        
+        if (alreadyAssigned) {
+            return taskAssignmentRepository.findByTaskId(taskId).stream()
+                    .filter(a -> userId.equals(a.getUserId()))
+                    .findFirst().orElse(null);
+        }
+
+        TaskAssignment assignment = TaskAssignment.builder()
+                .id(UUID.randomUUID())
+                .taskId(taskId)
+                .userId(userId)
+                .role(role != null ? role : "ASSIGNEE")
+                .build();
+
+        TaskAssignment saved = taskAssignmentRepository.save(assignment);
+        UUID currentUserId = SecurityContextHelper.getCurrentUserId();
+        logActivity(taskId, currentUserId, "ASSIGNMENT_ADD", "User assigned to task via system process", null, userId.toString());
+        return saved;
     }
 
     @Transactional
@@ -482,19 +557,8 @@ public class TaskService {
         // Verify active user is not VIEWER
         verifyRoleRequirement(task.getProjectId(), List.of("PROJECT_OWNER", "PROJECT_MANAGER", "PROJECT_MEMBER"), "assign tasks");
 
-        // Verify assignee is a member of the project
-        projectMemberRepository.findByProjectIdAndUserId(task.getProjectId(), userId)
-                .orElseThrow(() -> new IllegalArgumentException("Assignee must be a member of the project"));
+        TaskAssignment saved = assignTaskInternal(taskId, userId, role);
 
-        TaskAssignment assignment = TaskAssignment.builder()
-                .id(UUID.randomUUID())
-                .taskId(taskId)
-                .userId(userId)
-                .role(role != null ? role : "ASSIGNEE")
-                .build();
-
-        TaskAssignment saved = taskAssignmentRepository.save(assignment);
-        logActivity(taskId, currentUserId, "ASSIGNMENT_ADD", "User assigned to task", null, userId.toString());
         // Trigger automation for assignment
         try {
             java.util.Map<String, Object> ctx = new java.util.HashMap<>();

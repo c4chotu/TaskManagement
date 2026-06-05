@@ -54,7 +54,7 @@ export function ZViewSwitcher({
     list: ListIcon, plain: ListIcon, kanban: LayoutGrid, calendar: CalIcon, gantt: GitBranch,
   };
   return (
-    <div className="inline-flex items-center rounded-md border border-border bg-background p-0.5">
+    <div className="inline-flex items-center rounded-md border border-border bg-emerald-500/10 p-0.5">
       {views.map((v) => {
         const Icon = icons[v];
         const active = value === v;
@@ -64,7 +64,7 @@ export function ZViewSwitcher({
             onClick={() => onChange(v)}
             title={v}
             className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] capitalize transition ${
-              active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              active ? "bg-emerald-500/30 text-emerald-500 shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <Icon className="h-3.5 w-3.5" />

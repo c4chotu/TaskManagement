@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Topbar } from "@/components/tfp/topbar";
 import { Card } from "@/components/ui/card";
-import { useProjects, useTasks, useUsers } from "@/lib/queries";
+import { useProjects, useTasks, useUsers, useSprints } from "@/lib/queries";
 import { DataTable } from "@/components/tfp/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Task } from "@/lib/types";
@@ -13,9 +13,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Download, Loader2, FileDown, BarChart2, FileSpreadsheet } from "lucide-react";
+import { 
+  Download, Loader2, FileDown, BarChart2, FileSpreadsheet, Filter, 
+  ChevronDown, ChevronRight, ListPlus, FolderKanban, SlidersHorizontal, X
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
-
 
 export const Route = createFileRoute("/_app/reports")({
   head: () => ({ meta: [{ title: "Reports & Data Grid — TaskFlow Pro" }] }),
@@ -26,6 +28,7 @@ function ReportsPage() {
   const { data: projects = [] } = useProjects();
   const { data: tasks = [] } = useTasks();
   const { data: users = [] } = useUsers();
+  const { data: sprints = [] } = useSprints();
   const { user } = useAuth();
 
   const [selectedProject, setSelectedProject] = useState<string>("all");
@@ -38,6 +41,11 @@ function ReportsPage() {
   const [exportColumns, setExportColumns] = useState<string[]>(["id", "title", "project", "status", "priority"]);
   const [isExporting, setIsExporting] = useState(false);
   const [downloadJobId, setDownloadJobId] = useState<string | null>(null);
+
+  // Filter & Grouping panel states
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(true);
+  const [groupBy, setGroupBy] = useState<string>("none");
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   // Derive filtered tasks
   const filteredTasks = useMemo(() => {
@@ -79,17 +87,46 @@ function ReportsPage() {
   const columns: ColumnDef<Task>[] = [
     {
       accessorKey: "displayId",
-      header: "ID",
+      header: () => (
+        <div className="flex items-center gap-1 cursor-pointer" onClick={() => setIsFilterPanelOpen(true)}>
+          <span>ID</span>
+          <Filter className="h-3 w-3 text-muted-foreground/60 hover:text-foreground" />
+        </div>
+      ),
       cell: ({ row }) => <span className="font-mono text-xs">{row.original.displayId || row.original.id.substring(0,8)}</span>,
     },
     {
+      accessorKey: "taskType",
+      header: () => (
+        <div className="flex items-center gap-1 cursor-pointer" onClick={() => setIsFilterPanelOpen(true)}>
+          <span>Type</span>
+          <Filter className="h-3 w-3 text-muted-foreground/60 hover:text-foreground" />
+        </div>
+      ),
+      cell: ({ row }) => {
+        const type = row.original.taskType;
+        const color = type === "ISSUE" ? "text-red-500 border-red-500/20 bg-red-500/5" : "text-slate-400 border-slate-500/20 bg-slate-500/5";
+        return <Badge variant="outline" className={`${color} text-[10px] font-bold`}>{type}</Badge>;
+      },
+    },
+    {
       accessorKey: "title",
-      header: "Title",
-      cell: ({ row }) => <div className="font-medium text-foreground">{row.original.title}</div>,
+      header: () => (
+        <div className="flex items-center gap-1 cursor-pointer" onClick={() => setIsFilterPanelOpen(true)}>
+          <span>Title</span>
+          <Filter className="h-3 w-3 text-muted-foreground/60 hover:text-foreground" />
+        </div>
+      ),
+      cell: ({ row }) => <div className="font-medium text-foreground max-w-[200px] truncate">{row.original.title}</div>,
     },
     {
       accessorKey: "projectId",
-      header: "Project",
+      header: () => (
+        <div className="flex items-center gap-1 cursor-pointer" onClick={() => setIsFilterPanelOpen(true)}>
+          <span>Project</span>
+          <Filter className="h-3 w-3 text-muted-foreground/60 hover:text-foreground" />
+        </div>
+      ),
       cell: ({ row }) => {
         const p = projects.find(p => p.id === row.original.projectId);
         return <span className="text-muted-foreground">{p?.name || "Unknown"}</span>;
@@ -97,28 +134,122 @@ function ReportsPage() {
     },
     {
       accessorKey: "statusId",
-      header: "Status",
+      header: () => (
+        <div className="flex items-center gap-1 cursor-pointer" onClick={() => setIsFilterPanelOpen(true)}>
+          <span>Status</span>
+          <Filter className="h-3 w-3 text-muted-foreground/60 hover:text-foreground" />
+        </div>
+      ),
       cell: ({ row }) => {
-        const status = row.original.statusId === "s-done" ? "DONE" : row.original.statusId === "s-in-prog" ? "IN PROGRESS" : "TODO";
-        const color = status === "DONE" ? "text-emerald-500 border-emerald-500/30" : status === "IN PROGRESS" ? "text-blue-500 border-blue-500/30" : "text-muted-foreground";
+        const status = row.original.statusId === "s-done" ? "DONE" : row.original.statusId === "s-progress" ? "IN PROGRESS" : row.original.statusId === "s-todo" ? "TODO" : row.original.statusId === "s-blocked" ? "BLOCKED" : "BACKLOG";
+        const color = status === "DONE" ? "text-emerald-500 border-emerald-500/30" : status === "IN PROGRESS" ? "text-blue-500 border-blue-500/30" : status === "BLOCKED" ? "text-rose-500 border-rose-500/30" : "text-muted-foreground";
         return <Badge variant="outline" className={`${color} text-[10px]`}>{status}</Badge>;
       },
     },
     {
       accessorKey: "priority",
-      header: "Priority",
+      header: () => (
+        <div className="flex items-center gap-1 cursor-pointer" onClick={() => setIsFilterPanelOpen(true)}>
+          <span>Priority</span>
+          <Filter className="h-3 w-3 text-muted-foreground/60 hover:text-foreground" />
+        </div>
+      ),
       cell: ({ row }) => {
         const p = row.original.priority || "MEDIUM";
-        const c = p === "CRITICAL" ? "bg-destructive text-white border-destructive" : p === "HIGH" ? "text-warning border-warning" : "text-muted-foreground";
+        const c = p === "CRITICAL" ? "bg-destructive text-white border-destructive" : p === "HIGH" ? "text-red-500 border-red-500/30 bg-red-500/5 font-bold" : p === "MEDIUM" ? "text-indigo-400 border-indigo-500/30" : "text-muted-foreground";
         return <Badge variant="outline" className={`${c} text-[10px]`}>{p}</Badge>;
       },
     },
     {
+      accessorKey: "category",
+      header: () => (
+        <div className="flex items-center gap-1 cursor-pointer" onClick={() => setIsFilterPanelOpen(true)}>
+          <span>Category</span>
+          <Filter className="h-3 w-3 text-muted-foreground/60 hover:text-foreground" />
+        </div>
+      ),
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.category || "-"}</span>,
+    },
+    {
+      accessorKey: "assigneeIds",
+      header: () => (
+        <div className="flex items-center gap-1 cursor-pointer" onClick={() => setIsFilterPanelOpen(true)}>
+          <span>Assignees</span>
+          <Filter className="h-3 w-3 text-muted-foreground/60 hover:text-foreground" />
+        </div>
+      ),
+      cell: ({ row }) => {
+        const ids = row.original.assigneeIds || [];
+        if (ids.length === 0) return <span className="text-muted-foreground italic">-</span>;
+        const names = ids.map(id => users.find(u => u.id === id)?.name || id).join(", ");
+        return <span className="text-foreground max-w-[120px] truncate block" title={names}>{names}</span>;
+      },
+    },
+    {
+      accessorKey: "estimatedHours",
+      header: () => (
+        <div className="flex items-center gap-1 cursor-pointer" onClick={() => setIsFilterPanelOpen(true)}>
+          <span>Estimate</span>
+          <Filter className="h-3 w-3 text-muted-foreground/60 hover:text-foreground" />
+        </div>
+      ),
+      cell: ({ row }) => <span className="text-muted-foreground font-mono">{row.original.estimatedHours ? `${row.original.estimatedHours}h` : "-"}</span>,
+    },
+    {
       accessorKey: "dueDate",
-      header: "Due Date",
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.dueDate || "-"}</span>,
+      header: () => (
+        <div className="flex items-center gap-1 cursor-pointer" onClick={() => setIsFilterPanelOpen(true)}>
+          <span>Due Date</span>
+          <Filter className="h-3 w-3 text-muted-foreground/60 hover:text-foreground" />
+        </div>
+      ),
+      cell: ({ row }) => <span className="text-muted-foreground font-mono">{row.original.dueDate ? row.original.dueDate.split("T")[0] : "-"}</span>,
+    },
+    {
+      accessorKey: "sprintId",
+      header: () => (
+        <div className="flex items-center gap-1 cursor-pointer" onClick={() => setIsFilterPanelOpen(true)}>
+          <span>Sprint</span>
+          <Filter className="h-3 w-3 text-muted-foreground/60 hover:text-foreground" />
+        </div>
+      ),
+      cell: ({ row }) => {
+        const s = sprints.find(x => x.id === row.original.sprintId);
+        return <span className="text-muted-foreground max-w-[100px] truncate block" title={s?.name}>{s?.name || "-"}</span>;
+      },
     },
   ];
+
+  // Grouped Tasks derivation
+  const groupedTasks = useMemo(() => {
+    if (groupBy === "none") return null;
+    const groups: Record<string, Task[]> = {};
+
+    filteredTasks.forEach(task => {
+      let groupName = "Unassigned";
+
+      if (groupBy === "status") {
+        groupName = task.statusId === "s-done" ? "DONE" : task.statusId === "s-in-prog" ? "IN PROGRESS" : "TODO";
+      } else if (groupBy === "priority") {
+        groupName = task.priority || "MEDIUM";
+      } else if (groupBy === "project") {
+        const p = projects.find(x => x.id === task.projectId);
+        groupName = p?.name || "Unknown Project";
+      } else if (groupBy === "category") {
+        groupName = task.category || "No Category";
+      } else if (groupBy === "phase") {
+        const s = sprints.find(x => x.id === task.sprintId);
+        groupName = s?.name || "No Phase / Sprint";
+      }
+
+      if (!groups[groupName]) {
+        groups[groupName] = [];
+      }
+      groups[groupName].push(task);
+    });
+
+    return groups;
+  }, [filteredTasks, groupBy, projects, sprints]);
 
   const handleExportStart = async () => {
     setIsExporting(true);
@@ -140,13 +271,11 @@ function ReportsPage() {
         const data = await res.json();
         setDownloadJobId(data.jobId);
       } else {
-        // Fallback mock if backend not ready
         await new Promise((r) => setTimeout(r, 2000));
         setDownloadJobId("mock-job-123");
       }
     } catch (e) {
       console.error(e);
-      // Fallback mock
       await new Promise((r) => setTimeout(r, 2000));
       setDownloadJobId("mock-job-123");
     }
@@ -154,7 +283,7 @@ function ReportsPage() {
 
   useEffect(() => {
     if (!downloadJobId || downloadJobId === "mock-job-123") {
-      if (downloadJobId === "mock-job-123") setIsExporting(false); // Mock finishes instantly
+      if (downloadJobId === "mock-job-123") setIsExporting(false);
       return;
     }
     
@@ -174,6 +303,13 @@ function ReportsPage() {
     }, 2000);
     return () => clearInterval(interval);
   }, [downloadJobId]);
+
+  const toggleGroupCollapse = (grp: string) => {
+    setCollapsedGroups(prev => ({
+      ...prev,
+      [grp]: !prev[grp]
+    }));
+  };
 
   return (
     <>
@@ -197,72 +333,53 @@ function ReportsPage() {
               Filter records, track system performance metrics, and trigger asynchronous exports of the task database.
             </p>
             <div className="flex gap-4 text-[11px] text-muted-foreground pt-1.5 font-medium">
-              <span className="flex items-center gap-1"><BarChart2 className="h-3.5 w-3.5 text-emerald-500" /> {filteredTasks.length} tasks matching criteria</span>
+              <span className="flex items-center gap-1">
+                <BarChart2 className="h-3.5 w-3.5 text-emerald-500" /> {filteredTasks.length} tasks matching criteria
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Top Action Bar */}
-        <div className="relative z-10 flex flex-col lg:flex-row gap-4 items-center justify-between p-4 rounded-2xl glass-card-green">
-          <div className="flex flex-wrap gap-4 items-center">
-            <div className="space-y-1">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Project Scope</span>
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger className="w-[180px] h-9 text-xs bg-background/50 border-white/10 rounded-lg">
-                  <SelectValue placeholder="All Projects" />
+        {/* Top Control Bar */}
+        <div className="relative z-10 flex flex-wrap gap-4 items-center justify-between p-4 rounded-2xl glass-card-green">
+          <div className="flex flex-wrap gap-3 items-center">
+            {/* Filter Toggle Button */}
+            <Button
+              variant="outline"
+              onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+              className={`h-9 border-white/10 rounded-xl transition-all ${
+                isFilterPanelOpen 
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                  : "bg-background/50 text-foreground hover:bg-background/80"
+              }`}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              {isFilterPanelOpen ? "Hide Filters" : "Show Filters"}
+            </Button>
+
+            {/* Group By selector */}
+            <div className="flex items-center gap-2 bg-background/50 border border-white/10 rounded-xl px-3 h-9">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1">
+                <ListPlus className="h-3.5 w-3.5" /> Group By:
+              </span>
+              <Select value={groupBy} onValueChange={setGroupBy}>
+                <SelectTrigger className="w-[130px] border-0 bg-transparent h-7 focus:ring-0 focus:ring-offset-0 px-1 py-0 text-xs">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
-                  {projects.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="status">Status</SelectItem>
+                  <SelectItem value="priority">Priority</SelectItem>
+                  <SelectItem value="project">Project</SelectItem>
+                  <SelectItem value="category">Category</SelectItem>
+                  <SelectItem value="phase">Phase</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-1">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Scope filter</span>
-              <Select value={selectedFilter} onValueChange={setSelectedFilter}>
-                <SelectTrigger className="w-[180px] h-9 text-xs bg-background/50 border-white/10 rounded-lg">
-                  <SelectValue placeholder="All Tasks" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Tasks</SelectItem>
-                  <SelectItem value="my">My Tasks</SelectItem>
-                  <SelectItem value="overdue">Overdue</SelectItem>
-                  <SelectItem value="today">Today's Tasks</SelectItem>
-                  <SelectItem value="closed">Closed Tasks</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Priority</span>
-              <Select value={selectedPriority} onValueChange={setSelectedPriority}>
-                <SelectTrigger className="w-[180px] h-9 text-xs bg-background/50 border-white/10 rounded-lg">
-                  <SelectValue placeholder="All Priorities" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priorities</SelectItem>
-                  <SelectItem value="CRITICAL">Critical</SelectItem>
-                  <SelectItem value="HIGH">High</SelectItem>
-                  <SelectItem value="MEDIUM">Medium</SelectItem>
-                  <SelectItem value="LOW">Low</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Due Range Bounds</span>
-              <div className="flex items-center gap-2">
-                <Input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} className="w-[130px] bg-background/50 border-white/10 rounded-lg h-9 text-xs" title="Due Date Start" />
-                <span className="text-muted-foreground text-xs">to</span>
-                <Input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} className="w-[130px] bg-background/50 border-white/10 rounded-lg h-9 text-xs" title="Due Date End" />
-              </div>
             </div>
           </div>
 
-          <div className="shrink-0 pt-2 lg:pt-0">
+          {/* Export Action */}
+          <div className="shrink-0">
             <Dialog open={isExportDialogOpen} onOpenChange={(open) => {
               setIsExportDialogOpen(open);
               if (!open) {
@@ -341,12 +458,162 @@ function ReportsPage() {
           </div>
         </div>
 
-        {/* Data Grid */}
-        <Card className="glass-card-green relative z-10">
-          <div className="p-2">
-            <DataTable columns={columns} data={filteredTasks} searchKey="title" />
+        {/* Content Layout split if sidebar filter panel is active */}
+        <div className={`grid gap-6 items-start relative z-10 transition-all ${
+          isFilterPanelOpen ? "grid-cols-1 lg:grid-cols-[280px_1fr]" : "grid-cols-1"
+        }`}>
+          {/* LEFT FILTER PANEL */}
+          {isFilterPanelOpen && (
+            <Card className="glass-card-green p-4 space-y-5 border-white/5 shadow-xl animate-in slide-in-from-left duration-200">
+              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <SlidersHorizontal className="h-4 w-4 text-primary" /> Filter Options
+                </span>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground" 
+                  onClick={() => setIsFilterPanelOpen(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Project Scope Filter */}
+              <div className="space-y-1.5">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Project Scope</Label>
+                <Select value={selectedProject} onValueChange={setSelectedProject}>
+                  <SelectTrigger className="w-full h-8 text-xs bg-background/50 border-white/10 rounded-lg">
+                    <SelectValue placeholder="All Projects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {projects.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Scope filter */}
+              <div className="space-y-1.5">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Scope filter</Label>
+                <Select value={selectedFilter} onValueChange={setSelectedFilter}>
+                  <SelectTrigger className="w-full h-8 text-xs bg-background/50 border-white/10 rounded-lg">
+                    <SelectValue placeholder="All Tasks" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tasks</SelectItem>
+                    <SelectItem value="my">My Tasks</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                    <SelectItem value="today">Today's Tasks</SelectItem>
+                    <SelectItem value="closed">Closed Tasks</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Priority Filter */}
+              <div className="space-y-1.5">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Priority</Label>
+                <Select value={selectedPriority} onValueChange={setSelectedPriority}>
+                  <SelectTrigger className="w-full h-8 text-xs bg-background/50 border-white/10 rounded-lg">
+                    <SelectValue placeholder="All Priorities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    <SelectItem value="CRITICAL">Critical</SelectItem>
+                    <SelectItem value="HIGH">High</SelectItem>
+                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                    <SelectItem value="LOW">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date range bounds */}
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Due Range Bounds</Label>
+                <div className="space-y-1.5">
+                  <Input 
+                    type="date" 
+                    value={dateStart} 
+                    onChange={(e) => setDateStart(e.target.value)} 
+                    className="w-full bg-background/50 border-white/10 rounded-lg h-8 text-xs text-foreground" 
+                    title="Due Date Start" 
+                  />
+                  <div className="text-[10px] text-center text-muted-foreground">to</div>
+                  <Input 
+                    type="date" 
+                    value={dateEnd} 
+                    onChange={(e) => setDateEnd(e.target.value)} 
+                    className="w-full bg-background/50 border-white/10 rounded-lg h-8 text-xs text-foreground" 
+                    title="Due Date End" 
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    setSelectedProject("all");
+                    setSelectedFilter("all");
+                    setSelectedPriority("all");
+                    setDateStart("");
+                    setDateEnd("");
+                  }} 
+                  className="w-full text-[10px] uppercase font-bold tracking-wider text-muted-foreground hover:text-foreground h-8"
+                >
+                  Reset All Filters
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {/* MAIN DATA VIEW */}
+          <div className="space-y-4">
+            {groupBy === "none" ? (
+              <Card className="glass-card-green p-2 border-white/5 shadow-xl">
+                <DataTable columns={columns} data={filteredTasks} searchKey="title" />
+              </Card>
+            ) : (
+              <div className="space-y-3.5">
+                {Object.entries(groupedTasks || {}).map(([grpName, grpTasks]) => {
+                  const isCollapsed = collapsedGroups[grpName] || false;
+                  return (
+                    <Card key={grpName} className="glass-card-green overflow-hidden border-white/5 shadow-md">
+                      {/* Accordion/Group Header */}
+                      <button
+                        onClick={() => toggleGroupCollapse(grpName)}
+                        className="w-full flex items-center justify-between px-4 py-3 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
+                      >
+                        <div className="flex items-center gap-2">
+                          {isCollapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                          <span className="font-semibold text-sm capitalize text-foreground">{grpName}</span>
+                          <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary hover:bg-primary/20">
+                            {grpTasks.length} {grpTasks.length === 1 ? "task" : "tasks"}
+                          </Badge>
+                        </div>
+                      </button>
+
+                      {/* Accordion Content */}
+                      {!isCollapsed && (
+                        <div className="p-3 border-t border-border/40 bg-card/10">
+                          <DataTable columns={columns} data={grpTasks} searchKey="title" />
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+                {Object.keys(groupedTasks || {}).length === 0 && (
+                  <Card className="glass-card-green p-8 text-center text-muted-foreground border-white/5">
+                    No results grouped.
+                  </Card>
+                )}
+              </div>
+            )}
           </div>
-        </Card>
+        </div>
       </main>
     </>
   );

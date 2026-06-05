@@ -83,6 +83,11 @@ public class IssueController {
         return ResponseEntity.ok(issueService.updateSeverity(id, severity));
     }
 
+    @PatchMapping("/issues/{taskId}")
+    public ResponseEntity<IssueDetail> updateIssueDetail(@PathVariable UUID taskId, @RequestBody Map<String, Object> patches) {
+        return ResponseEntity.ok(issueService.updateIssueDetail(taskId, patches));
+    }
+
     @PostMapping("/issues/{id}/respond")
     public ResponseEntity<Void> respondToIssue(@PathVariable UUID id) {
         issueService.respondToIssue(id);

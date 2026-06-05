@@ -1,11 +1,24 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { tokenStore } from "@/lib/api";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
-  beforeLoad: () => {
-    if (typeof window !== "undefined") {
-      throw redirect({ to: tokenStore.get() ? "/dashboard" : "/login" });
-    }
-  },
-  component: () => null,
+  component: IndexComponent,
 });
+
+function IndexComponent() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (isAuthenticated) {
+        navigate({ to: "/dashboard" });
+      } else {
+        navigate({ to: "/login" });
+      }
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
+  return null;
+}

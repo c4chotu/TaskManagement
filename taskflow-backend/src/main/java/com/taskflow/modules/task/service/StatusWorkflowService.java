@@ -76,6 +76,11 @@ public class StatusWorkflowService {
 
     @Transactional
     public Task transitionStatus(UUID taskId, UUID newStatusId, UUID userId, String comment) {
+        return transitionStatus(taskId, newStatusId, userId, comment, false);
+    }
+
+    @Transactional
+    public Task transitionStatus(UUID taskId, UUID newStatusId, UUID userId, String comment, boolean bypassRoleCheck) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new EntityNotFoundException("Task not found: " + taskId));
 
@@ -85,7 +90,7 @@ public class StatusWorkflowService {
         UUID oldStatusId = task.getCurrentStatusId();
 
         // 1. Validate the transition
-        validateTransition(task, oldStatusId, newStatus, userId, comment);
+        validateTransition(task, oldStatusId, newStatus, userId, comment, bypassRoleCheck);
 
         // 2. Calculate time in previous status
         Integer durationMinutes = null;
@@ -151,16 +156,20 @@ public class StatusWorkflowService {
     }
 
     public void validateTransition(Task task, UUID oldStatusId, CustomTaskStatus newStatus, UUID userId, String comment) {
+        validateTransition(task, oldStatusId, newStatus, userId, comment, false);
+    }
+
+    public void validateTransition(Task task, UUID oldStatusId, CustomTaskStatus newStatus, UUID userId, String comment, boolean bypassRoleCheck) {
         // Enforce required comment for BLOCKED status
         if ("BLOCKED".equalsIgnoreCase(newStatus.getCategory()) && (comment == null || comment.trim().isEmpty())) {
             throw new IllegalArgumentException("Transition to BLOCKED category requires an explanatory comment.");
         }
 
-        if (oldStatusId != null) {
+        if (oldStatusId != null && !bypassRoleCheck) {
             StatusTransition transition = statusTransitionRepository.findByFromStatusIdAndToStatusId(oldStatusId, newStatus.getId())
-                    .orElseThrow(() -> new IllegalArgumentException("No transition exists from current status to " + newStatus.getName()));
+                    .orElse(null);
 
-            if (!canUserPerformTransition(userId, task, transition)) {
+            if (transition != null && !canUserPerformTransition(userId, task, transition)) {
                 throw new UnauthorizedException("User does not have required role to perform this status transition");
             }
         }

@@ -64,7 +64,7 @@ public class AutomationService {
                 .triggerType(triggerType)
                 .ruleType(ruleType != null ? ruleType : "STANDARD")
                 .createdBy(userId)
-                .isActive(true)
+                .enabled(true)
                 .conditions(new ArrayList<>())
                 .actions(new ArrayList<>())
                 .build();
@@ -106,6 +106,63 @@ public class AutomationService {
     }
 
     @Transactional
+    public AutomationRule updateRule(UUID ruleId, UUID projectId, UUID teamId, String name, String description,
+                                     String triggerType, String ruleType,
+                                     List<Map<String, String>> conditionDefs,
+                                     List<Map<String, Object>> actionDefs) {
+        AutomationRule rule = ruleRepository.findById(ruleId)
+                .orElseThrow(() -> new EntityNotFoundException("Rule not found: " + ruleId));
+
+        rule.setProjectId(projectId);
+        rule.setTeamId(teamId);
+        rule.setName(name);
+        rule.setDescription(description);
+        rule.setTriggerType(triggerType);
+        if (ruleType != null) {
+            rule.setRuleType(ruleType);
+        }
+
+        // Clear existing conditions and add new ones
+        rule.getConditions().clear();
+        if (conditionDefs != null) {
+            int pos = 0;
+            for (Map<String, String> cd : conditionDefs) {
+                AutomationCondition condition = AutomationCondition.builder()
+                        .id(UUID.randomUUID())
+                        .rule(rule)
+                        .fieldName(cd.get("fieldName"))
+                        .operator(cd.get("operator"))
+                        .fieldValue(cd.get("fieldValue"))
+                        .position(pos++)
+                        .build();
+                rule.getConditions().add(condition);
+            }
+        }
+
+        // Clear existing actions and add new ones
+        rule.getActions().clear();
+        if (actionDefs != null) {
+            int pos = 0;
+            for (Map<String, Object> ad : actionDefs) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> config = ad.get("actionConfig") instanceof Map
+                        ? (Map<String, Object>) ad.get("actionConfig")
+                        : new java.util.HashMap<>();
+                AutomationAction action = AutomationAction.builder()
+                        .id(UUID.randomUUID())
+                        .rule(rule)
+                        .actionType((String) ad.get("actionType"))
+                        .actionConfig(config)
+                        .position(pos++)
+                        .build();
+                rule.getActions().add(action);
+            }
+        }
+
+        return ruleRepository.save(rule);
+    }
+
+    @Transactional
     public AutomationRule createRule(UUID projectId, UUID teamId, String name, String description, String triggerType,
                                      List<Map<String, String>> conditionDefs,
                                      List<Map<String, Object>> actionDefs) {
@@ -114,7 +171,7 @@ public class AutomationService {
 
     @Transactional(readOnly = true)
     public List<AutomationRule> listRulesForProject(UUID projectId) {
-        return ruleRepository.findByProjectIdAndIsActive(projectId, true);
+        return ruleRepository.findByProjectIdAndEnabled(projectId, true);
     }
 
     @Transactional(readOnly = true)
@@ -126,7 +183,7 @@ public class AutomationService {
     public AutomationRule toggleRule(UUID ruleId) {
         AutomationRule rule = ruleRepository.findById(ruleId)
                 .orElseThrow(() -> new EntityNotFoundException("Rule not found: " + ruleId));
-        rule.setActive(!rule.isActive());
+        rule.setEnabled(!rule.isEnabled());
         return ruleRepository.save(rule);
     }
 
@@ -246,7 +303,7 @@ public class AutomationService {
                 if (uid != null) {
                     UUID userId = UUID.fromString(uid.toString());
                     try {
-                        taskService.assignTask(task.getId(), userId, role);
+                        taskService.assignTaskInternal(task.getId(), userId, role);
                     } catch (Exception e) {
                         throw new RuntimeException("Failed to assign user via automation: " + e.getMessage());
                     }
@@ -259,7 +316,7 @@ public class AutomationService {
                     UUID statusId = UUID.fromString(sid.toString());
                     try {
                         UUID performer = actorId != null ? actorId : SecurityContextHelper.getCurrentUserId();
-                        statusWorkflowService.transitionStatus(task.getId(), statusId, performer, "Automation rule: " + (action.getRule() != null ? action.getRule().getName() : "auto"));
+                        statusWorkflowService.transitionStatus(task.getId(), statusId, performer, "Automation rule: " + (action.getRule() != null ? action.getRule().getName() : "auto"), true);
                     } catch (Exception e) {
                         throw new RuntimeException("Failed to change status via automation: " + e.getMessage());
                     }

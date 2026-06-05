@@ -153,6 +153,60 @@ public class IssueService {
     }
 
     @Transactional
+    public IssueDetail updateIssueDetail(UUID taskId, java.util.Map<String, Object> patches) {
+        IssueDetail detail = issueDetailRepository.findByTaskId(taskId)
+                .orElseThrow(() -> new EntityNotFoundException("Issue details not found for task: " + taskId));
+
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new EntityNotFoundException("Task not found: " + taskId));
+
+        if (patches.containsKey("severity")) {
+            String newSeverity = (String) patches.get("severity");
+            detail.setSeverity(newSeverity);
+            // Recalculate SLA timers based on original reported_at
+            UUID orgId = task.getOrganizationId();
+            int responseMinutes = getDefaultResponseMinutes(newSeverity);
+            int fixMinutes = getDefaultFixMinutes(newSeverity);
+            boolean businessHoursOnly = true;
+
+            Optional<SlaDefinition> slaOpt = slaDefinitionRepository.findByOrganizationIdAndSeverity(orgId, newSeverity);
+            if (slaOpt.isPresent()) {
+                responseMinutes = slaOpt.get().getResponseTimeMinutes();
+                fixMinutes = slaOpt.get().getFixTimeMinutes();
+                businessHoursOnly = slaOpt.get().isBusinessHoursOnly();
+            }
+
+            Instant reportedAt = detail.getReportedAt();
+            detail.setResponseDueAt(calculateDueTime(reportedAt, responseMinutes, businessHoursOnly));
+            detail.setFixDueAt(calculateDueTime(reportedAt, fixMinutes, businessHoursOnly));
+
+            if ("SEV0".equalsIgnoreCase(newSeverity)) {
+                pageEmergency(taskId, newSeverity, orgId);
+            }
+        }
+        if (patches.containsKey("environment")) {
+            detail.setEnvironment((String) patches.get("environment"));
+        }
+        if (patches.containsKey("affectedVersion")) {
+            detail.setAffectedVersion((String) patches.get("affectedVersion"));
+        }
+        if (patches.containsKey("fixedVersion")) {
+            detail.setFixedVersion((String) patches.get("fixedVersion"));
+        }
+        if (patches.containsKey("customerReported")) {
+            detail.setCustomerReported((Boolean) patches.get("customerReported"));
+        }
+        if (patches.containsKey("customerName")) {
+            detail.setCustomerName((String) patches.get("customerName"));
+        }
+        if (patches.containsKey("customerImpact")) {
+            detail.setCustomerImpact((String) patches.get("customerImpact"));
+        }
+
+        return issueDetailRepository.save(detail);
+    }
+
+    @Transactional
     public void respondToIssue(UUID taskId) {
         IssueDetail detail = issueDetailRepository.findByTaskId(taskId)
                 .orElseThrow(() -> new EntityNotFoundException("Issue details not found for task: " + taskId));

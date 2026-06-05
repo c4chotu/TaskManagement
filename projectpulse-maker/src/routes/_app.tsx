@@ -1,18 +1,34 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/tfp/app-sidebar";
-import { tokenStore } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app")({
-  beforeLoad: () => {
-    if (typeof window !== "undefined" && !tokenStore.get()) {
-      throw redirect({ to: "/login" });
-    }
-  },
   component: AppLayout,
 });
 
 function AppLayout() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      navigate({ to: "/login" });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return null;
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-transparent">

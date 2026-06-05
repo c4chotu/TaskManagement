@@ -15,11 +15,17 @@ import {
   useDepartments,
   useRoutingRules,
   useUpdateRoutingRule,
+  useDeleteRoutingRule,
   useUsers,
   useProjects,
   useTasks,
   useIssues,
-  useStatuses
+  useStatuses,
+  useCreateAutomation,
+  useUpdateAutomation,
+  useToggleAutomation,
+  useDeleteAutomation,
+  useAutomationRuleTypes,
 } from "@/lib/queries";
 import { Workflow, Route as RouteIcon, Zap, Plus, Trash2, AlertTriangle, ShieldAlert, CheckCircle2, User, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -47,8 +53,141 @@ function AutomationsPage() {
   const { data: tasks = [] } = useTasks();
   const { data: issues = [] } = useIssues();
   const { data: statuses = [] } = useStatuses();
+  const { data: ruleTypes = [] } = useAutomationRuleTypes();
+
+  // Group rule types by category for the trigger dropdown
+  const ruleTypesByCategory = useMemo(() => {
+    return ruleTypes.reduce<Record<string, typeof ruleTypes>>((acc, rt) => {
+      if (!acc[rt.category]) acc[rt.category] = [];
+      acc[rt.category].push(rt);
+      return acc;
+    }, {});
+  }, [ruleTypes]);
 
   const updateRule = useUpdateRoutingRule();
+  const deleteRule = useDeleteRoutingRule();
+  
+  const createAutomation = useCreateAutomation();
+  const updateAutomation = useUpdateAutomation();
+  const toggleAutomation = useToggleAutomation();
+  const deleteAutomation = useDeleteAutomation();
+
+  const [automationDialogOpen, setAutomationDialogOpen] = useState(false);
+  const [editingAutomation, setEditingAutomation] = useState<any | null>(null);
+
+  const [autoName, setAutoName] = useState("");
+  const [autoDesc, setAutoDesc] = useState("");
+  const [autoTrigger, setAutoTrigger] = useState("TASK_CREATED");
+  const [autoProject, setAutoProject] = useState("");
+  
+  // Single Condition
+  const [autoCondField, setAutoCondField] = useState("statusId");
+  const [autoCondOp, setAutoCondOp] = useState("EQUALS");
+  const [autoCondVal, setAutoCondVal] = useState("");
+
+  // Single Action
+  const [autoActType, setAutoActType] = useState("ASSIGN_USER");
+  const [autoActUser, setAutoActUser] = useState("");
+  const [autoActStatus, setAutoActStatus] = useState("");
+  const [autoActOffset, setAutoActOffset] = useState("3");
+
+  const handleOpenCreateAutomation = () => {
+    setEditingAutomation(null);
+    setAutoName("");
+    setAutoDesc("");
+    setAutoTrigger("TASK_CREATED");
+    setAutoProject(projects[0]?.id || "");
+    setAutoCondField("statusId");
+    setAutoCondOp("EQUALS");
+    setAutoCondVal(statuses[0]?.id || "");
+    setAutoActType("ASSIGN_USER");
+    setAutoActUser(users[0]?.id || "");
+    setAutoActStatus(statuses[0]?.id || "");
+    setAutoActOffset("3");
+    setAutomationDialogOpen(true);
+  };
+
+  const handleOpenEditAutomation = (w: any) => {
+    setEditingAutomation(w);
+    setAutoName(w.name || "");
+    setAutoDesc(w.description || "");
+    setAutoTrigger(w.triggerType || "TASK_CREATED");
+    setAutoProject(w.projectId || "");
+    
+    // Parse condition
+    if (w.conditions && w.conditions.length > 0) {
+      setAutoCondField(w.conditions[0].fieldName || "statusId");
+      setAutoCondOp(w.conditions[0].operator || "EQUALS");
+      setAutoCondVal(w.conditions[0].fieldValue || "");
+    } else {
+      setAutoCondField("statusId");
+      setAutoCondOp("EQUALS");
+      setAutoCondVal("");
+    }
+
+    // Parse action
+    if (w.actions && w.actions.length > 0) {
+      const act = w.actions[0];
+      setAutoActType(act.actionType || "ASSIGN_USER");
+      const cfg = act.actionConfig || {};
+      if (act.actionType === "ASSIGN_USER") {
+        setAutoActUser(cfg.userId || "");
+      } else if (act.actionType === "CHANGE_STATUS") {
+        setAutoActStatus(cfg.statusId || cfg.targetStatusId || "");
+      } else if (act.actionType === "SET_DUE_DATE_OFFSET") {
+        setAutoActOffset(String(cfg.daysOffset || cfg.offsetDays || "3"));
+      }
+    } else {
+      setAutoActType("ASSIGN_USER");
+      setAutoActUser("");
+      setAutoActStatus("");
+      setAutoActOffset("3");
+    }
+    setAutomationDialogOpen(true);
+  };
+
+  const handleSaveAutomation = async () => {
+    if (!autoName.trim()) {
+      toast.error("Rule name is required");
+      return;
+    }
+    const conds = autoCondVal ? [{ fieldName: autoCondField, operator: autoCondOp, fieldValue: autoCondVal }] : [];
+    const actConfig: any = {};
+    if (autoActType === "ASSIGN_USER") actConfig.userId = autoActUser;
+    else if (autoActType === "CHANGE_STATUS") actConfig.statusId = autoActStatus;
+    else if (autoActType === "SET_DUE_DATE_OFFSET") actConfig.daysOffset = Number(autoActOffset);
+
+    const actions = [{ actionType: autoActType, actionConfig: actConfig }];
+
+    try {
+      if (editingAutomation) {
+        await updateAutomation.mutateAsync({
+          id: editingAutomation.id,
+          projectId: autoProject || undefined,
+          name: autoName,
+          description: autoDesc,
+          triggerType: autoTrigger,
+          conditions: conds,
+          actions,
+        });
+        toast.success("Automation updated successfully");
+      } else {
+        await createAutomation.mutateAsync({
+          projectId: autoProject || undefined,
+          name: autoName,
+          description: autoDesc,
+          triggerType: autoTrigger,
+          conditions: conds,
+          actions,
+        });
+        toast.success("Automation created successfully");
+      }
+      setAutomationDialogOpen(false);
+    } catch (err) {
+      toast.error("Failed to save automation");
+    }
+  };
+
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAutomationsRoot = pathname === "/automations";
 
@@ -231,7 +370,7 @@ function AutomationsPage() {
                         </div>
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={async () => {
                           try {
-                            await updateRule.mutateAsync({ id: rule.id, rule: { enabled: false } }); // delete simulation
+                            await deleteRule.mutateAsync(rule.id);
                             toast.success("Rule removed");
                           } catch {
                             toast.error("Unable to delete rule");
@@ -250,22 +389,52 @@ function AutomationsPage() {
 
             {/* Default Workflow Automations (Status-change listeners) */}
             <Card className="glass-card-green p-6 space-y-4 shadow-[0_0_24px_rgba(16,185,129,0.08)]">
-              <div className="flex items-center gap-2 border-b border-border/60 pb-3">
-                <Workflow className="h-5 w-5 text-indigo-500" />
-                <h3 className="font-semibold text-base">Standard Workflow Automations</h3>
+              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <div className="flex items-center gap-2">
+                  <Workflow className="h-5 w-5 text-indigo-500" />
+                  <h3 className="font-semibold text-base">Standard Workflow Automations</h3>
+                </div>
+                <Button size="sm" onClick={handleOpenCreateAutomation} className="bg-gradient-primary text-primary-foreground font-semibold rounded-xl gap-1">
+                  <Plus className="h-3.5 w-3.5" /> Add Standard Automation
+                </Button>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {workflows.map((w) => (
                   <Card key={w.id} className="p-4 border border-border/50 bg-card/80 backdrop-blur-sm space-y-2 hover:shadow-[0_0_16px_rgba(99,102,241,0.1)] transition-all">
                     <div className="flex items-center justify-between">
                       <p className="font-semibold text-xs text-foreground">{w.name}</p>
-                      <Badge variant={w.enabled ? "outline" : "secondary"} className="text-[8px] uppercase">
-                        {w.enabled ? "Enabled" : "Disabled"}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-muted-foreground font-semibold">{w.enabled ? "ACTIVE" : "PAUSED"}</span>
+                        <Switch checked={w.enabled} onCheckedChange={async (checked) => {
+                          try {
+                            await toggleAutomation.mutateAsync(w.id);
+                            toast.success("Automation toggled");
+                          } catch {
+                            toast.error("Unable to toggle automation");
+                          }
+                        }} />
+                      </div>
                     </div>
                     <p className="text-[11px] text-muted-foreground">{w.description}</p>
-                    <div className="flex items-center gap-1 text-[9px] font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/10 w-fit">
-                      <Sparkles className="h-3 w-3" /> Trigger: {w.triggerType}
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40">
+                      <div className="flex items-center gap-1 text-[9px] font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/10 w-fit">
+                        <Sparkles className="h-3 w-3" /> Trigger: {w.triggerType}
+                      </div>
+                      <Button size="xs" variant="ghost" className="h-6 px-2 text-[10px] text-primary" onClick={() => handleOpenEditAutomation(w)}>
+                        Edit
+                      </Button>
+                      <Button size="xs" variant="ghost" className="h-6 px-2 text-[10px] text-destructive hover:bg-destructive/10" onClick={async () => {
+                        if (confirm("Are you sure you want to delete this automation rule?")) {
+                          try {
+                            await deleteAutomation.mutateAsync(w.id);
+                            toast.success("Automation removed");
+                          } catch {
+                            toast.error("Unable to delete automation");
+                          }
+                        }
+                      }}>
+                        Delete
+                      </Button>
                     </div>
                   </Card>
                 ))}
@@ -357,6 +526,169 @@ function AutomationsPage() {
             </Card>
           </div>
         </div>
+
+        {/* Standard Automation Create/Edit Dialog */}
+        <Dialog open={automationDialogOpen} onOpenChange={setAutomationDialogOpen}>
+          <DialogContent className="glass-card border border-white/10 bg-card/90 backdrop-blur-md rounded-2xl p-6 sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold text-foreground">
+                {editingAutomation ? "Edit Automation Rule" : "Create Automation Rule"}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Configure event-driven actions based on task transitions and criteria.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2 text-xs">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase">Rule Name</Label>
+                <Input value={autoName} onChange={(e) => setAutoName(e.target.value)} placeholder="e.g. Set high priority task handler" className="h-9" />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase">Description</Label>
+                <Input value={autoDesc} onChange={(e) => setAutoDesc(e.target.value)} placeholder="Describe the goal of this rule..." className="h-9" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Project Scope</Label>
+                  <Select value={autoProject} onValueChange={setAutoProject}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Global Rule" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_global">Global (All Projects)</SelectItem>
+                      {projects.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">WHEN (Trigger Type)</Label>
+                  <Select value={autoTrigger} onValueChange={setAutoTrigger}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-64 overflow-y-auto">
+                      {ruleTypes.length > 0 ? (
+                        ruleTypes.map((rt) => (
+                          <SelectItem key={rt.code} value={rt.triggerType} className="text-xs">
+                            <span className="text-[9px] text-muted-foreground mr-1.5 uppercase">[{rt.category}]</span>
+                            {rt.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <>
+                          <SelectItem value="TASK_CREATED">Task Created</SelectItem>
+                          <SelectItem value="TASK_STATUS_CHANGED">Task Status Changed</SelectItem>
+                          <SelectItem value="TASK_ASSIGNED">Task Assigned</SelectItem>
+                          <SelectItem value="TASK_OVERDUE">Task Overdue</SelectItem>
+                          <SelectItem value="TASK_DUE_SOON">Task Due Soon</SelectItem>
+                          <SelectItem value="ISSUE_CREATED">Issue Created</SelectItem>
+                          <SelectItem value="SLA_BREACHED">SLA Breached</SelectItem>
+                          <SelectItem value="SPRINT_STARTED">Sprint / Phase Started</SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Condition Section */}
+              <div className="space-y-2 border border-border/60 bg-muted/10 p-3 rounded-xl">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase">IF (Condition Criteria - Optional)</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <Select value={autoCondField} onValueChange={setAutoCondField}>
+                    <SelectTrigger className="h-8 text-[10px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="statusId">Status</SelectItem>
+                      <SelectItem value="priority">Priority</SelectItem>
+                      <SelectItem value="taskType">Task Type</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={autoCondOp} onValueChange={setAutoCondOp}>
+                    <SelectTrigger className="h-8 text-[10px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EQUALS">Equals</SelectItem>
+                      <SelectItem value="NOT_EQUALS">Does Not Equal</SelectItem>
+                      <SelectItem value="CONTAINS">Contains</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Input value={autoCondVal} onChange={(e) => setAutoCondVal(e.target.value)} placeholder="Value or ID" className="h-8 text-[10px]" />
+                </div>
+                <p className="text-[9px] text-muted-foreground">Tip: Enter statusId (e.g. s-todo), priority (e.g. HIGH), etc.</p>
+              </div>
+
+              {/* Action Section */}
+              <div className="space-y-2 border border-border/60 bg-muted/10 p-3 rounded-xl">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase">THEN (Execute Action)</Label>
+                <div className="space-y-2">
+                  <Select value={autoActType} onValueChange={setAutoActType}>
+                    <SelectTrigger className="h-8 text-[10px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ASSIGN_USER">Assign User</SelectItem>
+                      <SelectItem value="CHANGE_STATUS">Change Status</SelectItem>
+                      <SelectItem value="SET_DUE_DATE_OFFSET">Set Due Date Offset</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {autoActType === "ASSIGN_USER" && (
+                    <Select value={autoActUser} onValueChange={setAutoActUser}>
+                      <SelectTrigger className="h-8 text-[10px]">
+                        <SelectValue placeholder="Select User" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {autoActType === "CHANGE_STATUS" && (
+                    <Select value={autoActStatus} onValueChange={setAutoActStatus}>
+                      <SelectTrigger className="h-8 text-[10px]">
+                        <SelectValue placeholder="Select Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statuses.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {autoActType === "SET_DUE_DATE_OFFSET" && (
+                    <div className="flex items-center gap-2">
+                      <Input type="number" value={autoActOffset} onChange={(e) => setAutoActOffset(e.target.value)} className="h-8 text-[10px] w-20" />
+                      <span className="text-[10px] text-muted-foreground">Days from current date</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setAutomationDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" size="sm" onClick={handleSaveAutomation} className="bg-gradient-primary text-primary-foreground font-semibold">
+                Save Rule
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </>
   );

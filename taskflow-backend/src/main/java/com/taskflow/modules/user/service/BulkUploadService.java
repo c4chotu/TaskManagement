@@ -175,55 +175,78 @@ public class BulkUploadService {
     }
 
     // -------------------------------------------------------------------------
-    // Tasks: CSV columns → projectKey,title,description,priority,type,dueDate,assigneeEmail
+    // Tasks: CSV columns → projectKey,title,description,priority,type,dueDate,assigneeEmail,teamName,category,storyPoints
     // -------------------------------------------------------------------------
     @Transactional
     public BulkUploadResult uploadTasks(MultipartFile file) {
         UUID orgId = requireOrgId();
-        List<String[]> rows = parseCsv(file);
+        List<Map<String, String>> rows = parseCsvToMaps(file);
         int ok = 0; int fail = 0; List<String> errors = new ArrayList<>();
 
         Map<String, UUID> teamMap = new HashMap<>();
         teamRepository.findByOrganizationId(orgId).forEach(t -> teamMap.put(t.getName().toLowerCase(), t.getId()));
 
         for (int i = 0; i < rows.size(); i++) {
-            String[] row = rows.get(i);
+            Map<String, String> row = rows.get(i);
             try {
-                if (row.length < 2) throw new IllegalArgumentException("Requires projectKey,title");
-                String projectKey = trim(row, 0).toUpperCase();
-                String title = trim(row, 1);
-                String description = row.length > 2 ? trim(row, 2) : "";
-                String priority = row.length > 3 ? trim(row, 3).toUpperCase() : "MEDIUM";
-                String taskType = row.length > 4 ? trim(row, 4).toUpperCase() : "TASK";
-                String dueDateStr = row.length > 5 ? trim(row, 5) : "";
-                String assigneeEmail = row.length > 6 ? trim(row, 6).toLowerCase() : "";
+                String projectKey = row.getOrDefault("projectkey", "").toUpperCase();
+                String title = row.getOrDefault("title", "");
 
-                if (title.isEmpty()) throw new IllegalArgumentException("title is blank");
+                if (projectKey.isEmpty() || title.isEmpty()) {
+                    throw new IllegalArgumentException("Requires projectKey and title");
+                }
 
                 var project = projectRepository.findByOrganizationIdAndKey(orgId, projectKey)
                         .orElseThrow(() -> new IllegalArgumentException("Project key not found: " + projectKey));
 
-                // Ensure current user is a project member for service-level checks
-                // We call TaskService which handles counter + displayId
                 TaskRequest req = new TaskRequest();
                 req.setProjectId(project.getId());
                 req.setTitle(title);
+
+                String description = row.getOrDefault("description", "");
                 req.setDescription(description.isEmpty() ? null : description);
+
+                String priority = row.getOrDefault("priority", "MEDIUM").toUpperCase();
                 req.setPriority(priority);
+
+                String taskType = row.getOrDefault("type", "TASK").toUpperCase();
                 req.setTaskType(taskType);
+
+                String dueDateStr = row.getOrDefault("duedate", "");
                 if (!dueDateStr.isEmpty()) {
                     try { req.setDueDate(Instant.parse(dueDateStr)); } catch (Exception ignored) {}
                 }
 
-                String teamName = row.length > 7 ? trim(row, 7) : "";
+                String teamName = row.getOrDefault("teamname", "");
                 if (!teamName.isEmpty()) {
                     UUID tId = teamMap.get(teamName.toLowerCase());
                     if (tId != null) req.setTeamId(tId);
                 }
 
+                String category = row.getOrDefault("category", "");
+                if (!category.isEmpty()) {
+                    req.setCategory(category.toUpperCase());
+                }
+
+                String storyPointsStr = row.getOrDefault("storypoints", "");
+                if (!storyPointsStr.isEmpty()) {
+                    try { req.setStoryPoints(Integer.parseInt(storyPointsStr)); } catch (Exception ignored) {}
+                }
+
+                String phaseIdStr = row.getOrDefault("phaseid", "");
+                if (!phaseIdStr.isEmpty()) {
+                    try { req.setSprintId(UUID.fromString(phaseIdStr)); } catch (Exception ignored) {}
+                }
+
+                String statusIdStr = row.getOrDefault("statusid", "");
+                if (!statusIdStr.isEmpty()) {
+                    try { req.setCurrentStatusId(UUID.fromString(statusIdStr)); } catch (Exception ignored) {}
+                }
+
                 TaskResponse created = taskService.createTask(req);
 
                 // Assign if assigneeEmail given
+                String assigneeEmail = row.getOrDefault("assigneeemail", "").toLowerCase();
                 if (!assigneeEmail.isEmpty()) {
                     userRepository.findByEmail(assigneeEmail).ifPresent(u -> {
                         // Check project member
@@ -311,6 +334,38 @@ public class BulkUploadService {
             while ((line = br.readLine()) != null) {
                 if (line.isBlank()) continue;
                 rows.add(line.split(",", -1));
+            }
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to parse CSV: " + e.getMessage());
+        }
+        return rows;
+    }
+
+    private List<Map<String, String>> parseCsvToMaps(MultipartFile file) {
+        List<Map<String, String>> rows = new ArrayList<>();
+        try (BufferedReader br = new BufferedReader(
+                new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            String headerLine = br.readLine();
+            if (headerLine == null) return rows;
+            
+            String[] headers = headerLine.split(",", -1);
+            for (int i = 0; i < headers.length; i++) {
+                headers[i] = headers[i].trim().toLowerCase().replace("\"", "");
+            }
+            
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.isBlank()) continue;
+                String[] values = line.split(",", -1);
+                Map<String, String> rowMap = new HashMap<>();
+                for (int i = 0; i < headers.length; i++) {
+                    if (i < values.length) {
+                        rowMap.put(headers[i], values[i].trim().replace("\"", ""));
+                    } else {
+                        rowMap.put(headers[i], "");
+                    }
+                }
+                rows.add(rowMap);
             }
         } catch (Exception e) {
             throw new IllegalArgumentException("Failed to parse CSV: " + e.getMessage());

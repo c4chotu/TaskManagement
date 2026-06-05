@@ -56,8 +56,17 @@ public class TaskController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TaskResponse>> listTasks(@RequestParam(required = false) UUID projectId) {
-        return ResponseEntity.ok(taskService.listTasks(projectId));
+    public ResponseEntity<List<TaskResponse>> listTasks(
+            @RequestParam(required = false) UUID projectId,
+            @RequestParam(required = false) String priority,
+            @RequestParam(required = false) UUID phaseId,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) UUID statusId,
+            @RequestParam(required = false) String taskType,
+            @RequestParam(required = false) String assigneeId,
+            @RequestParam(required = false) String dueDateFrom,
+            @RequestParam(required = false) String dueDateTo) {
+        return ResponseEntity.ok(taskService.listTasks(projectId, priority, phaseId, category, statusId, taskType, assigneeId, dueDateFrom, dueDateTo));
     }
 
     @PostMapping("/{id}/assignees")

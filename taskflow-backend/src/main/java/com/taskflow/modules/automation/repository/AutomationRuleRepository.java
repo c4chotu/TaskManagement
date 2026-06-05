@@ -11,15 +11,15 @@ import java.util.UUID;
 
 @Repository
 public interface AutomationRuleRepository extends JpaRepository<AutomationRule, UUID> {
-    List<AutomationRule> findByProjectIdAndIsActive(UUID projectId, boolean isActive);
+    List<AutomationRule> findByProjectIdAndEnabled(UUID projectId, boolean enabled);
     List<AutomationRule> findByOrganizationId(UUID organizationId);
-    List<AutomationRule> findByProjectIdAndTriggerTypeAndIsActive(UUID projectId, String triggerType, boolean isActive);
+    List<AutomationRule> findByProjectIdAndTriggerTypeAndEnabled(UUID projectId, String triggerType, boolean enabled);
 
-    @Query("SELECT r FROM AutomationRule r WHERE r.organizationId = :orgId AND r.triggerType = :triggerType AND r.isActive = :isActive AND " +
+    @Query("SELECT r FROM AutomationRule r WHERE r.organizationId = :orgId AND LOWER(r.triggerType) = LOWER(:triggerType) AND r.enabled = :enabled AND " +
            "(r.projectId = :projectId OR (r.projectId IS NULL AND r.teamId IS NULL) OR (r.projectId IS NULL AND :teamId IS NOT NULL AND r.teamId = :teamId))")
     List<AutomationRule> findActiveRulesByScope(@Param("orgId") UUID orgId, 
                                                 @Param("projectId") UUID projectId, 
                                                 @Param("teamId") UUID teamId, 
                                                 @Param("triggerType") String triggerType, 
-                                                @Param("isActive") boolean isActive);
+                                                @Param("enabled") boolean enabled);
 }

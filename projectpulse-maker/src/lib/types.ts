@@ -91,6 +91,7 @@ export interface Task {
   taskType: TaskType;
   createdAt: string;
   dueDate?: string;
+  startDate?: string;
   assigneeIds: string[];
   estimatedHours?: number;
   loggedHours?: number;
@@ -170,6 +171,20 @@ export interface AutomationRule {
   description?: string;
   triggerType: string;
   enabled: boolean;
+  ruleType?: string;
+  conditions?: any[];
+  actions?: any[];
+}
+
+export interface AutomationRuleType {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  category: string;
+  triggerType: string;
+  defaultActionType?: string;
+  isSystem: boolean;
 }
 
 export interface WorkloadInfo {

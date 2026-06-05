@@ -4,7 +4,7 @@
 import { toast } from "sonner";
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "";
-export const USE_MOCK = false;
+export const USE_MOCK = true;
 
 const TOKEN_KEY = "tfp.accessToken";
 const REFRESH_KEY = "tfp.refreshToken";

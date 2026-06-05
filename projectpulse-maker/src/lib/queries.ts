@@ -8,6 +8,7 @@ import type {
   Attachment,
   AuthResult,
   AutomationRule,
+  AutomationRuleType,
   Comment,
   CustomTaskStatus,
   Department,
@@ -177,12 +178,11 @@ export function useCreateProject() {
 
 // ---------- statuses ----------
 export function useStatuses(_projectId?: string) {
-  const isDefault = !_projectId || _projectId === "default" || _projectId === "undefined";
   return useQuery({
-    queryKey: ["statuses", isDefault ? "default" : _projectId],
+    queryKey: ["statuses", "default"],
     queryFn: async (): Promise<CustomTaskStatus[]> => {
       if (USE_MOCK) return mock.mockStatuses.default;
-      const url = isDefault ? "/organizations/statuses" : `/projects/${_projectId}/statuses`;
+      const url = "/organizations/statuses";
       return apiRequest<CustomTaskStatus[]>(url);
     },
   });
@@ -192,20 +192,18 @@ export function useCreateStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (vars: { projectId?: string; status: Omit<CustomTaskStatus, "id"> }) => {
-      const isDefault = !vars.projectId || vars.projectId === "default" || vars.projectId === "undefined";
       if (USE_MOCK) {
         const ns: CustomTaskStatus = { id: `s-${Date.now()}`, ...vars.status };
         mock.mockStatuses.default.push(ns);
         return ns;
       }
-      const url = isDefault ? "/organizations/statuses" : `/projects/${vars.projectId}/statuses`;
+      const url = "/organizations/statuses";
       return apiRequest<CustomTaskStatus>(url, {
         method: "POST",
         body: vars.status,
       });
     },
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ["statuses", vars.projectId ?? "default"] });
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["statuses", "default"] });
     },
   });
@@ -255,7 +253,17 @@ export function useDeleteStatus() {
 }
 
 // ---------- tasks ----------
-export function useTasks(filter?: { projectId?: string; taskType?: Task["taskType"] }) {
+export function useTasks(filter?: {
+  projectId?: string;
+  priority?: string;
+  phaseId?: string;
+  category?: string;
+  statusId?: string;
+  taskType?: Task["taskType"];
+  assigneeId?: string;
+  dueDateFrom?: string;
+  dueDateTo?: string;
+}) {
   return useQuery({
     queryKey: ["tasks", filter],
     queryFn: async (): Promise<Task[]> => {
@@ -263,7 +271,10 @@ export function useTasks(filter?: { projectId?: string; taskType?: Task["taskTyp
         return mock.mockTasks.filter(
           (t) =>
             (!filter?.projectId || t.projectId === filter.projectId) &&
-            (!filter?.taskType || t.taskType === filter.taskType),
+            (!filter?.taskType || t.taskType === filter.taskType) &&
+            (!filter?.priority || t.priority === filter.priority) &&
+            (!filter?.category || t.category === filter.category) &&
+            (!filter?.statusId || t.statusId === filter.statusId)
         );
       }
       return apiRequest<Task[]>("/tasks", { query: filter });
@@ -327,7 +338,10 @@ export function useUpdateTaskStatus() {
         body: { newStatusId: vars.statusId, comment: vars.comment },
       });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["task", vars.taskId] });
+    },
   });
 }
 
@@ -429,6 +443,27 @@ export function useResolveIssue() {
   });
 }
 
+export function useUpdateIssueDetail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { taskId: string; patch: Record<string, any> }) => {
+      if (USE_MOCK) {
+        const i = mock.mockIssues.find((x) => x.taskId === vars.taskId);
+        if (i) Object.assign(i, vars.patch);
+        return i;
+      }
+      return apiRequest<Issue>(`/issues/${vars.taskId}`, {
+        method: "PATCH",
+        body: vars.patch,
+      });
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["issues"] });
+      qc.invalidateQueries({ queryKey: ["issue", v.taskId] });
+    },
+  });
+}
+
 // ---------- time tracking ----------
 export function useTimeEntries() {
   return useQuery({
@@ -507,6 +542,133 @@ export function useAutomations() {
     queryKey: ["automations"],
     queryFn: async (): Promise<AutomationRule[]> =>
       USE_MOCK ? mock.mockAutomations : apiRequest<AutomationRule[]>("/automations"),
+  });
+}
+
+export function useAutomationRuleTypes() {
+  return useQuery({
+    queryKey: ["automation-rule-types"],
+    queryFn: async (): Promise<AutomationRuleType[]> => {
+      if (USE_MOCK) {
+        // Return a mock set of rule types for development
+        return [
+          { id: "1", code: "TASK_CREATED", name: "Task Created", description: "Fires when a task is created", category: "TASK", triggerType: "TASK_CREATED", defaultActionType: "ASSIGN_USER", isSystem: true },
+          { id: "2", code: "TASK_UPDATED", name: "Task Updated", description: "Fires when a task is changed", category: "TASK", triggerType: "TASK_UPDATED", defaultActionType: "SEND_NOTIFICATION", isSystem: true },
+          { id: "3", code: "TASK_STATUS_CHANGED", name: "Task Status Changed", description: "Fires when task status changes", category: "TASK", triggerType: "TASK_STATUS_CHANGED", defaultActionType: "SEND_NOTIFICATION", isSystem: true },
+          { id: "4", code: "TASK_ASSIGNED", name: "Task Assigned", description: "Fires when task is assigned", category: "TASK", triggerType: "TASK_ASSIGNED", defaultActionType: "SEND_NOTIFICATION", isSystem: true },
+          { id: "5", code: "TASK_DUE_SOON", name: "Task Due Soon", description: "Fires 24h before due date", category: "TASK", triggerType: "TASK_DUE_SOON", defaultActionType: "SEND_NOTIFICATION", isSystem: true },
+          { id: "6", code: "TASK_OVERDUE", name: "Task Overdue", description: "Fires when task passes due date", category: "TASK", triggerType: "TASK_OVERDUE", defaultActionType: "ESCALATE", isSystem: true },
+          { id: "7", code: "TASK_COMPLETED", name: "Task Completed", description: "Fires when task is done", category: "TASK", triggerType: "TASK_COMPLETED", defaultActionType: "SEND_NOTIFICATION", isSystem: true },
+          { id: "8", code: "TASK_PRIORITY_CHANGED", name: "Task Priority Changed", description: "Fires when priority changes", category: "TASK", triggerType: "TASK_PRIORITY_CHANGED", defaultActionType: "SEND_NOTIFICATION", isSystem: true },
+          { id: "9", code: "ISSUE_CREATED", name: "Issue / Incident Created", description: "Fires when an issue is reported", category: "ISSUE", triggerType: "ISSUE_CREATED", defaultActionType: "ASSIGN_USER", isSystem: true },
+          { id: "10", code: "SLA_BREACHED", name: "SLA Breached", description: "Fires when SLA threshold is reached", category: "ISSUE", triggerType: "SLA_BREACHED", defaultActionType: "ESCALATE", isSystem: true },
+          { id: "11", code: "SPRINT_STARTED", name: "Sprint / Phase Started", description: "Fires when sprint is activated", category: "SPRINT", triggerType: "SPRINT_STARTED", defaultActionType: "SEND_NOTIFICATION", isSystem: true },
+          { id: "12", code: "SPRINT_COMPLETED", name: "Sprint / Phase Completed", description: "Fires when sprint completes", category: "SPRINT", triggerType: "SPRINT_COMPLETED", defaultActionType: "SEND_NOTIFICATION", isSystem: true },
+          { id: "13", code: "PROJECT_MEMBER_ADDED", name: "Member Added to Project", description: "Fires when user joins project", category: "PROJECT", triggerType: "PROJECT_MEMBER_ADDED", defaultActionType: "SEND_NOTIFICATION", isSystem: true },
+          { id: "14", code: "COMMENT_ADDED", name: "Comment Added", description: "Fires when comment is posted", category: "TASK", triggerType: "COMMENT_ADDED", defaultActionType: "SEND_NOTIFICATION", isSystem: true },
+        ];
+      }
+      return apiRequest<AutomationRuleType[]>("/automations/rule-types");
+    },
+    staleTime: 10 * 60 * 1000, // Rule types are stable - cache for 10 mins
+  });
+}
+
+export function useCreateAutomation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: {
+      projectId?: string;
+      teamId?: string;
+      name: string;
+      description?: string;
+      triggerType: string;
+      conditions: any[];
+      actions: any[];
+    }) => {
+      if (USE_MOCK) {
+        const nr: AutomationRule = {
+          id: `auto-${Date.now()}`,
+          projectId: vars.projectId || "",
+          name: vars.name,
+          description: vars.description,
+          triggerType: vars.triggerType,
+          enabled: true,
+        };
+        mock.mockAutomations.push(nr);
+        return nr;
+      }
+      return apiRequest<AutomationRule>("/automations", {
+        method: "POST",
+        body: vars,
+      });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["automations"] }),
+  });
+}
+
+export function useUpdateAutomation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: {
+      id: string;
+      projectId?: string;
+      teamId?: string;
+      name: string;
+      description?: string;
+      triggerType: string;
+      conditions: any[];
+      actions: any[];
+    }) => {
+      if (USE_MOCK) {
+        const r = mock.mockAutomations.find((x) => x.id === vars.id);
+        if (r) {
+          r.name = vars.name;
+          r.description = vars.description;
+          r.triggerType = vars.triggerType;
+        }
+        return r;
+      }
+      return apiRequest<AutomationRule>(`/automations/${vars.id}`, {
+        method: "PUT",
+        body: vars,
+      });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["automations"] }),
+  });
+}
+
+export function useToggleAutomation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (USE_MOCK) {
+        const r = mock.mockAutomations.find((x) => x.id === id);
+        if (r) r.enabled = !r.enabled;
+        return r;
+      }
+      return apiRequest<AutomationRule>(`/automations/${id}/toggle`, {
+        method: "POST",
+      });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["automations"] }),
+  });
+}
+
+export function useDeleteAutomation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (USE_MOCK) {
+        const idx = mock.mockAutomations.findIndex((x) => x.id === id);
+        if (idx >= 0) mock.mockAutomations.splice(idx, 1);
+        return true;
+      }
+      return apiRequest<void>(`/automations/${id}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["automations"] }),
   });
 }
 
@@ -786,6 +948,25 @@ export function useSprints(projectId?: string) {
   });
 }
 
+export interface Phase {
+  id: string;
+  projectId: string;
+  name: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export function usePhases(projectId?: string) {
+  return useQuery({
+    queryKey: ["phases", projectId ?? "all"],
+    queryFn: async (): Promise<Phase[]> => {
+      if (USE_MOCK) return [];
+      return apiRequest<Phase[]>(`/projects/${projectId}/phases`);
+    },
+    enabled: !!projectId,
+  });
+}
+
 export function useCreateSprint() {
   const qc = useQueryClient();
   return useMutation({
@@ -796,6 +977,24 @@ export function useCreateSprint() {
         return s;
       }
       return apiRequest<Sprint>("/sprints", { method: "POST", body: payload });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sprints"] }),
+  });
+}
+
+export function useUpdateSprint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { id: string; payload: Partial<Sprint> }) => {
+      if (USE_MOCK) {
+        const s = mock.mockSprints.find((x) => x.id === vars.id);
+        if (s) Object.assign(s, vars.payload);
+        return s;
+      }
+      return apiRequest<Sprint>(`/sprints/${vars.id}`, {
+        method: "PUT",
+        body: vars.payload,
+      });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sprints"] }),
   });
@@ -1137,6 +1336,21 @@ export function useUpdateRoutingRule() {
         method: "PUT",
         body: vars.rule,
       });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["routing-rules"] }),
+  });
+}
+
+export function useDeleteRoutingRule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (USE_MOCK) {
+        const idx = mock.mockRoutingRules.findIndex((x) => x.id === id);
+        if (idx >= 0) mock.mockRoutingRules.splice(idx, 1);
+        return true;
+      }
+      return apiRequest<void>(`/routing/rules/${id}`, { method: "DELETE" });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["routing-rules"] }),
   });

@@ -106,7 +106,16 @@ public class TaskRoutingController {
         if (orgId == null) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(routingRuleRepository.findByOrganizationIdAndEnabledTrueOrderByPriorityDesc(orgId));
+        return ResponseEntity.ok(routingRuleRepository.findByOrganizationIdOrderByPriorityDesc(orgId));
+    }
+
+    @DeleteMapping("/routing/rules/{id}")
+    public ResponseEntity<Void> deleteRule(@PathVariable UUID id) {
+        if (!routingRuleRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        routingRuleRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/routing/rules/{id}")
