@@ -46,5 +46,6 @@ public class TaskResponse {
     // Associations
     private List<UUID> assigneeIds;
     private List<UUID> predecessorIds;
+    private Double estimatedHours;
 }
 

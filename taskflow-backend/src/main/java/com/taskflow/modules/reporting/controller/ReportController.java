@@ -2,6 +2,7 @@ package com.taskflow.modules.reporting.controller;
 
 import com.taskflow.modules.reporting.service.ReportService;
 import com.taskflow.modules.reporting.service.ReportAsyncService;
+import com.taskflow.modules.reporting.service.WidgetReportService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,13 +18,16 @@ public class ReportController {
     private final ReportService reportService;
     private final ReportAsyncService reportAsyncService;
     private final com.taskflow.modules.reporting.repository.ReportJobRepository reportJobRepository;
+    private final WidgetReportService widgetReportService;
 
-    public ReportController(ReportService reportService, 
+    public ReportController(ReportService reportService,
                             ReportAsyncService reportAsyncService,
-                            com.taskflow.modules.reporting.repository.ReportJobRepository reportJobRepository) {
+                            com.taskflow.modules.reporting.repository.ReportJobRepository reportJobRepository,
+                            WidgetReportService widgetReportService) {
         this.reportService = reportService;
         this.reportAsyncService = reportAsyncService;
         this.reportJobRepository = reportJobRepository;
+        this.widgetReportService = widgetReportService;
     }
 
     @GetMapping("/projects/{projectId}/completion")
@@ -89,5 +93,125 @@ public class ReportController {
         return ResponseEntity.ok()
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
                 .body(resource);
+    }
+
+    @GetMapping("/dashboard/widgets")
+    public ResponseEntity<Map<String, Object>> getDashboardWidgets() {
+        return ResponseEntity.ok(reportService.getDashboardWidgetsData());
+    }
+
+    @GetMapping("/team/{teamId}/tasks")
+    public ResponseEntity<List<Map<String, Object>>> getTeamTasks(@PathVariable UUID teamId) {
+        return ResponseEntity.ok(reportService.getTeamTasks(teamId));
+    }
+
+    // ── Widget Gallery Endpoints ─────────────────────────────────────────
+
+    /** Master endpoint — returns all widget data in one call */
+    @GetMapping("/widgets/all")
+    public ResponseEntity<Map<String, Object>> getAllWidgetData() {
+        return ResponseEntity.ok(widgetReportService.getAllWidgetData());
+    }
+
+    // Projects
+    @GetMapping("/widgets/projects/by-owners")
+    public ResponseEntity<List<Map<String, Object>>> projectsByOwners() {
+        return ResponseEntity.ok(widgetReportService.projectsByOwners());
+    }
+    @GetMapping("/widgets/projects/by-group")
+    public ResponseEntity<List<Map<String, Object>>> projectsByGroup() {
+        return ResponseEntity.ok(widgetReportService.projectsByGroup());
+    }
+    @GetMapping("/widgets/projects/by-customers")
+    public ResponseEntity<List<Map<String, Object>>> projectsByCustomers() {
+        return ResponseEntity.ok(widgetReportService.projectsByCustomers());
+    }
+    @GetMapping("/widgets/projects/status")
+    public ResponseEntity<List<Map<String, Object>>> projectStatusDistribution() {
+        return ResponseEntity.ok(widgetReportService.projectStatusDistribution());
+    }
+
+    // Tasks
+    @GetMapping("/widgets/tasks/status")
+    public ResponseEntity<List<Map<String, Object>>> taskStatusReport() {
+        return ResponseEntity.ok(widgetReportService.taskStatusReport());
+    }
+    @GetMapping("/widgets/tasks/by-owner")
+    public ResponseEntity<List<Map<String, Object>>> taskOwnerReport() {
+        return ResponseEntity.ok(widgetReportService.taskOwnerReport());
+    }
+    @GetMapping("/widgets/tasks/by-priority")
+    public ResponseEntity<List<Map<String, Object>>> taskPriorityReport() {
+        return ResponseEntity.ok(widgetReportService.taskPriorityReport());
+    }
+    @GetMapping("/widgets/tasks/by-milestone")
+    public ResponseEntity<List<Map<String, Object>>> taskByMilestone() {
+        return ResponseEntity.ok(widgetReportService.taskByMilestone());
+    }
+    @GetMapping("/widgets/tasks/completion")
+    public ResponseEntity<List<Map<String, Object>>> taskCompletionReport() {
+        return ResponseEntity.ok(widgetReportService.taskCompletionReport());
+    }
+    @GetMapping("/widgets/tasks/created-vs-completed")
+    public ResponseEntity<List<Map<String, Object>>> createdVsCompleted() {
+        return ResponseEntity.ok(widgetReportService.createdVsCompleted());
+    }
+    @GetMapping("/widgets/tasks/avg-completion-time")
+    public ResponseEntity<List<Map<String, Object>>> avgTaskCompletionTime() {
+        return ResponseEntity.ok(widgetReportService.avgTaskCompletionTime());
+    }
+
+    // Issues
+    @GetMapping("/widgets/issues/by-severity")
+    public ResponseEntity<List<Map<String, Object>>> issueSeverityReport() {
+        return ResponseEntity.ok(widgetReportService.issueSeverityReport());
+    }
+    @GetMapping("/widgets/issues/by-assignee")
+    public ResponseEntity<List<Map<String, Object>>> issueAssigneeReport() {
+        return ResponseEntity.ok(widgetReportService.issueAssigneeReport());
+    }
+    @GetMapping("/widgets/issues/status")
+    public ResponseEntity<List<Map<String, Object>>> issueStatusReport() {
+        return ResponseEntity.ok(widgetReportService.issueStatusReport());
+    }
+    @GetMapping("/widgets/issues/by-module")
+    public ResponseEntity<List<Map<String, Object>>> issueModuleReport() {
+        return ResponseEntity.ok(widgetReportService.issueModuleReport());
+    }
+    @GetMapping("/widgets/issues/by-milestone")
+    public ResponseEntity<List<Map<String, Object>>> issueCountByMilestone() {
+        return ResponseEntity.ok(widgetReportService.issueCountByMilestone());
+    }
+    @GetMapping("/widgets/issues/avg-completion-time")
+    public ResponseEntity<List<Map<String, Object>>> avgIssueCompletionTime() {
+        return ResponseEntity.ok(widgetReportService.avgIssueCompletionTime());
+    }
+    @GetMapping("/widgets/issues/created-vs-completed")
+    public ResponseEntity<List<Map<String, Object>>> issueCreatedVsCompleted() {
+        return ResponseEntity.ok(widgetReportService.issueCreatedVsCompleted());
+    }
+
+    // Phases
+    @GetMapping("/widgets/phases/status")
+    public ResponseEntity<List<Map<String, Object>>> phaseStatusReport() {
+        return ResponseEntity.ok(widgetReportService.phaseStatusReport());
+    }
+    @GetMapping("/widgets/phases/completion-time")
+    public ResponseEntity<List<Map<String, Object>>> phaseCompletionTimeReport() {
+        return ResponseEntity.ok(widgetReportService.phaseCompletionTimeReport());
+    }
+
+    // Time Logs
+    @GetMapping("/widgets/timelogs/by-user")
+    public ResponseEntity<List<Map<String, Object>>> timeLoggedByUser() {
+        return ResponseEntity.ok(widgetReportService.timeLoggedByUser());
+    }
+    @GetMapping("/widgets/timelogs/by-project")
+    public ResponseEntity<List<Map<String, Object>>> timeLoggedByProject() {
+        return ResponseEntity.ok(widgetReportService.timeLoggedByProject());
+    }
+    @GetMapping("/widgets/timelogs/billable")
+    public ResponseEntity<List<Map<String, Object>>> billableVsNonBillable() {
+        return ResponseEntity.ok(widgetReportService.billableVsNonBillable());
     }
 }

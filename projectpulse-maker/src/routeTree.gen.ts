@@ -33,6 +33,7 @@ import { Route as AppCollaborationRouteImport } from './routes/_app.collaboratio
 import { Route as AppCalendarRouteImport } from './routes/_app.calendar'
 import { Route as AppBulkUploadRouteImport } from './routes/_app.bulk-upload'
 import { Route as AppAutomationsRouteImport } from './routes/_app.automations'
+import { Route as AppTeamsIdRouteImport } from './routes/_app.teams.$id'
 import { Route as AppTasksNewRouteImport } from './routes/_app.tasks.new'
 import { Route as AppTasksIdRouteImport } from './routes/_app.tasks.$id'
 import { Route as AppProjectsNewRouteImport } from './routes/_app.projects.new'
@@ -160,6 +161,11 @@ const AppAutomationsRoute = AppAutomationsRouteImport.update({
   path: '/automations',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTeamsIdRoute = AppTeamsIdRouteImport.update({
+  id: '/teams/$id',
+  path: '/teams/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTasksNewRoute = AppTasksNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -227,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/projects/new': typeof AppProjectsNewRoute
   '/tasks/$id': typeof AppTasksIdRoute
   '/tasks/new': typeof AppTasksNewRoute
+  '/teams/$id': typeof AppTeamsIdRoute
   '/superadmin/organizations/$id': typeof AppSuperadminOrganizationsIdRoute
 }
 export interface FileRoutesByTo {
@@ -259,6 +266,7 @@ export interface FileRoutesByTo {
   '/projects/new': typeof AppProjectsNewRoute
   '/tasks/$id': typeof AppTasksIdRoute
   '/tasks/new': typeof AppTasksNewRoute
+  '/teams/$id': typeof AppTeamsIdRoute
   '/superadmin/organizations/$id': typeof AppSuperadminOrganizationsIdRoute
 }
 export interface FileRoutesById {
@@ -293,6 +301,7 @@ export interface FileRoutesById {
   '/_app/projects/new': typeof AppProjectsNewRoute
   '/_app/tasks/$id': typeof AppTasksIdRoute
   '/_app/tasks/new': typeof AppTasksNewRoute
+  '/_app/teams/$id': typeof AppTeamsIdRoute
   '/_app/superadmin/organizations/$id': typeof AppSuperadminOrganizationsIdRoute
 }
 export interface FileRouteTypes {
@@ -327,6 +336,7 @@ export interface FileRouteTypes {
     | '/projects/new'
     | '/tasks/$id'
     | '/tasks/new'
+    | '/teams/$id'
     | '/superadmin/organizations/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -359,6 +369,7 @@ export interface FileRouteTypes {
     | '/projects/new'
     | '/tasks/$id'
     | '/tasks/new'
+    | '/teams/$id'
     | '/superadmin/organizations/$id'
   id:
     | '__root__'
@@ -392,6 +403,7 @@ export interface FileRouteTypes {
     | '/_app/projects/new'
     | '/_app/tasks/$id'
     | '/_app/tasks/new'
+    | '/_app/teams/$id'
     | '/_app/superadmin/organizations/$id'
   fileRoutesById: FileRoutesById
 }
@@ -572,6 +584,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAutomationsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/teams/$id': {
+      id: '/_app/teams/$id'
+      path: '/teams/$id'
+      fullPath: '/teams/$id'
+      preLoaderRoute: typeof AppTeamsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/tasks/new': {
       id: '/_app/tasks/new'
       path: '/new'
@@ -709,6 +728,7 @@ interface AppRouteChildren {
   AppTasksRoute: typeof AppTasksRouteWithChildren
   AppTimeRoute: typeof AppTimeRoute
   AppWorkloadRoute: typeof AppWorkloadRoute
+  AppTeamsIdRoute: typeof AppTeamsIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -732,6 +752,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTasksRoute: AppTasksRouteWithChildren,
   AppTimeRoute: AppTimeRoute,
   AppWorkloadRoute: AppWorkloadRoute,
+  AppTeamsIdRoute: AppTeamsIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

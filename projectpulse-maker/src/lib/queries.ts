@@ -98,6 +98,40 @@ export function useTeams() {
   });
 }
 
+export function useTeamMembers(teamId: string | undefined) {
+  return useQuery({
+    queryKey: ["team-members", teamId],
+    enabled: !!teamId,
+    queryFn: async (): Promise<{ userId: string; role: string }[]> => {
+      if (USE_MOCK) {
+        if (teamId === "t-sre") {
+          return [
+            { userId: "u-dept", role: "LEAD" },
+            { userId: "u-dev1", role: "MEMBER" },
+          ];
+        } else if (teamId === "t-fe") {
+          return [
+            { userId: "u-lead", role: "LEAD" },
+            { userId: "u-dev2", role: "MEMBER" },
+          ];
+        } else if (teamId === "t-be") {
+          return [
+            { userId: "u-admin", role: "LEAD" },
+            { userId: "u-dev3", role: "MEMBER" },
+          ];
+        } else if (teamId === "t-ds") {
+          return [
+            { userId: "u-lead", role: "LEAD" },
+            { userId: "u-dev1", role: "MEMBER" },
+          ];
+        }
+        return [];
+      }
+      return apiRequest<{ userId: string; role: string }[]>(`/teams/${teamId}/members`);
+    },
+  });
+}
+
 export function useCreateDepartment() {
   const qc = useQueryClient();
   return useMutation({
@@ -1063,6 +1097,59 @@ export function usePromoteUser() {
   });
 }
 
+// ---------- user role update (promote/demote, no L+2 gating) ----------
+export function useUpdateUserRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { userId: string; newRole: RoleName; newLevel: number }) => {
+      if (USE_MOCK) {
+        const u = mock.mockUsers.find((x) => x.id === vars.userId);
+        if (u) {
+          u.roleName = vars.newRole;
+          u.roleLevel = vars.newLevel as User["roleLevel"];
+        }
+        // Also update team lead if demoted below TEAM_LEAD
+        if (vars.newLevel < 2) {
+          mock.mockTeams.forEach((t) => {
+            if (t.leadUserId === vars.userId) t.leadUserId = undefined as any;
+          });
+        }
+        return u;
+      }
+      return apiRequest<User>(`/users/${vars.userId}/role`, {
+        method: "PUT",
+        body: { roleName: vars.newRole, roleLevel: vars.newLevel },
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: ["teams"] });
+    },
+  });
+}
+
+// ---------- update team lead ----------
+export function useUpdateTeamLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { teamId: string; leadUserId: string }) => {
+      if (USE_MOCK) {
+        const t = mock.mockTeams.find((x) => x.id === vars.teamId);
+        if (t) t.leadUserId = vars.leadUserId;
+        return t;
+      }
+      return apiRequest<typeof vars>(`/teams/${vars.teamId}/lead`, {
+        method: "PUT",
+        body: { leadUserId: vars.leadUserId },
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["teams"] });
+      qc.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}
+
 // ---------- org setup ----------
 export function useCreateOrganization() {
   const qc = useQueryClient();
@@ -1887,4 +1974,175 @@ export function useRejectJoinRequest() {
     }
   });
 }
+
+export function useDashboardWidgets() {
+  return useQuery({
+    queryKey: ["dashboard-widgets"],
+    queryFn: async () => {
+      if (USE_MOCK) {
+        const projectsByStatus: Record<string, number> = {};
+        const projectsByType: Record<string, number> = {};
+        const projectsByGroup: Record<string, number> = {};
+        const projectsByCustomer: Record<string, number> = {};
+        mock.mockProjects.forEach(p => {
+          projectsByStatus[p.status] = (projectsByStatus[p.status] || 0) + 1;
+          projectsByType[p.type] = (projectsByType[p.type] || 0) + 1;
+          const grp = (p as any).group || "Engineering";
+          projectsByGroup[grp] = (projectsByGroup[grp] || 0) + 1;
+          const cust = (p as any).customer || "Internal";
+          projectsByCustomer[cust] = (projectsByCustomer[cust] || 0) + 1;
+        });
+
+        const tasksByPriority: Record<string, number> = {};
+        const tasksByStatus: Record<string, number> = {};
+        const tasksByType: Record<string, number> = {};
+        mock.mockTasks.forEach(t => {
+          tasksByPriority[t.priority || "MEDIUM"] = (tasksByPriority[t.priority || "MEDIUM"] || 0) + 1;
+          tasksByStatus[t.statusId] = (tasksByStatus[t.statusId] || 0) + 1;
+          tasksByType[t.taskType] = (tasksByType[t.taskType] || 0) + 1;
+        });
+
+        const issuesBySeverity: Record<string, number> = {};
+        const issuesByEnvironment: Record<string, number> = {};
+        mock.mockIssues.forEach(i => {
+          issuesBySeverity[i.severity] = (issuesBySeverity[i.severity] || 0) + 1;
+          issuesByEnvironment[i.environment] = (issuesByEnvironment[i.environment] || 0) + 1;
+        });
+
+        const phasesByStatus: Record<string, number> = {};
+        mock.mockSprints.forEach(s => {
+          phasesByStatus[s.status] = (phasesByStatus[s.status] || 0) + 1;
+        });
+
+        return {
+          projects: mock.mockProjects,
+          tasks: mock.mockTasks,
+          issues: mock.mockIssues,
+          sprints: mock.mockSprints,
+          users: mock.mockUsers,
+          teams: mock.mockTeams,
+          reports: {
+            projectsByStatus,
+            projectsByType,
+            projectsByGroup,
+            projectsByCustomer,
+            tasksByPriority,
+            tasksByStatus,
+            tasksByType,
+            issuesBySeverity,
+            issuesByEnvironment,
+            phasesByStatus,
+          }
+        };
+      }
+      return apiRequest<any>("/reports/dashboard/widgets");
+    }
+  });
+}
+
+export function useTeamTasks(teamId: string | undefined) {
+  return useQuery({
+    queryKey: ["team-tasks", teamId],
+    enabled: !!teamId,
+    queryFn: async () => {
+      if (USE_MOCK) {
+        let teamUserIds: string[] = [];
+        if (teamId === "t-sre") teamUserIds = ["u-dept", "u-dev1"];
+        else if (teamId === "t-fe") teamUserIds = ["u-lead", "u-dev2"];
+        else if (teamId === "t-be") teamUserIds = ["u-admin", "u-dev3"];
+        else if (teamId === "t-ds") teamUserIds = ["u-lead", "u-dev1"];
+        else teamUserIds = mock.mockUsers.filter(u => (u as any).teamId === teamId).map(u => u.id);
+
+        return mock.mockTasks.filter(t => t.assigneeIds.some(uid => teamUserIds.includes(uid)));
+      }
+      return apiRequest<any[]>(`/reports/team/${teamId}/tasks`);
+    }
+  });
+}
+
+export function useProjectTeams(projectId: string | undefined) {
+  return useQuery({
+    queryKey: ["project-teams", projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      if (USE_MOCK) {
+        return (mock as any).mockProjectTeams?.filter((pt: any) => pt.projectId === projectId) || [];
+      }
+      return apiRequest<any[]>(`/projects/${projectId}/teams`);
+    }
+  });
+}
+
+export function useAddProjectTeam() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { projectId: string; teamId: string }) => {
+      if (USE_MOCK) {
+        const newTeam = {
+          id: `pt-${Date.now()}`,
+          projectId: vars.projectId,
+          teamId: vars.teamId
+        };
+        if (!(mock as any).mockProjectTeams) {
+          (mock as any).mockProjectTeams = [];
+        }
+        (mock as any).mockProjectTeams.push(newTeam);
+        return newTeam;
+      }
+      return apiRequest<any>(`/projects/${vars.projectId}/teams`, {
+        method: "POST",
+        body: { teamId: vars.teamId }
+      });
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["project-teams", vars.projectId] });
+    }
+  });
+}
+
+export function useRemoveProjectTeam() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { projectId: string; teamId: string }) => {
+      if (USE_MOCK) {
+        const filtered = ((mock as any).mockProjectTeams || []).filter(
+          (pt: any) => !(pt.projectId === vars.projectId && pt.teamId === vars.teamId)
+        );
+        (mock as any).mockProjectTeams = filtered;
+        return { ok: true };
+      }
+      return apiRequest<void>(`/projects/${vars.projectId}/teams/${vars.teamId}`, {
+        method: "DELETE"
+      });
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["project-teams", vars.projectId] });
+    }
+  });
+}
+
+export function useUpdateUserTeam() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { userId: string; teamId: string | undefined }) => {
+      if (USE_MOCK) {
+        const u = mock.mockUsers.find((x) => x.id === vars.userId);
+        if (u) {
+          u.teamId = vars.teamId;
+        }
+        return u;
+      }
+      return apiRequest<User>(`/users/${vars.userId}/team`, {
+        method: "PUT",
+        body: { teamId: vars.teamId }
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+    }
+  });
+}
+
+
+
 

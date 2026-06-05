@@ -63,7 +63,7 @@ function AssigneeSelectorDropdown({ task, users }: { task: any; users: any[] }) 
                 const u = users.find(x => x.id === uid);
                 return (
                   <div key={uid} className="h-6 w-6 rounded-full bg-primary/15 border border-border flex items-center justify-center text-[9px] font-bold text-primary" title={u?.name}>
-                    {u?.name?.slice(0,2).toUpperCase() ?? "?"}
+                    {u?.name?.slice(0, 2).toUpperCase() ?? "?"}
                   </div>
                 );
               })}
@@ -93,7 +93,7 @@ function AssigneeSelectorDropdown({ task, users }: { task: any; users: any[] }) 
                   toggleAssignee(u.id);
                 }}
               >
-                <Checkbox checked={isAssigned} readOnly className="mr-2" />
+                <Checkbox checked={isAssigned} className="mr-2" />
                 <span className="truncate">{u.name}</span>
               </DropdownMenuItem>
             );
@@ -170,23 +170,23 @@ function TasksPage() {
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch (e) {}
+      } catch (e) { }
     }
     return {
       task: true,
       project: true,
-      projectGroup: false,
-      projectStatus: false,
+      projectGroup: true,
+      projectStatus: true,
       priority: true,
       assignees: true,
-      associatedTeam: false,
-      startDate: false,
+      associatedTeam: true,
+      startDate: true,
       due: true,
-      timeSpan: false,
-      recurrence: false,
-      createdTime: false,
+      timeSpan: true,
+      recurrence: true,
+      createdTime: true,
       progress: true,
-      completionPercentage: false,
+      completionPercentage: true,
       category: true,
       storyPoints: true,
       taskType: true,
@@ -194,24 +194,24 @@ function TasksPage() {
   });
 
   const gridTemplateColumns = useMemo(() => {
-    const cols = ["40px"];
-    if (visibleColumns.task) cols.push("1fr");
-    if (visibleColumns.project) cols.push("140px");
-    if (visibleColumns.projectGroup) cols.push("120px");
-    if (visibleColumns.projectStatus) cols.push("100px");
-    if (visibleColumns.priority) cols.push("100px");
-    if (visibleColumns.assignees) cols.push("110px");
-    if (visibleColumns.associatedTeam) cols.push("120px");
-    if (visibleColumns.startDate) cols.push("100px");
-    if (visibleColumns.due) cols.push("120px");
-    if (visibleColumns.timeSpan) cols.push("95px");
-    if (visibleColumns.recurrence) cols.push("95px");
-    if (visibleColumns.createdTime) cols.push("130px");
-    if (visibleColumns.progress) cols.push("100px");
-    if (visibleColumns.completionPercentage) cols.push("100px");
-    if (visibleColumns.category) cols.push("100px");
-    if (visibleColumns.storyPoints) cols.push("85px");
-    if (visibleColumns.taskType) cols.push("90px");
+    const cols = ["48px"];
+    if (visibleColumns.task) cols.push("280px");
+    if (visibleColumns.project) cols.push("160px");
+    if (visibleColumns.projectGroup) cols.push("140px");
+    if (visibleColumns.projectStatus) cols.push("120px");
+    if (visibleColumns.priority) cols.push("110px");
+    if (visibleColumns.assignees) cols.push("130px");
+    if (visibleColumns.associatedTeam) cols.push("140px");
+    if (visibleColumns.startDate) cols.push("110px");
+    if (visibleColumns.due) cols.push("130px");
+    if (visibleColumns.timeSpan) cols.push("110px");
+    if (visibleColumns.recurrence) cols.push("110px");
+    if (visibleColumns.createdTime) cols.push("140px");
+    if (visibleColumns.progress) cols.push("120px");
+    if (visibleColumns.completionPercentage) cols.push("120px");
+    if (visibleColumns.category) cols.push("120px");
+    if (visibleColumns.storyPoints) cols.push("100px");
+    if (visibleColumns.taskType) cols.push("100px");
     cols.push("40px");
     return cols.join(" ");
   }, [visibleColumns]);
@@ -318,8 +318,8 @@ function TasksPage() {
       checks.push({
         active: filterCompletionPercentage !== null,
         matches: filterCompletionOperator === "eq" ? localComp === filterCompletionPercentage :
-                 filterCompletionOperator === "gt" ? localComp > (filterCompletionPercentage ?? 0) :
-                 localComp < (filterCompletionPercentage ?? 0)
+          filterCompletionOperator === "gt" ? localComp > (filterCompletionPercentage ?? 0) :
+            localComp < (filterCompletionPercentage ?? 0)
       });
 
       // 7. Owner
@@ -337,7 +337,7 @@ function TasksPage() {
       // 9. Priority
       checks.push({
         active: filterPriorities.length > 0,
-        matches: filterPriorityOperator === "is" 
+        matches: filterPriorityOperator === "is"
           ? filterPriorities.includes(t.priority ?? "MEDIUM")
           : !filterPriorities.includes(t.priority ?? "MEDIUM")
       });
@@ -373,8 +373,8 @@ function TasksPage() {
       checks.push({
         active: filterTimeSpanVal !== null,
         matches: filterTimeSpanOperator === "eq" ? localTimeSpan === filterTimeSpanVal :
-                 filterTimeSpanOperator === "gt" ? localTimeSpan > (filterTimeSpanVal ?? 0) :
-                 localTimeSpan < (filterTimeSpanVal ?? 0)
+          filterTimeSpanOperator === "gt" ? localTimeSpan > (filterTimeSpanVal ?? 0) :
+            localTimeSpan < (filterTimeSpanVal ?? 0)
       });
 
       // 13. Recurrence
@@ -480,10 +480,10 @@ function TasksPage() {
   };
 
   const PRIORITY_PILL: Record<string, string> = {
-    CRITICAL: "bg-red-500/10 text-red-500 border-red-500/25",
-    HIGH: "bg-orange-500/10 text-orange-500 border-orange-500/25",
-    MEDIUM: "bg-yellow-500/10 text-yellow-600 border-yellow-500/25",
-    LOW: "bg-blue-500/10 text-blue-500 border-blue-500/25",
+    CRITICAL: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 shadow-sm hover:bg-red-500/15",
+    HIGH: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20 shadow-sm hover:bg-orange-500/15",
+    MEDIUM: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20 shadow-sm hover:bg-yellow-500/15",
+    LOW: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 shadow-sm hover:bg-blue-500/15",
   };
 
   return (
@@ -496,42 +496,41 @@ function TasksPage() {
             <main className="flex-1 flex flex-col overflow-hidden">
               {/* Hero Banner */}
               <div className="px-6 pt-5 pb-3 flex-shrink-0">
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-tr from-emerald-600/10 via-indigo-600/5 to-transparent border border-white/10 p-5 shadow-lg">
-                  {/* Decorative background shapes */}
-                  <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
-                  <div className="absolute right-32 top-4 h-24 w-24 rounded-full bg-indigo-500/10 blur-xl pointer-events-none" />
+                <div className="relative overflow-hidden rounded-2xl glass-card p-6 transition-all duration-300 hover:shadow-glow">
+                  {/* Decorative background shapes with active animations */}
+                  <div className="absolute -right-8 -top-8 h-48 w-48 rounded-full bg-primary/8 blur-3xl pointer-events-none animate-pulse" />
+                  <div className="absolute right-32 top-4 h-32 w-32 rounded-full bg-emerald-500/8 blur-2xl pointer-events-none animate-bounce duration-10000" />
 
-                  <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl p-2 rounded-xl bg-emerald-500/10  flex items-center justify-center shadow-lg shadow-primary/25">
-                          <CheckSquare className="h-5 w-5 text-emerald-500" />
+                  <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3.5">
+                        <div className="h-11 w-11 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-105 transition-transform">
+                          <CheckSquare className="h-5.5 w-5.5 text-primary-foreground" />
                         </div>
                         <div>
-                          <h1 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+                          <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
                             Task Pipeline
-                            <span className="text-xs font-normal text-muted-foreground">✦</span>
+                            <span className="text-xs font-normal text-emerald-500 animate-pulse">✦</span>
                           </h1>
-                          <p className="text-[11px] text-muted-foreground">
-                            Organize, sequence, and execute work items across projects. Balance user load and track completion metrics.
+                          <p className="text-[11px] text-muted-foreground/90 max-w-xl leading-relaxed">
+                            Organize, sequence, and execute work items across projects. Balance user load and track completion metrics with custom HSL widgets.
                           </p>
                         </div>
                       </div>
                       {/* Stats Pills */}
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1">
-                          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-1 hover:bg-emerald-500/15 transition-colors cursor-pointer">
+                          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+                          <span className="h-2 w-2 rounded-full bg-emerald-500 -ml-3.5" />
                           <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">{totalActive} Active Tasks</span>
-                          <span className="text-[10px] text-muted-foreground">In Progress</span>
                         </div>
-                        <div className="flex items-center gap-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 px-3 py-1">
-                          <Check className="h-3 w-3 text-blue-500" />
+                        <div className="flex items-center gap-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 px-3.5 py-1 hover:bg-blue-500/15 transition-colors cursor-pointer">
+                          <Check className="h-3.5 w-3.5 text-blue-500" />
                           <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">{totalCompleted} Completed</span>
-                          <span className="text-[10px] text-muted-foreground">Tasks Finished</span>
                         </div>
                         {overdueCount > 0 && (
-                          <div className="flex items-center gap-1.5 rounded-full bg-red-500/10 border border-red-500/20 px-3 py-1">
-                            <AlertTriangle className="h-3 w-3 text-red-500" />
+                          <div className="flex items-center gap-1.5 rounded-full bg-red-500/10 border border-red-500/20 px-3.5 py-1 hover:bg-red-500/15 transition-colors cursor-pointer animate-shake">
+                            <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
                             <span className="text-[11px] font-semibold text-red-500">{overdueCount} Overdue</span>
                           </div>
                         )}
@@ -539,27 +538,27 @@ function TasksPage() {
                     </div>
 
                     {/* Right side: metric cards */}
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="hidden lg:flex items-center gap-3">
-                        <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-3 text-center min-w-[80px]">
-                          <div className="text-[10px] text-muted-foreground mb-1">On Track</div>
-                          <div className="text-lg font-bold text-emerald-500">
+                    <div className="flex items-center gap-4 shrink-0">
+                      <div className="hidden lg:flex items-center gap-4">
+                        <div className="rounded-xl border border-border bg-card/40 backdrop-blur-md p-3 text-center min-w-[90px] shadow-sm hover:border-emerald-500/30 transition-all duration-300">
+                          <div className="text-[10px] text-muted-foreground font-medium mb-1">On Track</div>
+                          <div className="text-xl font-extrabold text-emerald-500">
                             {filtered.length > 0 ? Math.round(((filtered.length - overdueCount) / filtered.length) * 100) : 100}%
                           </div>
                         </div>
-                        <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-3 text-center min-w-[80px]">
-                          <div className="text-[10px] text-muted-foreground mb-1">Efficiency</div>
-                          <div className="text-lg font-bold text-primary">
+                        <div className="rounded-xl border border-border bg-card/40 backdrop-blur-md p-3 text-center min-w-[90px] shadow-sm hover:border-primary/30 transition-all duration-300">
+                          <div className="text-[10px] text-muted-foreground font-medium mb-1">Efficiency</div>
+                          <div className="text-xl font-extrabold text-primary">
                             {tasks.filter(t => t.taskType === "TASK").length > 0
                               ? Math.round((totalCompleted / tasks.filter(t => t.taskType === "TASK").length) * 100)
                               : 0}%
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-2.5">
                         <ZViewSwitcher value={view} onChange={setView} />
-                        <Button size="sm" onClick={() => nav({ to: "/tasks/new" })} className="bg-emerald-500/10 text-emerald-500 font-semibold shadow-lg shadow-primary/25 hover:opacity-90 hover:text-white transition-opacity rounded-xl text-xs">
-                          <Plus className="mr-1 h-3.5 w-3.5" /> Add Task
+                        <Button size="sm" onClick={() => nav({ to: "/tasks/new" })} className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20 shadow-sm hover:bg-emerald-500 hover:text-white transition-all duration-300 rounded-xl text-xs px-4 py-2 hover-lift">
+                          <Plus className="mr-1 h-4 w-4" /> Add Task
                         </Button>
                       </div>
                     </div>
@@ -569,17 +568,17 @@ function TasksPage() {
 
               {/* Toolbar */}
               <div className="px-6 py-2 flex-shrink-0">
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm px-4 py-2.5">
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/40 backdrop-blur-md px-4 py-2.5 shadow-sm">
                   <div className="flex items-center gap-2 flex-wrap">
                     {/* Filter Panel Toggle */}
                     <button
                       onClick={() => setFilterPanelOpen(!filterPanelOpen)}
-                      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-medium transition-all
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-medium transition-all hover-lift
                         ${filterPanelOpen || activeFilterCount > 0
                           ? "border-primary/40 bg-primary/10 text-primary shadow-sm"
-                          : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-border/80"}`}
+                          : "border-border bg-background/50 text-muted-foreground hover:text-foreground hover:border-border/80"}`}
                     >
-                      <Filter className="h-3 w-3" />
+                      <Filter className="h-3.5 w-3.5" />
                       Filters
                       {activeFilterCount > 0 && (
                         <span className="ml-1 h-4 min-w-4 rounded-full bg-primary text-[9px] text-white font-bold flex items-center justify-center px-1">
@@ -591,15 +590,15 @@ function TasksPage() {
                     <span className="h-4 w-px bg-border" />
 
                     {/* Quick filter chips */}
-                    {(["all","open","overdue","closed"] as FilterMode[]).map((f) => (
+                    {(["all", "open", "overdue", "closed"] as FilterMode[]).map((f) => (
                       <button key={f} onClick={() => { setFilter(f); setPage(1); }}
-                        className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all border
+                        className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all border hover-lift
                           ${filter === f
                             ? "bg-primary text-white border-primary shadow-sm"
-                            : "border-border text-muted-foreground hover:text-foreground hover:border-border/80 bg-transparent"}`}>
+                            : "border-border text-muted-foreground hover:text-foreground hover:border-border/80 bg-background/50"}`}>
                         {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
                         {f === "overdue" && overdueCount > 0 && (
-                          <span className="ml-1.5 text-[9px] bg-red-500 text-white rounded-full px-1 py-0.5">{overdueCount}</span>
+                          <span className="ml-1.5 text-[9px] bg-red-500 text-white rounded-full px-1.5 py-0.5">{overdueCount}</span>
                         )}
                       </button>
                     ))}
@@ -609,16 +608,16 @@ function TasksPage() {
                     {/* Group By dropdown */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground bg-background transition-colors">
-                          <Layers className="h-3 w-3" />
+                        <button className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground bg-background/50 transition-all hover-lift">
+                          <Layers className="h-3.5 w-3.5" />
                           Group: <span className="text-foreground font-semibold capitalize">{groupBy === "none" ? "None" : groupBy}</span>
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
                         <DropdownMenuLabel className="text-[10px] uppercase">Group By</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        {(["status","project","priority","assignee","category","phase","none"] as GroupBy[]).map(g => (
-                          <DropdownMenuItem key={g} onClick={() => setGroupBy(g)} className="text-xs capitalize">
+                        {(["status", "project", "priority", "assignee", "category", "phase", "none"] as GroupBy[]).map(g => (
+                          <DropdownMenuItem key={g} onClick={() => setGroupBy(g)} className="text-xs capitalize cursor-pointer">
                             {groupBy === g && <Check className="h-3 w-3 mr-2" />}
                             {g === "none" ? "No Grouping" : g}
                           </DropdownMenuItem>
@@ -628,8 +627,8 @@ function TasksPage() {
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground bg-background transition-colors">
-                          <Settings2 className="h-3 w-3" /> Layout
+                        <button className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground bg-background/50 transition-all hover-lift">
+                          <Settings2 className="h-3.5 w-3.5" /> Layout
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
@@ -660,7 +659,7 @@ function TasksPage() {
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       placeholder="Search tasks…  ⌘K" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }}
-                      className="h-8 w-52 pl-9 text-[12px] rounded-lg bg-background border-border/60"
+                      className="h-8 w-52 pl-9 text-[12px] rounded-lg bg-background border-border/60 focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all duration-300"
                     />
                   </div>
                 </div>
@@ -695,402 +694,404 @@ function TasksPage() {
                             </button>
 
                             {!isCollapsed && (
-                              <>
-                                {/* Column Headers */}
-                                <div
-                                  className="grid gap-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/30 border-b border-border/40 px-4 py-2"
-                                  style={{ gridTemplateColumns }}
-                                >
-                                  <div className="w-8" />
-                                  {visibleColumns.task && (
-                                    <div>
-                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
-                                        Task Name <Filter className="h-2.5 w-2.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                  {visibleColumns.project && (
-                                    <div>
-                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
-                                        Project <Filter className="h-2.5 w-2.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                  {visibleColumns.projectGroup && (
-                                    <div>
-                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
-                                        Project Group <Filter className="h-2.5 w-2.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                  {visibleColumns.projectStatus && (
-                                    <div>
-                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
-                                        Project Status <Filter className="h-2.5 w-2.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                  {visibleColumns.priority && (
-                                    <div>
-                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
-                                        Priority <Filter className="h-2.5 w-2.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                  {visibleColumns.assignees && <div>Owner</div>}
-                                  {visibleColumns.associatedTeam && (
-                                    <div>
-                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
-                                        Associated Team <Filter className="h-2.5 w-2.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                  {visibleColumns.startDate && (
-                                    <div>
-                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
-                                        Start Date <Filter className="h-2.5 w-2.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                  {visibleColumns.due && (
-                                    <div>
-                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
-                                        Due Date <Filter className="h-2.5 w-2.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                  {visibleColumns.timeSpan && (
-                                    <div>
-                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
-                                        Time Span <Filter className="h-2.5 w-2.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                  {visibleColumns.recurrence && (
-                                    <div>
-                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
-                                        Recurrence <Filter className="h-2.5 w-2.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                  {visibleColumns.createdTime && (
-                                    <div>
-                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
-                                        Created Time <Filter className="h-2.5 w-2.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                  {visibleColumns.progress && <div>Progress</div>}
-                                  {visibleColumns.completionPercentage && (
-                                    <div>
-                                      <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
-                                        Completion % <Filter className="h-2.5 w-2.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                  {visibleColumns.category && <div>Category</div>}
-                                  {visibleColumns.storyPoints && <div>Story Points</div>}
-                                  {visibleColumns.taskType && <div>Task Type</div>}
-                                  <div />
-                                </div>
-
-                                {/* Task Rows */}
-                                {groupItems.map((t) => {
-                                  const p = projects.find((x) => x.id === t.projectId);
-                                  const s = statuses.find((x) => x.id === t.statusId);
-                                  const pct = t.estimatedHours && t.estimatedHours > 0
-                                    ? Math.min(100, Math.round(((t.loggedHours ?? 0) / t.estimatedHours) * 100)) : 0;
-                                  const isDone = s?.name?.toLowerCase().includes("done") || t.statusId === "s-done";
-
-                                  return (
-                                    <div key={t.id}
-                                      className={`grid gap-0 items-center px-4 py-3 border-b border-border/30 hover:bg-muted/20 cursor-pointer transition-colors group ${selected.has(t.id) ? "bg-primary/5" : ""}`}
-                                      style={{ gridTemplateColumns }}
-                                      onClick={() => nav({ to: "/tasks/$id", params: { id: t.id } })}
-                                    >
-                                      <div className="w-8 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                                        <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggleSelect(t.id)} />
+                              <div className="overflow-x-auto scrollbar-thin w-full">
+                                <div className="min-w-max">
+                                  {/* Column Headers */}
+                                  <div
+                                    className="grid gap-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/30 border-b border-border/40 py-2"
+                                    style={{ gridTemplateColumns }}
+                                  >
+                                    <div className="sticky left-0 bg-muted z-20 pl-4 w-12 flex items-center" />
+                                    {visibleColumns.task && (
+                                      <div className="sticky left-[48px] bg-muted z-20 border-r border-border/40 pr-3 flex items-center">
+                                        <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                          Task Name <Filter className="h-2.5 w-2.5" />
+                                        </button>
                                       </div>
+                                    )}
+                                    {visibleColumns.project && (
+                                      <div>
+                                        <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                          Project <Filter className="h-2.5 w-2.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                    {visibleColumns.projectGroup && (
+                                      <div>
+                                        <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                          Project Group <Filter className="h-2.5 w-2.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                    {visibleColumns.projectStatus && (
+                                      <div>
+                                        <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                          Project Status <Filter className="h-2.5 w-2.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                    {visibleColumns.priority && (
+                                      <div>
+                                        <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                          Priority <Filter className="h-2.5 w-2.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                    {visibleColumns.assignees && <div>Owner</div>}
+                                    {visibleColumns.associatedTeam && (
+                                      <div>
+                                        <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                          Associated Team <Filter className="h-2.5 w-2.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                    {visibleColumns.startDate && (
+                                      <div>
+                                        <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                          Start Date <Filter className="h-2.5 w-2.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                    {visibleColumns.due && (
+                                      <div>
+                                        <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                          Due Date <Filter className="h-2.5 w-2.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                    {visibleColumns.timeSpan && (
+                                      <div>
+                                        <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                          Time Span <Filter className="h-2.5 w-2.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                    {visibleColumns.recurrence && (
+                                      <div>
+                                        <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                          Recurrence <Filter className="h-2.5 w-2.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                    {visibleColumns.createdTime && (
+                                      <div>
+                                        <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                          Created Time <Filter className="h-2.5 w-2.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                    {visibleColumns.progress && <div>Progress</div>}
+                                    {visibleColumns.completionPercentage && (
+                                      <div>
+                                        <button onClick={() => setFilterPanelOpen(true)} className="flex items-center gap-1 hover:text-foreground">
+                                          Completion % <Filter className="h-2.5 w-2.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                    {visibleColumns.category && <div>Category</div>}
+                                    {visibleColumns.storyPoints && <div>Story Points</div>}
+                                    {visibleColumns.taskType && <div>Task Type</div>}
+                                    <div className="pr-4" />
+                                  </div>
 
-                                      {/* Task name + ID */}
-                                      {visibleColumns.task && (
-                                        <div className="flex items-center gap-2.5 min-w-0 pr-3">
-                                          {/* Status-colored icon */}
+                                  {/* Task Rows */}
+                                  {groupItems.map((t) => {
+                                    const p = projects.find((x) => x.id === t.projectId);
+                                    const s = statuses.find((x) => x.id === t.statusId);
+                                    const pct = t.estimatedHours && t.estimatedHours > 0
+                                      ? Math.min(100, Math.round(((t.loggedHours ?? 0) / t.estimatedHours) * 100)) : 0;
+                                    const isDone = s?.name?.toLowerCase().includes("done") || t.statusId === "s-done";
+
+                                    return (
+                                      <div key={t.id}
+                                        className={`grid gap-0 items-center py-2.5 border-b border-border/20 hover:bg-muted/30 cursor-pointer transition-all duration-200 group hover-lift ${selected.has(t.id) ? "bg-primary/5 dark:bg-primary/10 border-l-2 border-l-primary" : ""}`}
+                                        style={{ gridTemplateColumns }}
+                                        onClick={() => nav({ to: "/tasks/$id", params: { id: t.id } })}
+                                      >
+                                        <div className="sticky left-0 bg-card/60 group-hover:bg-muted/30 backdrop-blur z-20 pl-4 w-12 flex items-center transition-colors shrink-0 animate-in fade-in" onClick={e => e.stopPropagation()}>
+                                          <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggleSelect(t.id)} />
+                                        </div>
+
+                                        {/* Task name + ID */}
+                                        {visibleColumns.task && (
+                                          <div className="sticky left-[48px] bg-card/60 group-hover:bg-muted/30 backdrop-blur z-20 border-r border-border/40 pr-3 flex items-center gap-2.5 min-w-0 transition-colors">
+                                            {/* Status-colored icon */}
+                                            <div onClick={e => e.stopPropagation()}>
+                                              <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                  <button
+                                                    className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 border transition-all hover:bg-muted/80 active:scale-95 ${isDone ? "bg-emerald-500/10 border-emerald-500/20" : "bg-primary/8 border-primary/15"}`}
+                                                    title={`Change status (current: ${s?.name ?? "Unknown"})`}
+                                                  >
+                                                    {isDone
+                                                      ? <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                                      : <CheckSquare className="h-3.5 w-3.5 text-primary" />
+                                                    }
+                                                  </button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="start" className="w-48">
+                                                  <DropdownMenuLabel className="text-[10px] uppercase">Set Status</DropdownMenuLabel>
+                                                  <DropdownMenuSeparator />
+                                                  {statuses.map(st => (
+                                                    <DropdownMenuItem
+                                                      key={st.id}
+                                                      className="text-xs flex items-center gap-2 cursor-pointer"
+                                                      onClick={() => updateStatus.mutate({ taskId: t.id, statusId: st.id })}
+                                                    >
+                                                      <span className="h-2 w-2 rounded-full" style={{ background: st.color }} />
+                                                      <span>{st.name}</span>
+                                                      {t.statusId === st.id && <Check className="h-3 w-3 ml-auto text-primary" />}
+                                                    </DropdownMenuItem>
+                                                  ))}
+                                                </DropdownMenuContent>
+                                              </DropdownMenu>
+                                            </div>
+                                            <div className="min-w-0">
+                                              <div className="font-semibold text-xs text-foreground truncate group-hover:text-primary transition-colors">
+                                                {t.title}
+                                              </div>
+                                              <div className="font-mono text-[9px] text-muted-foreground truncate">{t.id?.toUpperCase()}</div>
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Project */}
+                                        {visibleColumns.project && (
+                                          <div className="flex items-center gap-1.5 min-w-0 pr-2" onClick={e => e.stopPropagation()}>
+                                            <FolderOpen className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                            <button
+                                              onClick={() => nav({ to: "/projects/$id", params: { id: t.projectId } })}
+                                              className="text-[11px] text-muted-foreground truncate hover:text-primary hover:underline font-semibold"
+                                            >
+                                              {p?.name ?? "—"}
+                                            </button>
+                                          </div>
+                                        )}
+
+                                        {/* Project Group */}
+                                        {visibleColumns.projectGroup && (
+                                          <div className="text-[11px] text-muted-foreground truncate pr-2">
+                                            {p?.group || "Engineering"}
+                                          </div>
+                                        )}
+
+                                        {/* Project Status */}
+                                        {visibleColumns.projectStatus && (
+                                          <div className="text-[11px] text-muted-foreground truncate pr-2">
+                                            <Badge variant="outline" className="text-[9px] px-1.5 py-0.5 rounded bg-muted/30">Active</Badge>
+                                          </div>
+                                        )}
+
+                                        {/* Priority */}
+                                        {visibleColumns.priority && (
                                           <div onClick={e => e.stopPropagation()}>
                                             <DropdownMenu>
                                               <DropdownMenuTrigger asChild>
-                                                <button
-                                                  className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 border transition-all hover:bg-muted/80 active:scale-95 ${isDone ? "bg-emerald-500/10 border-emerald-500/20" : "bg-primary/8 border-primary/15"}`}
-                                                  title={`Change status (current: ${s?.name ?? "Unknown"})`}
-                                                >
-                                                  {isDone
-                                                    ? <Check className="h-3.5 w-3.5 text-emerald-500" />
-                                                    : <CheckSquare className="h-3.5 w-3.5 text-primary" />
-                                                  }
+                                                <button className="focus:outline-none transition-transform active:scale-95">
+                                                  {t.priority ? (
+                                                    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${PRIORITY_PILL[t.priority] ?? ""}`}>
+                                                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                                                      {t.priority.charAt(0) + t.priority.slice(1).toLowerCase()}
+                                                    </span>
+                                                  ) : <span className="text-muted-foreground text-[11px]">—</span>}
                                                 </button>
                                               </DropdownMenuTrigger>
-                                              <DropdownMenuContent align="start" className="w-48">
-                                                <DropdownMenuLabel className="text-[10px] uppercase">Set Status</DropdownMenuLabel>
+                                              <DropdownMenuContent align="start">
+                                                <DropdownMenuLabel className="text-[10px] uppercase">Set Priority</DropdownMenuLabel>
                                                 <DropdownMenuSeparator />
-                                                {statuses.map(st => (
+                                                {["CRITICAL", "HIGH", "MEDIUM", "LOW"].map(prio => (
                                                   <DropdownMenuItem
-                                                    key={st.id}
-                                                    className="text-xs flex items-center gap-2 cursor-pointer"
-                                                    onClick={() => updateStatus.mutate({ taskId: t.id, statusId: st.id })}
+                                                    key={prio}
+                                                    className="text-xs capitalize cursor-pointer"
+                                                    onClick={() => updateTask.mutate({ id: t.id, patch: { priority: prio as any } })}
                                                   >
-                                                    <span className="h-2 w-2 rounded-full" style={{ background: st.color }} />
-                                                    <span>{st.name}</span>
-                                                    {t.statusId === st.id && <Check className="h-3 w-3 ml-auto text-primary" />}
+                                                    {prio.toLowerCase()}
+                                                    {t.priority === prio && <Check className="h-3 w-3 ml-auto text-primary" />}
                                                   </DropdownMenuItem>
                                                 ))}
                                               </DropdownMenuContent>
                                             </DropdownMenu>
                                           </div>
-                                          <div className="min-w-0">
-                                            <div className="font-semibold text-xs text-foreground truncate group-hover:text-primary transition-colors">
-                                              {t.title}
+                                        )}
+
+                                        {/* Assignees */}
+                                        {visibleColumns.assignees && (
+                                          <div onClick={e => e.stopPropagation()}>
+                                            <AssigneeSelectorDropdown task={t} users={users} />
+                                          </div>
+                                        )}
+
+                                        {/* Associated Team */}
+                                        {visibleColumns.associatedTeam && (
+                                          <div className="text-[11px] text-muted-foreground truncate font-medium pr-2">
+                                            {teams.find(tm => tm.id === t.teamId)?.name || "—"}
+                                          </div>
+                                        )}
+
+                                        {/* Start Date */}
+                                        {visibleColumns.startDate && (
+                                          <div className="text-[11px] text-muted-foreground font-mono pr-2">
+                                            {t.startDate ? format(new Date(t.startDate), "yyyy-MM-dd") : "—"}
+                                          </div>
+                                        )}
+
+                                        {/* Due */}
+                                        {visibleColumns.due && (
+                                          <div className="flex items-center min-w-0" onClick={e => e.stopPropagation()}>
+                                            <Input
+                                              type="date"
+                                              value={t.dueDate ? t.dueDate.split("T")[0] : ""}
+                                              onChange={(e) => {
+                                                const val = e.target.value;
+                                                const formattedDate = val ? new Date(val).toISOString() : undefined;
+                                                updateTask.mutate({ id: t.id, patch: { dueDate: formattedDate } });
+                                              }}
+                                              className="h-7 border-0 bg-transparent hover:bg-muted/40 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring text-[11px] font-mono p-1 rounded min-w-[110px]"
+                                            />
+                                          </div>
+                                        )}
+
+                                        {/* Time Span */}
+                                        {visibleColumns.timeSpan && (
+                                          <div className="text-[11px] text-muted-foreground font-mono pr-2">
+                                            {localStorage.getItem(`task-duration-${t.id}`) ? `${localStorage.getItem(`task-duration-${t.id}`)} days` : "—"}
+                                          </div>
+                                        )}
+
+                                        {/* Recurrence */}
+                                        {visibleColumns.recurrence && (
+                                          <div className="text-[11px] text-muted-foreground pr-2">
+                                            {localStorage.getItem(`task-recurrence-${t.id}`) || "None"}
+                                          </div>
+                                        )}
+
+                                        {/* Created Time */}
+                                        {visibleColumns.createdTime && (
+                                          <div className="text-[11px] text-muted-foreground font-mono pr-2">
+                                            {t.createdAt ? format(new Date(t.createdAt), "yyyy-MM-dd HH:mm") : "—"}
+                                          </div>
+                                        )}
+
+                                        {/* Progress */}
+                                        {visibleColumns.progress && (
+                                          <div className="flex items-center gap-2">
+                                            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                                              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
                                             </div>
-                                            <div className="font-mono text-[9px] text-muted-foreground truncate">{t.id?.toUpperCase()}</div>
+                                            <span className="text-[9px] font-mono text-muted-foreground w-7 text-right">{pct}%</span>
                                           </div>
-                                        </div>
-                                      )}
+                                        )}
 
-                                      {/* Project */}
-                                      {visibleColumns.project && (
-                                        <div className="flex items-center gap-1.5 min-w-0 pr-2" onClick={e => e.stopPropagation()}>
-                                          <FolderOpen className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                                          <button
-                                            onClick={() => nav({ to: "/projects/$id", params: { id: t.projectId } })}
-                                            className="text-[11px] text-muted-foreground truncate hover:text-primary hover:underline font-semibold"
-                                          >
-                                            {p?.name ?? "—"}
-                                          </button>
-                                        </div>
-                                      )}
-
-                                      {/* Project Group */}
-                                      {visibleColumns.projectGroup && (
-                                        <div className="text-[11px] text-muted-foreground truncate pr-2">
-                                          {p?.group || "Engineering"}
-                                        </div>
-                                      )}
-
-                                      {/* Project Status */}
-                                      {visibleColumns.projectStatus && (
-                                        <div className="text-[11px] text-muted-foreground truncate pr-2">
-                                          <Badge variant="outline" className="text-[9px] px-1.5 py-0.5 rounded bg-muted/30">Active</Badge>
-                                        </div>
-                                      )}
-
-                                      {/* Priority */}
-                                      {visibleColumns.priority && (
-                                        <div onClick={e => e.stopPropagation()}>
-                                          <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                              <button className="focus:outline-none transition-transform active:scale-95">
-                                                {t.priority ? (
-                                                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${PRIORITY_PILL[t.priority] ?? ""}`}>
-                                                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                                                    {t.priority.charAt(0) + t.priority.slice(1).toLowerCase()}
-                                                  </span>
-                                                ) : <span className="text-muted-foreground text-[11px]">—</span>}
-                                              </button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="start">
-                                              <DropdownMenuLabel className="text-[10px] uppercase">Set Priority</DropdownMenuLabel>
-                                              <DropdownMenuSeparator />
-                                              {["CRITICAL", "HIGH", "MEDIUM", "LOW"].map(prio => (
-                                                <DropdownMenuItem
-                                                  key={prio}
-                                                  className="text-xs capitalize cursor-pointer"
-                                                  onClick={() => updateTask.mutate({ id: t.id, patch: { priority: prio } })}
-                                                >
-                                                  {prio.toLowerCase()}
-                                                  {t.priority === prio && <Check className="h-3 w-3 ml-auto text-primary" />}
-                                                </DropdownMenuItem>
-                                              ))}
-                                            </DropdownMenuContent>
-                                          </DropdownMenu>
-                                        </div>
-                                      )}
-
-                                      {/* Assignees */}
-                                      {visibleColumns.assignees && (
-                                        <div onClick={e => e.stopPropagation()}>
-                                          <AssigneeSelectorDropdown task={t} users={users} />
-                                        </div>
-                                      )}
-
-                                      {/* Associated Team */}
-                                      {visibleColumns.associatedTeam && (
-                                        <div className="text-[11px] text-muted-foreground truncate font-medium pr-2">
-                                          {teams.find(tm => tm.id === t.teamId)?.name || "—"}
-                                        </div>
-                                      )}
-
-                                      {/* Start Date */}
-                                      {visibleColumns.startDate && (
-                                        <div className="text-[11px] text-muted-foreground font-mono pr-2">
-                                          {t.startDate ? format(new Date(t.startDate), "yyyy-MM-dd") : "—"}
-                                        </div>
-                                      )}
-
-                                      {/* Due */}
-                                      {visibleColumns.due && (
-                                        <div className="flex items-center min-w-0" onClick={e => e.stopPropagation()}>
-                                          <Input
-                                            type="date"
-                                            value={t.dueDate ? t.dueDate.split("T")[0] : ""}
-                                            onChange={(e) => {
-                                              const val = e.target.value;
-                                              const formattedDate = val ? new Date(val).toISOString() : null;
-                                              updateTask.mutate({ id: t.id, patch: { dueDate: formattedDate } });
-                                            }}
-                                            className="h-7 border-0 bg-transparent hover:bg-muted/40 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring text-[11px] font-mono p-1 rounded min-w-[110px]"
-                                          />
-                                        </div>
-                                      )}
-
-                                      {/* Time Span */}
-                                      {visibleColumns.timeSpan && (
-                                        <div className="text-[11px] text-muted-foreground font-mono pr-2">
-                                          {localStorage.getItem(`task-duration-${t.id}`) ? `${localStorage.getItem(`task-duration-${t.id}`)} days` : "—"}
-                                        </div>
-                                      )}
-
-                                      {/* Recurrence */}
-                                      {visibleColumns.recurrence && (
-                                        <div className="text-[11px] text-muted-foreground pr-2">
-                                          {localStorage.getItem(`task-recurrence-${t.id}`) || "None"}
-                                        </div>
-                                      )}
-
-                                      {/* Created Time */}
-                                      {visibleColumns.createdTime && (
-                                        <div className="text-[11px] text-muted-foreground font-mono pr-2">
-                                          {t.createdAt ? format(new Date(t.createdAt), "yyyy-MM-dd HH:mm") : "—"}
-                                        </div>
-                                      )}
-
-                                      {/* Progress */}
-                                      {visibleColumns.progress && (
-                                        <div className="flex items-center gap-2">
-                                          <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                                            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                                        {/* Completion Percentage */}
+                                        {visibleColumns.completionPercentage && (
+                                          <div className="text-[11px] font-mono text-muted-foreground pr-2 text-center w-full">
+                                            {localStorage.getItem(`task-completion-${t.id}`) || "0"}%
                                           </div>
-                                          <span className="text-[9px] font-mono text-muted-foreground w-7 text-right">{pct}%</span>
-                                        </div>
-                                      )}
+                                        )}
 
-                                      {/* Completion Percentage */}
-                                      {visibleColumns.completionPercentage && (
-                                        <div className="text-[11px] font-mono text-muted-foreground pr-2 text-center w-full">
-                                          {localStorage.getItem(`task-completion-${t.id}`) || "0"}%
-                                        </div>
-                                      )}
+                                        {/* Category */}
+                                        {visibleColumns.category && (
+                                          <div onClick={e => e.stopPropagation()}>
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger asChild>
+                                                <button className="focus:outline-none transition-transform active:scale-95 text-[11px] hover:bg-muted/40 px-2 py-0.5 rounded border border-transparent hover:border-border/40">
+                                                  {t.category ? (
+                                                    <span className="font-semibold text-primary truncate max-w-[80px] block">
+                                                      {t.category}
+                                                    </span>
+                                                  ) : <span className="text-muted-foreground">—</span>}
+                                                </button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent align="start">
+                                                <DropdownMenuLabel className="text-[10px] uppercase">Set Category</DropdownMenuLabel>
+                                                <DropdownMenuSeparator />
+                                                {ALL_CATEGORIES.map(cat => (
+                                                  <DropdownMenuItem
+                                                    key={cat}
+                                                    className="text-xs cursor-pointer"
+                                                    onClick={() => updateTask.mutate({ id: t.id, patch: { category: cat as any } })}
+                                                  >
+                                                    {cat}
+                                                    {t.category === cat && <Check className="h-3 w-3 ml-auto text-primary" />}
+                                                  </DropdownMenuItem>
+                                                ))}
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
+                                          </div>
+                                        )}
 
-                                      {/* Category */}
-                                      {visibleColumns.category && (
-                                        <div onClick={e => e.stopPropagation()}>
-                                          <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                              <button className="focus:outline-none transition-transform active:scale-95 text-[11px] hover:bg-muted/40 px-2 py-0.5 rounded border border-transparent hover:border-border/40">
-                                                {t.category ? (
-                                                  <span className="font-semibold text-primary truncate max-w-[80px] block">
-                                                    {t.category}
+                                        {/* Story Points */}
+                                        {visibleColumns.storyPoints && (
+                                          <div className="flex items-center min-w-0" onClick={e => e.stopPropagation()}>
+                                            <Input
+                                              type="number"
+                                              value={t.storyPoints ?? ""}
+                                              onChange={(e) => {
+                                                const val = e.target.value === "" ? undefined : Number(e.target.value);
+                                                updateTask.mutate({ id: t.id, patch: { storyPoints: val } });
+                                              }}
+                                              placeholder="—"
+                                              className="h-7 border-0 bg-transparent hover:bg-muted/40 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring text-[11px] font-mono p-1 rounded w-16 text-center"
+                                            />
+                                          </div>
+                                        )}
+
+                                        {/* Task Type */}
+                                        {visibleColumns.taskType && (
+                                          <div onClick={e => e.stopPropagation()}>
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger asChild>
+                                                <button className="focus:outline-none transition-transform active:scale-95 text-[11px] hover:bg-muted/40 px-2 py-0.5 rounded border border-transparent hover:border-border/40">
+                                                  <span className="font-semibold truncate max-w-[80px] block">
+                                                    {t.taskType ?? "—"}
                                                   </span>
-                                                ) : <span className="text-muted-foreground">—</span>}
-                                              </button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="start">
-                                              <DropdownMenuLabel className="text-[10px] uppercase">Set Category</DropdownMenuLabel>
-                                              <DropdownMenuSeparator />
-                                              {ALL_CATEGORIES.map(cat => (
-                                                <DropdownMenuItem
-                                                  key={cat}
-                                                  className="text-xs cursor-pointer"
-                                                  onClick={() => updateTask.mutate({ id: t.id, patch: { category: cat } })}
-                                                >
-                                                  {cat}
-                                                  {t.category === cat && <Check className="h-3 w-3 ml-auto text-primary" />}
-                                                </DropdownMenuItem>
-                                              ))}
-                                            </DropdownMenuContent>
-                                          </DropdownMenu>
-                                        </div>
-                                      )}
+                                                </button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent align="start">
+                                                <DropdownMenuLabel className="text-[10px] uppercase">Set Type</DropdownMenuLabel>
+                                                <DropdownMenuSeparator />
+                                                {["TASK", "ISSUE"].map(type => (
+                                                  <DropdownMenuItem
+                                                    key={type}
+                                                    className="text-xs cursor-pointer"
+                                                    onClick={() => updateTask.mutate({ id: t.id, patch: { taskType: type as any } })}
+                                                  >
+                                                    {type}
+                                                    {t.taskType === type && <Check className="h-3 w-3 ml-auto text-primary" />}
+                                                  </DropdownMenuItem>
+                                                ))}
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
+                                          </div>
+                                        )}
 
-                                      {/* Story Points */}
-                                      {visibleColumns.storyPoints && (
-                                        <div className="flex items-center min-w-0" onClick={e => e.stopPropagation()}>
-                                          <Input
-                                            type="number"
-                                            value={t.storyPoints ?? ""}
-                                            onChange={(e) => {
-                                              const val = e.target.value === "" ? null : Number(e.target.value);
-                                              updateTask.mutate({ id: t.id, patch: { storyPoints: val } });
-                                            }}
-                                            placeholder="—"
-                                            className="h-7 border-0 bg-transparent hover:bg-muted/40 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring text-[11px] font-mono p-1 rounded w-16 text-center"
-                                          />
-                                        </div>
-                                      )}
-
-                                      {/* Task Type */}
-                                      {visibleColumns.taskType && (
-                                        <div onClick={e => e.stopPropagation()}>
+                                        {/* Actions */}
+                                        <div className="pr-4 flex justify-end" onClick={e => e.stopPropagation()}>
                                           <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                              <button className="focus:outline-none transition-transform active:scale-95 text-[11px] hover:bg-muted/40 px-2 py-0.5 rounded border border-transparent hover:border-border/40">
-                                                <span className="font-semibold truncate max-w-[80px] block">
-                                                  {t.taskType ?? "—"}
-                                                </span>
-                                              </button>
+                                              <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                              </Button>
                                             </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="start">
-                                              <DropdownMenuLabel className="text-[10px] uppercase">Set Type</DropdownMenuLabel>
-                                              <DropdownMenuSeparator />
-                                              {["TASK", "ISSUE"].map(type => (
-                                                <DropdownMenuItem
-                                                  key={type}
-                                                  className="text-xs cursor-pointer"
-                                                  onClick={() => updateTask.mutate({ id: t.id, patch: { taskType: type } })}
-                                                >
-                                                  {type}
-                                                  {t.taskType === type && <Check className="h-3 w-3 ml-auto text-primary" />}
-                                                </DropdownMenuItem>
-                                              ))}
-                                            </DropdownMenuContent>
-                                          </DropdownMenu>
-                                        </div>
-                                      )}
-
-                                      {/* Actions */}
-                                      <div onClick={e => e.stopPropagation()}>
-                                        <DropdownMenu>
-                                          <DropdownMenuTrigger asChild>
-                                            <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
-                                              <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                          </DropdownMenuTrigger>
-                                          <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => nav({ to: "/tasks/$id", params: { id: t.id } })}>
-                                              Open Details
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            {statuses.map(s => (
-                                              <DropdownMenuItem key={s.id} className="text-xs" onClick={() => updateStatus.mutateAsync({ taskId: t.id, statusId: s.id })}>
-                                                <span className="h-2 w-2 rounded-full mr-2" style={{ background: s.color }} />
-                                                Set as {s.name}
+                                            <DropdownMenuContent align="end">
+                                              <DropdownMenuItem onClick={() => nav({ to: "/tasks/$id", params: { id: t.id } })}>
+                                                Open Details
                                               </DropdownMenuItem>
-                                            ))}
-                                          </DropdownMenuContent>
-                                        </DropdownMenu>
+                                              <DropdownMenuSeparator />
+                                              {statuses.map(s => (
+                                                <DropdownMenuItem key={s.id} className="text-xs" onClick={() => updateStatus.mutateAsync({ taskId: t.id, statusId: s.id })}>
+                                                  <span className="h-2 w-2 rounded-full mr-2" style={{ background: s.color }} />
+                                                  Set as {s.name}
+                                                </DropdownMenuItem>
+                                              ))}
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        </div>
                                       </div>
-                                    </div>
-                                  );
-                                })}
-                              </>
+                                    );
+                                  })}
+                                </div>
+                              </div>
                             )}
                           </div>
                         );
@@ -1161,7 +1162,7 @@ function TasksPage() {
                                 <ZPriorityPill p={t.priority} />
                                 {t.assigneeIds[0] && (
                                   <div className="h-5 w-5 rounded-full bg-primary/15 flex items-center justify-center text-[8px] font-bold text-primary">
-                                    {users.find(u => u.id === t.assigneeIds[0])?.name?.slice(0,2).toUpperCase() ?? "?"}
+                                    {users.find(u => u.id === t.assigneeIds[0])?.name?.slice(0, 2).toUpperCase() ?? "?"}
                                   </div>
                                 )}
                               </div>
@@ -1230,9 +1231,8 @@ function TasksPage() {
                           <div key={sec.key} className="border-b border-border/20 last:border-0 py-0.5">
                             <button
                               onClick={() => setFilterSections(prev => ({ ...prev, [sec.key]: !prev[sec.key] }))}
-                              className={`w-full flex items-center justify-between py-1.5 px-2 text-[11px] font-semibold hover:bg-muted/40 transition-all rounded ${
-                                isOpen ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/5" : "text-foreground"
-                              }`}
+                              className={`w-full flex items-center justify-between py-1.5 px-2 text-[11px] font-semibold hover:bg-muted/40 transition-all rounded ${isOpen ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/5" : "text-foreground"
+                                }`}
                             >
                               <span>{sec.label}</span>
                               {isOpen ? <ChevronUp className="h-3 w-3 text-current" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
@@ -1400,8 +1400,8 @@ function TasksPage() {
                                       </SelectContent>
                                     </Select>
                                     <div className="space-y-1 pt-1">
-                                      {["CRITICAL","HIGH","MEDIUM","LOW"].map((p) => {
-                                        const colors: Record<string,string> = { CRITICAL:"text-red-500", HIGH:"text-orange-500", MEDIUM:"text-yellow-500", LOW:"text-blue-400" };
+                                      {["CRITICAL", "HIGH", "MEDIUM", "LOW"].map((p) => {
+                                        const colors: Record<string, string> = { CRITICAL: "text-red-500", HIGH: "text-orange-500", MEDIUM: "text-yellow-500", LOW: "text-blue-400" };
                                         return (
                                           <div key={p} className="flex items-center space-x-2">
                                             <Checkbox id={`f-prio-${p}`} checked={filterPriorities.includes(p)} onCheckedChange={(val) => {
@@ -1537,7 +1537,7 @@ function TasksPage() {
         </>
       )}
 
-      <Outlet context={{ filteredTasks: filtered, statuses, projects, users, teams }} />
+      <Outlet {...({ context: { filteredTasks: filtered, statuses, projects, users, teams } } as any)} />
 
       {/* Bulk Action Bar */}
       <ZBulkBar count={selected.size} onClear={() => setSelected(new Set())}>

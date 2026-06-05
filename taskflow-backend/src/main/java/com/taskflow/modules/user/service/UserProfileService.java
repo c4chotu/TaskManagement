@@ -181,6 +181,12 @@ public class UserProfileService {
             }
         }
 
+        UUID teamId = null;
+        List<com.taskflow.modules.user.domain.TeamMember> teamMemberships = teamMemberRepository.findByUserId(profile.getId());
+        if (teamMemberships != null && !teamMemberships.isEmpty()) {
+            teamId = teamMemberships.get(0).getTeamId();
+        }
+
         return UserProfileResponse.builder()
                 .id(profile.getId())
                 .email(profile.getEmail())
@@ -191,8 +197,10 @@ public class UserProfileService {
                 .bio(profile.getBio())
                 .roleName(roleName)
                 .roleLevel(roleLevel)
+                .teamId(teamId)
                 .build();
     }
+
 
     private int mapRoleNameToLevel(String roleName) {
         if (roleName == null) return 1;

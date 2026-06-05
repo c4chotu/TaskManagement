@@ -1,5 +1,4 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Topbar } from "@/components/tfp/topbar";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,32 +9,49 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
-  useCreateTask, useProjects, useStatuses, useUsers, useTeams, useTasks, useProjectMembers, useProject, useSprints, usePhases, useUploadAttachment,
+  useCreateTask, useProjects, useStatuses, useUsers, useTeams, useTasks, useProjectMembers, useProject, useSprints, usePhases, useUploadAttachment, useTask,
 } from "@/lib/queries";
 import { toast } from "sonner";
 import {
   ArrowLeft, Sparkles, ListChecks, AlertOctagon, Tag, Flag, Calendar,
-  Users, Paperclip, Repeat, X,
+  Users, Paperclip, Repeat, X, ChevronDown, ChevronUp, Code, List, ListOrdered, Link2, Info, Clock, Bell
 } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
 import type { Task, TaskCategory, TaskBadge } from "@/lib/types";
-import { ZPageHeader } from "@/components/zoho/components";
 
 export const Route = createFileRoute("/_app/tasks/new")({
+  validateSearch: (search: Record<string, unknown>): { parentTaskId?: string; projectId?: string } => {
+    return {
+      parentTaskId: (search.parentTaskId as string) || undefined,
+      projectId: (search.projectId as string) || undefined,
+    };
+  },
   head: () => ({ meta: [{ title: "New Task — TaskFlow Pro" }] }),
   component: NewTaskPage,
 });
 
 function NewTaskPage() {
   const nav = useNavigate();
+  const { parentTaskId, projectId: initialProjectId } = Route.useSearch();
+
+  const { data: parentTask } = useTask(parentTaskId === "none" ? undefined : parentTaskId);
   const { data: projects = [] } = useProjects();
   const [projectId, setProjectId] = useState("");
-  const activeProjectId = projectId || projects[0]?.id || "";
+  
+  const activeProjectId = projectId || initialProjectId || parentTask?.projectId || projects[0]?.id || "";
+
+  useEffect(() => {
+    if (parentTask?.projectId) {
+      setProjectId(parentTask.projectId);
+    } else if (initialProjectId) {
+      setProjectId(initialProjectId);
+    }
+  }, [parentTask, initialProjectId]);
 
   const { data: project } = useProject(activeProjectId);
   const { data: sprints = [] } = useSprints(activeProjectId);
-  const { data: phases = [] } = usePhases(activeProjectId);
   const { data: statuses = [] } = useStatuses(activeProjectId);
   const { data: users = [] } = useUsers();
   const { data: projectMembers = [] } = useProjectMembers(activeProjectId);
@@ -53,16 +69,11 @@ function NewTaskPage() {
   const [taskType, setTaskType] = useState<Task["taskType"]>("TASK");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [parentTaskId, setParentTaskId] = useState("none");
 
-  const { data: allProjectTasks = [] } = useTasks(activeProjectId ? { projectId: activeProjectId } : undefined);
-  const standardTasks = allProjectTasks.filter((t) => t.taskType === "TASK");
   const [teamId, setTeamId] = useState("none");
   const [sprintId, setSprintId] = useState("none");
-  const [phaseId, setPhaseId] = useState("none");
   const [statusId, setStatusId] = useState("s-todo");
-  const [priority, setPriority] = useState<NonNullable<Task["priority"]>>("MEDIUM");
-  const [severity, setSeverity] = useState("SEV2");
+  const [priority, setPriority] = useState<NonNullable<Task["priority"]> | "NONE">("NONE");
   const [dueDate, setDueDate] = useState("");
   const [startDate, setStartDate] = useState("");
   const [estimatedHours, setEstimatedHours] = useState("");
@@ -70,6 +81,12 @@ function NewTaskPage() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [recurrence, setRecurrence] = useState("none");
+  const [billingType, setBillingType] = useState("HOURLY");
+  const [reminder, setReminder] = useState("none");
+
+  const [descExpanded, setDescExpanded] = useState(true);
+  const [infoExpanded, setInfoExpanded] = useState(true);
+
   const [categories, setCategories] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("tfp.customCategories");
@@ -89,6 +106,12 @@ function NewTaskPage() {
     ? statusId
     : (statuses.find((s) => s.isDefault)?.id || statuses[0]?.id || statusId);
 
+  useEffect(() => {
+    if (parentTask && parentTask.sprintId) {
+      setSprintId(parentTask.sprintId);
+    }
+  }, [parentTask]);
+
   const toggle = (id: string) =>
     setAssignees((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
@@ -97,6 +120,30 @@ function NewTaskPage() {
     if (!v) return;
     setTags((p) => [...p, v]);
     setTagInput("");
+  };
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const insertMarkdown = (prefix: string, suffix: string = "") => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selected = text.substring(start, end);
+    const replacement = prefix + selected + suffix;
+    setDescription(text.substring(0, start) + replacement + text.substring(end));
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+    }, 0);
+  };
+
+  const handleCancel = () => {
+    if (parentTaskId && parentTaskId !== "none") {
+      nav({ to: `/tasks/${parentTaskId}` });
+    } else {
+      nav({ to: "/tasks" });
+    }
   };
 
   const submit = async (mode: "save" | "another") => {
@@ -109,8 +156,9 @@ function NewTaskPage() {
         projectId: activeProjectId,
         statusId: activeStatusId,
         taskType,
-        priority,
+        priority: priority === "NONE" ? undefined : (priority as any),
         dueDate: dueDate || undefined,
+        startDate: startDate || undefined,
         estimatedHours: estimatedHours ? Number(estimatedHours) : undefined,
         assigneeIds: assignees,
         teamId: teamId === "none" ? undefined : teamId,
@@ -133,69 +181,188 @@ function NewTaskPage() {
         }
       }
 
-      toast.success(`${taskType === "ISSUE" ? "Issue" : "Task"} created`);
-      if (mode === "save") nav({ to: "/tasks" });
-      else { setTitle(""); setDescription(""); setAssignees([]); setTags([]); setTaskFiles([]); }
+      toast.success(`${parentTaskId && parentTaskId !== "none" ? "Subtask" : "Task"} created`);
+      if (mode === "save") {
+        if (parentTaskId && parentTaskId !== "none") {
+          nav({ to: `/tasks/${parentTaskId}` });
+        } else {
+          nav({ to: "/tasks" });
+        }
+      } else {
+        setTitle("");
+        setDescription("");
+        setAssignees([]);
+        setTags([]);
+        setTaskFiles([]);
+        setEstimatedHours("");
+        setStartDate("");
+        setDueDate("");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to create");
     }
-  };
-
-  return (
-    <>
-      <Topbar title="Create Task" />
-      <ZPageHeader
-        title={taskType === "ISSUE" ? "Create Issue" : "Create Task"}
-        breadcrumbs={[{ label: "Tasks", to: "/tasks" }, { label: "New" }]}
-        actions={
-          <Button variant="ghost" size="sm" onClick={() => nav({ to: "/tasks" })}>
-            <ArrowLeft className="mr-1 h-3.5 w-3.5" /> Back
+  };  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col glass-card shadow-2xl rounded-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-white/10 bg-muted/5 px-6 py-4">
+          <div>
+            <h2 className="text-base font-bold flex items-center gap-2 tracking-tight text-foreground">
+              <Sparkles className="h-5 w-5 text-emerald-500 animate-pulse" />
+              {parentTask ? "Add Subtask Flow" : (taskType === "ISSUE" ? "Report Incident Operations" : "Initialize New Task")}
+            </h2>
+            {parentTask && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Subtask of <span className="font-semibold text-emerald-500">{parentTask.title}</span>
+              </p>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+            onClick={handleCancel}
+          >
+            <X className="h-4 w-4" />
           </Button>
-        }
-      />
+        </div>
 
-      <main className="flex-1 overflow-y-auto p-6 pb-24">
-        <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1fr_360px]">
-          {/* LEFT — main fields */}
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin">
+          
+          {/* Title and Type Toggle */}
           <div className="space-y-4">
-            <Card className="p-5">
-              {/* Type toggle */}
-              <div className="mb-4 inline-flex rounded-md border border-border bg-muted/30 p-0.5">
-                <button onClick={() => setTaskType("TASK")}
-                  className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition ${taskType === "TASK" ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}>
-                  <ListChecks className="h-3.5 w-3.5" /> Task
+            <div className="flex items-center justify-between">
+              <div className="inline-flex rounded-xl border border-border bg-background/50 p-1 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setTaskType("TASK")}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-300 ${
+                    taskType === "TASK"
+                      ? "bg-emerald-500 text-white shadow-sm scale-105"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <ListChecks className="h-3.5 w-3.5" /> Task Flow
                 </button>
-                <button onClick={() => setTaskType("ISSUE")}
-                  className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition ${taskType === "ISSUE" ? "bg-destructive text-destructive-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}>
-                  <AlertOctagon className="h-3.5 w-3.5" /> Issue
+                <button
+                  type="button"
+                  onClick={() => setTaskType("ISSUE")}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-300 ${
+                    taskType === "ISSUE"
+                      ? "bg-red-500 text-white shadow-sm scale-105"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <AlertOctagon className="h-3.5 w-3.5" /> Incident Issue
                 </button>
               </div>
+            </div>
 
-              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Title *</Label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus
-                placeholder={taskType === "ISSUE" ? "Brief issue summary..." : "What needs to be done?"}
-                className="mt-1 border-0 border-b text-xl font-semibold focus-visible:ring-0 px-0 rounded-none" />
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+                {taskType === "ISSUE" ? "Incident Summary *" : "Task Title *"}
+              </Label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                autoFocus
+                placeholder={taskType === "ISSUE" ? "Brief incident summary..." : "What needs to be done?"}
+                className="border-0 border-b border-border/50 text-lg font-bold focus-visible:ring-0 focus-visible:border-emerald-500 px-0 rounded-none bg-transparent transition-all duration-300"
+              />
+            </div>
+          </div>
 
-              {taskType === "ISSUE" && (
-                <div className="mt-4">
-                  <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Associated Task</Label>
-                  <Select value={parentTaskId} onValueChange={setParentTaskId}>
-                    <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue placeholder="Select Task..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No associated task</SelectItem>
-                      {standardTasks.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.displayId ? `[${t.displayId}] ` : ""}{t.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+          {/* Collapsible Description Section */}
+          <div className="border border-border/60 rounded-xl overflow-hidden bg-muted/5">
+            <button
+              type="button"
+              onClick={() => setDescExpanded(!descExpanded)}
+              className="flex items-center justify-between w-full p-4 font-semibold text-sm hover:bg-muted/20 transition text-left"
+            >
+              <span className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-teal-500" />
+                Description & Attachments
+              </span>
+              {descExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+
+            {descExpanded && (
+              <div className="p-4 pt-0 space-y-4 border-t border-border/40 animate-in slide-in-from-top-1 duration-200">
+                
+                {/* Formatting Toolbar */}
+                <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-muted/40 rounded-lg border border-border/40 mt-3">
+                  <button
+                    type="button"
+                    title="Bold"
+                    onClick={() => insertMarkdown("**", "**")}
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                  >
+                    <span className="font-bold text-xs px-1">B</span>
+                  </button>
+                  <button
+                    type="button"
+                    title="Italic"
+                    onClick={() => insertMarkdown("*", "*")}
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                  >
+                    <span className="italic text-xs px-1">I</span>
+                  </button>
+                  <button
+                    type="button"
+                    title="Underline"
+                    onClick={() => insertMarkdown("<u>", "</u>")}
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                  >
+                    <span className="underline text-xs px-1">U</span>
+                  </button>
+                  <button
+                    type="button"
+                    title="Code block"
+                    onClick={() => insertMarkdown("```\n", "\n```")}
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                  >
+                    <Code className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    title="Bullet List"
+                    onClick={() => insertMarkdown("- ", "")}
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                  >
+                    <List className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    title="Numbered List"
+                    onClick={() => insertMarkdown("1. ", "")}
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                  >
+                    <ListOrdered className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    title="Quote"
+                    onClick={() => insertMarkdown("> ", "")}
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                  >
+                    <span className="font-serif font-bold text-xs px-1">“</span>
+                  </button>
+                  <button
+                    type="button"
+                    title="Link"
+                    onClick={() => insertMarkdown("[", "](url)")}
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                  >
+                    <Link2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-              )}
 
-              <div className="mt-5">
-                <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Description</Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
+                <Textarea
+                  ref={textareaRef}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                   onPaste={async (e) => {
                     const items = e.clipboardData.items;
                     for (const item of items) {
@@ -210,7 +377,8 @@ function NewTaskPage() {
                             const textarea = e.currentTarget;
                             const start = textarea.selectionStart;
                             const end = textarea.selectionEnd;
-                            const newVal = description.substring(0, start) + markdownImage + description.substring(end);
+                            const newVal =
+                              description.substring(0, start) + markdownImage + description.substring(end);
                             setDescription(newVal);
                             toast.success("Image embedded in description");
                           };
@@ -219,32 +387,12 @@ function NewTaskPage() {
                       }
                     }
                   }}
-                  rows={6} placeholder="Add details, acceptance criteria, links… (Paste images to embed inline)" className="mt-1" />
-              </div>
+                  rows={4}
+                  placeholder="Describe details, acceptance criteria, links... Paste images to embed inline"
+                  className="w-full text-sm border-border focus-visible:ring-1 focus-visible:ring-teal-500 bg-background"
+                />
 
-              <div className="mt-5">
-                <Label className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                  <Tag className="h-3 w-3" /> Tags
-                </Label>
-                <div className="mt-1 flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-background p-2">
-                  {tags.map((t, i) => (
-                    <Badge key={i} variant="secondary" className="gap-1">
-                      {t}
-                      <button onClick={() => setTags((p) => p.filter((_, x) => x !== i))}>
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                  <input value={tagInput} onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
-                    placeholder="Add tag…" className="min-w-[100px] flex-1 bg-transparent text-xs outline-none" />
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <Label className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                  <Paperclip className="h-3 w-3" /> Attachments
-                </Label>
+                {/* Drag-and-Drop file attachment zone */}
                 <div
                   onClick={() => document.getElementById("task-file-input")?.click()}
                   onDragOver={(e) => {
@@ -255,13 +403,16 @@ function NewTaskPage() {
                     e.preventDefault();
                     e.stopPropagation();
                     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                      setTaskFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files)]);
+                      setTaskFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files || [])]);
                     }
                   }}
-                  className="mt-1 flex flex-col items-center justify-center rounded-md border border-dashed border-border bg-muted/20 hover:bg-muted/40 cursor-pointer py-6 text-xs text-muted-foreground transition duration-200"
+                  className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-background/50 hover:border-emerald-500/50 hover:bg-emerald-500/5 cursor-pointer py-5 text-xs text-muted-foreground transition-all duration-300 shadow-sm"
                 >
-                  <Paperclip className="h-6 w-6 text-muted-foreground/60 mb-2" />
-                  <span>Drag & drop files here, or <span className="text-primary font-medium hover:underline">browse</span></span>
+                  <Paperclip className="h-5.5 w-5.5 text-emerald-500 mb-1.5 animate-pulse" />
+                  <span className="font-medium">
+                    Drag & drop files here, or{" "}
+                    <span className="text-emerald-500 font-bold hover:underline">browse files</span>
+                  </span>
                   <input
                     id="task-file-input"
                     type="file"
@@ -269,19 +420,26 @@ function NewTaskPage() {
                     className="hidden"
                     onChange={(e) => {
                       if (e.target.files && e.target.files.length > 0) {
-                        setTaskFiles((prev) => [...prev, ...Array.from(e.target.files)]);
+                        setTaskFiles((prev) => [...prev, ...Array.from(e.target.files || [])]);
                       }
                     }}
                   />
                 </div>
+
+                {/* Attachment list */}
                 {taskFiles.length > 0 && (
-                  <div className="mt-3 space-y-1.5">
+                  <div className="space-y-1.5">
                     {taskFiles.map((file, idx) => (
-                      <div key={idx} className="flex items-center justify-between rounded border border-border bg-muted/30 px-3 py-1.5 text-xs">
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-1.5 text-xs"
+                      >
                         <div className="flex items-center gap-2 truncate">
                           <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                           <span className="truncate font-medium">{file.name}</span>
-                          <span className="text-[10px] text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            ({(file.size / 1024).toFixed(1)} KB)
+                          </span>
                         </div>
                         <Button
                           type="button"
@@ -300,70 +458,35 @@ function NewTaskPage() {
                   </div>
                 )}
               </div>
-            </Card>
+            )}
           </div>
 
-          {/* RIGHT — meta sidebar */}
-          <aside className="space-y-4">
-            <Card className="p-4">
-              <h4 className="mb-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Details</h4>
-              <div className="space-y-3">
-                <Field label="Project *">
-                  <Select value={activeProjectId} onValueChange={setProjectId}>
-                    <SelectTrigger className="h-8"><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Team">
-                  <Select value={teamId} onValueChange={setTeamId}>
-                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No team</SelectItem>
-                      {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Status">
-                  <Select value={activeStatusId} onValueChange={setStatusId}>
-                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {statuses.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          <span className="mr-2 inline-block h-2 w-2 rounded-full" style={{ background: s.color }} />
-                          {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                {project?.type === "SCRUM" && sprints.length > 0 && (
-                  <Field label="Sprint">
-                    <Select value={sprintId} onValueChange={setSprintId}>
-                      <SelectTrigger className="h-8">
-                        <SelectValue placeholder="Select Sprint" />
+          {/* Collapsible Task Information Section */}
+          <div className="border border-border/60 rounded-xl overflow-hidden bg-muted/5">
+            <button
+              type="button"
+              onClick={() => setInfoExpanded(!infoExpanded)}
+              className="flex items-center justify-between w-full p-4 font-semibold text-sm hover:bg-muted/20 transition text-left"
+            >
+              <span className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-teal-500" />
+                Task Information
+              </span>
+              {infoExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+
+            {infoExpanded && (
+              <div className="p-6 pt-0 border-t border-border/40 animate-in slide-in-from-top-1 duration-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
+                  
+                  {/* Project */}
+                  <Field label="Project *">
+                    <Select value={activeProjectId} onValueChange={setProjectId} disabled={!!parentTask}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
+                        <SelectValue placeholder="Select Project" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {sprints.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                )}
-                 {project?.type === "WATERFALL" && sprints.length > 0 && (
-                  <Field label="Phase">
-                    <Select value={sprintId} onValueChange={setSprintId}>
-                      <SelectTrigger className="h-8">
-                        <SelectValue placeholder="Select Phase" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {sprints.map((p) => (
+                        {projects.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.name}
                           </SelectItem>
@@ -371,163 +494,292 @@ function NewTaskPage() {
                       </SelectContent>
                     </Select>
                   </Field>
-                )}
-                <Field label={<span className="flex items-center gap-1"><Flag className="h-3 w-3" /> Priority</span>}>
-                  <Select value={priority} onValueChange={(v) => setPriority(v as any)}>
-                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="LOW">Low</SelectItem>
-                      <SelectItem value="MEDIUM">Medium</SelectItem>
-                      <SelectItem value="HIGH">High</SelectItem>
-                      <SelectItem value="CRITICAL">Critical</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                {taskType === "ISSUE" && (
-                  <Field label="Severity">
-                    <Select value={severity} onValueChange={setSeverity}>
-                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+
+                  {/* Team */}
+                  <Field label="Team">
+                    <Select value={teamId} onValueChange={setTeamId}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="SEV0">SEV0 — Critical</SelectItem>
-                        <SelectItem value="SEV1">SEV1 — High</SelectItem>
-                        <SelectItem value="SEV2">SEV2 — Medium</SelectItem>
-                        <SelectItem value="SEV3">SEV3 — Low</SelectItem>
+                        <SelectItem value="none">No Team</SelectItem>
+                        {teams.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </Field>
-                )}
-                <Field label={<span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Start</span>}>
-                  <Input type="date" className="h-8" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                </Field>
-                <Field label={<span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Due</span>}>
-                  <Input type="date" className="h-8" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-                </Field>
-                <Field label="Estimate (h)">
-                  <Input type="number" min={0} step={0.5} className="h-8"
-                    value={estimatedHours} onChange={(e) => setEstimatedHours(e.target.value)} />
-                </Field>
-                <Field label={<span className="flex items-center gap-1"><Repeat className="h-3 w-3" /> Recurrence</span>}>
-                  <Select value={recurrence} onValueChange={setRecurrence}>
-                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Does not repeat</SelectItem>
-                      <SelectItem value="DAILY">Daily</SelectItem>
-                      <SelectItem value="WEEKLY">Weekly</SelectItem>
-                      <SelectItem value="MONTHLY">Monthly</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label={<span className="flex items-center gap-1"><Tag className="h-3 w-3" /> Category</span>}>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger className="h-8"><SelectValue placeholder="Select category" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Category</SelectItem>
-                      {categories.map(c => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                      <div className="p-1 border-t border-border mt-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="w-full justify-start text-[11px] h-7 text-primary hover:text-primary-foreground hover:bg-primary"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const name = prompt("Enter new category name:");
-                            if (name && name.trim()) {
-                              const clean = name.trim().toUpperCase();
-                              if (!categories.includes(clean)) {
-                                const updated = [...categories, clean];
-                                setCategories(updated);
-                                localStorage.setItem("tfp.customCategories", JSON.stringify(updated));
-                                setCategory(clean);
-                                toast.success(`Category "${clean}" added`);
-                              } else {
-                                setCategory(clean);
-                              }
-                            }
-                          }}
-                        >
-                          + Add Category
-                        </Button>
-                      </div>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Story Points">
-                  <Input type="number" min={0} step={1} className="h-8" placeholder="e.g. 5" value={storyPoints} onChange={(e) => setStoryPoints(e.target.value)} />
-                </Field>
-              </div>
-            </Card>
 
-            <Card className="p-4">
-              <h4 className="mb-3 flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                <Users className="h-3 w-3" /> Assignees
-              </h4>
-              <div className="flex flex-wrap gap-1.5">
-                {filteredUsers.map((u) => {
-                  const on = assignees.includes(u.id);
-                  return (
-                    <button key={u.id} onClick={() => toggle(u.id)}
-                      className={`flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] transition ${on ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:border-primary/40"}`}>
-                      <Avatar className="h-4 w-4">
-                        <AvatarFallback className="bg-muted text-[8px]">{u.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      {u.name}
-                      {on && <X className="h-3 w-3" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </Card>
+                  {/* Status */}
+                  <Field label="Status">
+                    <Select value={statusId} onValueChange={setStatusId}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statuses.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            <div className="flex items-center gap-2">
+                              <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
+                              {s.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
 
-            {/* Badges */}
-            <Card className="p-4">
-              <h4 className="mb-3 flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                <Sparkles className="h-3 w-3" /> Task Badges
-              </h4>
-              <div className="flex flex-wrap gap-1.5">
-                {(["URGENT","BLOCKED","CUSTOMER_REPORTED","P0","HOT_FIX","INNOVATION","MILESTONE","GOOD_FIRST","NEEDS_REVIEW","ON_TRACK"] as TaskBadge[]).map(b => {
-                  const on = badges.includes(b);
-                  return (
-                    <button key={b} onClick={() => setBadges(p => on ? p.filter(x => x !== b) : [...p, b])}
-                      className={`text-[10px] font-bold uppercase tracking-wide rounded px-2 py-0.5 border transition ${
-                        on ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300" : "border-border text-muted-foreground hover:border-emerald-500/40"
-                      }`}>
-                      {b.replace(/_/g,' ')}
-                    </button>
-                  );
-                })}
-              </div>
-            </Card>
-          </aside>
-        </div>
-      </main>
+                  {/* Sprint/Phase */}
+                  {project?.type === "SCRUM" && sprints.length > 0 && (
+                    <Field label="Sprint">
+                      <Select value={sprintId} onValueChange={setSprintId}>
+                        <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
+                          <SelectValue placeholder="Select Sprint" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {sprints.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
+                  {project?.type === "WATERFALL" && sprints.length > 0 && (
+                    <Field label="Phase">
+                      <Select value={sprintId} onValueChange={setSprintId}>
+                        <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
+                          <SelectValue placeholder="Select Phase" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {sprints.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
 
-      {/* sticky footer */}
-      <div className="sticky bottom-0 z-20 border-t border-border bg-card/95 backdrop-blur px-6 py-3">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <p className="text-[11px] text-muted-foreground">
-            {taskType === "ISSUE" ? "Issue" : "Task"} will be added to <span className="font-semibold text-foreground">{projects.find((p) => p.id === projectId)?.name ?? "—"}</span>
-          </p>
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={() => nav({ to: "/tasks" })}>Cancel</Button>
-            <Button variant="outline" onClick={() => submit("another")} disabled={create.isPending}>Save & add another</Button>
-            <Button onClick={() => submit("save")} disabled={create.isPending}
-              className="bg-gradient-primary text-primary-foreground shadow-glow">
-              <Sparkles className="mr-1 h-3.5 w-3.5" />
-              {create.isPending ? "Creating…" : "Create"}
-            </Button>
+                  {/* Priority */}
+                  <Field label="Priority">
+                    <Select value={priority} onValueChange={(v) => setPriority(v as any)}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NONE">None</SelectItem>
+                        <SelectItem value="LOW">Low</SelectItem>
+                        <SelectItem value="MEDIUM">Medium</SelectItem>
+                        <SelectItem value="HIGH">High</SelectItem>
+                        <SelectItem value="CRITICAL">Critical</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  {/* Work Hours */}
+                  <Field label="Work Hours (h)">
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        className="h-9 text-xs pl-8 focus-visible:ring-teal-500"
+                        value={estimatedHours}
+                        onChange={(e) => setEstimatedHours(e.target.value)}
+                        placeholder="e.g. 4.5"
+                      />
+                      <Clock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground/60" />
+                    </div>
+                  </Field>
+
+                  {/* Start Date */}
+                  <Field label="Start Date">
+                    <DatePicker
+                      value={startDate}
+                      onChange={(dateStr) => setStartDate(dateStr || "")}
+                      placeholder="Start date"
+                    />
+                  </Field>
+
+                  {/* Due Date */}
+                  <Field label="Due Date">
+                    <DatePicker
+                      value={dueDate}
+                      onChange={(dateStr) => setDueDate(dateStr || "")}
+                      placeholder="Due date"
+                    />
+                  </Field>
+
+                  {/* Billing Type */}
+                  <Field label="Billing Type">
+                    <Select value={billingType} onValueChange={setBillingType}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="HOURLY">Hourly Billing</SelectItem>
+                        <SelectItem value="FIXED">Fixed Price</SelectItem>
+                        <SelectItem value="NON_BILLABLE">Non-billable</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  {/* Reminder */}
+                  <Field label="Reminder">
+                    <Select value={reminder} onValueChange={setReminder}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Reminder</SelectItem>
+                        <SelectItem value="due">At Due Time</SelectItem>
+                        <SelectItem value="15m">15 Minutes Before</SelectItem>
+                        <SelectItem value="1h">1 Hour Before</SelectItem>
+                        <SelectItem value="1d">1 Day Before</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  {/* Category */}
+                  <Field label="Category">
+                    <Select value={category} onValueChange={setCategory}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
+                        <SelectValue placeholder="Select Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Category</SelectItem>
+                        {categories.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  {/* Recurrence */}
+                  <Field label="Recurrence">
+                    <Select value={recurrence} onValueChange={setRecurrence}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Does Not Repeat</SelectItem>
+                        <SelectItem value="DAILY">Daily</SelectItem>
+                        <SelectItem value="WEEKLY">Weekly</SelectItem>
+                        <SelectItem value="MONTHLY">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+
+                {/* Owner / Assignees Section */}
+                <div className="mt-6 space-y-2">
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5 text-teal-500" /> Assignees (Owner)
+                  </Label>
+                  <div className="flex flex-wrap gap-2 p-3 bg-muted/20 border border-border/55 rounded-xl">
+                    {filteredUsers.length === 0 ? (
+                      <span className="text-xs text-muted-foreground italic">
+                        Add members to the project first
+                      </span>
+                    ) : (
+                      filteredUsers.map((u) => {
+                        const on = assignees.includes(u.id);
+                        return (
+                          <button
+                            type="button"
+                            key={u.id}
+                            onClick={() => toggle(u.id)}
+                            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-all ${
+                              on
+                                ? "border-teal-500 bg-teal-500/10 text-teal-900 dark:text-teal-200"
+                                : "border-border text-muted-foreground hover:border-teal-500/40 hover:bg-muted/50"
+                            }`}
+                          >
+                            <Avatar className="h-4 w-4">
+                              <AvatarFallback className="bg-muted text-[8px] font-bold">
+                                {u.name?.slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            {u.name}
+                            {on && <X className="h-3 w-3 text-teal-500" />}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Tags Section */}
+                <div className="mt-6 space-y-2">
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1">
+                    <Tag className="h-3.5 w-3.5 text-teal-500" /> Tags
+                  </Label>
+                  <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border/80 bg-background p-2 focus-within:border-teal-500 transition">
+                    {tags.map((t, i) => (
+                      <Badge key={i} variant="secondary" className="gap-1 bg-teal-500/10 border border-teal-500/20 text-teal-900 dark:text-teal-200 text-xs py-0.5">
+                        {t}
+                        <button type="button" onClick={() => setTags((p) => p.filter((_, x) => x !== i))}>
+                          <X className="h-3 w-3 text-teal-500 hover:text-teal-600" />
+                        </button>
+                      </Badge>
+                    ))}
+                    <input
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
+                      placeholder="Add tag and press Enter..."
+                      className="min-w-[120px] flex-1 bg-transparent text-xs outline-none p-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Sticky Footer */}
+        <div className="sticky bottom-0 z-20 border-t border-white/10 bg-card/90 backdrop-blur px-6 py-4">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] text-muted-foreground">
+              Will be added to project <span className="font-bold text-foreground underline">{projects.find((p) => p.id === activeProjectId)?.name ?? "—"}</span>
+            </p>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={handleCancel} className="text-xs rounded-xl">Cancel</Button>
+              <Button variant="outline" onClick={() => submit("another")} disabled={create.isPending} className="text-xs rounded-xl border-border/60 hover-lift">Save & Add More</Button>
+              <Button
+                onClick={() => submit("save")}
+                disabled={create.isPending}
+                className={`text-xs font-bold rounded-xl shadow-lg px-4 py-2 hover-lift transition-all duration-300 text-white ${
+                  taskType === "ISSUE"
+                    ? "bg-red-500 hover:bg-red-600 shadow-red-500/10"
+                    : "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10"
+                }`}
+              >
+                <Sparkles className="mr-1.5 h-4 w-4" />
+                {create.isPending ? "Creating..." : parentTask ? "Add Subtask" : (taskType === "ISSUE" ? "Report Incident" : "Create Task")}
+              </Button>
+            </div>
+          </div>
+        </div>
+
       </div>
-    </>
+    </div>
   );
 }
 
 function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div>
-      <Label className="mb-1 block text-[10px] uppercase tracking-wide text-muted-foreground">{label}</Label>
+    <div className="space-y-1.5">
+      <Label className="block text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</Label>
       {children}
     </div>
   );

@@ -89,6 +89,10 @@ public class Task {
     @Column(name = "sprint_id")
     private UUID sprintId;
 
+    @Column(name = "estimated_hours", columnDefinition = "numeric(10,2)")
+    private Double estimatedHours;
+
+
     @Column(name = "organization_id", nullable = false)
     private UUID organizationId;
 

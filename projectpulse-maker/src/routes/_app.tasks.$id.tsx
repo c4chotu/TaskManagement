@@ -46,14 +46,15 @@ import { useAuth } from "@/lib/auth";
 import {
   ArrowLeft, Clock, Calendar, FolderKanban, MessageSquare,
   Play, Pause, Route as RouteIcon, History, Paperclip,
-  Link2, AlertTriangle, AlertOctagon, Timer, User as UserIcon, Plus, Zap, Check, CheckCircle2,
+  Link2, AlertTriangle, AlertOctagon, Loader2, Timer, User as UserIcon, Plus, Zap, Check, CheckCircle2,
   Users, Trash2, ArrowUpRight, ArrowDownLeft, ShieldAlert, X, FileText, Info, CheckSquare, Layers, Pencil, ChevronUp,
   Copy, ChevronDown, ChevronLeft, ChevronRight, Filter, Download, ExternalLink, SlidersHorizontal, FolderOpen,
   MoreHorizontal
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { SeverityBadge } from "@/components/tfp/badges";
+import { DatePicker } from "@/components/ui/date-picker";
 import { AttachmentsPanel } from "@/components/tfp/attachments-panel";
 import { TaskStatusSelect } from "@/components/tfp/task-quick-edit";
 
@@ -197,9 +198,24 @@ function TaskDetail() {
   const [newIssueCustomerName, setNewIssueCustomerName] = useState<string>("");
   const [newIssueCustomerImpact, setNewIssueCustomerImpact] = useState<string>("");
   const [issueFiles, setIssueFiles] = useState<Array<{ name: string; size: number; type: string }>>([]);
+  const [issueDragOver, setIssueDragOver] = useState(false);
+  const issueFileInputRef = useRef<HTMLInputElement>(null);
+
+  const addStagedIssueFiles = (files: FileList) => {
+    const newFiles = Array.from(files).map(file => ({
+      name: file.name,
+      size: file.size,
+      type: file.type
+    }));
+    setIssueFiles(prev => [...prev, ...newFiles]);
+    toast.success(`Staged ${newFiles.length} file(s)`);
+  };
 
   // Subtask quick add
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [newSubtaskPriority, setNewSubtaskPriority] = useState<"LOW" | "MEDIUM" | "HIGH" | "CRITICAL">("MEDIUM");
+  const [newSubtaskAssignee, setNewSubtaskAssignee] = useState<string>("");
+  const [newSubtaskHours, setNewSubtaskHours] = useState<string>("");
 
   // Bottom Tab active
   const [activeTab, setActiveTab] = useState<string>("comments");
@@ -277,11 +293,17 @@ function TaskDetail() {
         taskType: "TASK",
         parentTaskId: id,
         statusId: defaultStatusId,
-        priority: "MEDIUM"
+        priority: newSubtaskPriority,
+        assigneeIds: newSubtaskAssignee ? [newSubtaskAssignee] : [],
+        estimatedHours: newSubtaskHours ? Number(newSubtaskHours) : undefined
       });
       setNewSubtaskTitle("");
+      setNewSubtaskPriority("MEDIUM");
+      setNewSubtaskAssignee("");
+      setNewSubtaskHours("");
       toast.success("Subtask created!");
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Failed to create subtask");
     }
   };
@@ -426,9 +448,9 @@ function TaskDetail() {
   return (
     <>
       {/* Full-screen modal overlay */}
-      <div className="fixed inset-0 z-50 flex items-stretch bg-black/60 backdrop-blur-sm" onClick={() => nav({ to: "/tasks" })}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 backdrop-blur-[12px] p-4 sm:p-6" onClick={() => nav({ to: "/tasks" })}>
         <div
-          className="relative m-auto flex h-[95vh] w-[97vw] max-w-[1400px] rounded-2xl border border-border/60 bg-card shadow-2xl overflow-hidden"
+          className="relative flex h-[92vh] w-full max-w-[1440px] rounded-3xl border border-white/[0.08] bg-background/80 backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Top Breadcrumb Bar */}
@@ -582,10 +604,11 @@ function TaskDetail() {
               </div>
             </div>
 
-            {/* ── RIGHT: Main Task Detail ── */}
-            <div className="flex-1 flex flex-col overflow-hidden bg-background">
-              {/* Main Content Area */}
-              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            {/* ── RIGHT: Main Task Detail (Dual Pane Layout) ── */}
+            <div className="flex-1 flex overflow-hidden bg-background">
+              <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_320px] overflow-hidden animate-in fade-in duration-300">
+                {/* Left Pane (Main Content) */}
+                <div className="overflow-y-auto px-6 py-5 space-y-5 scrollbar-thin border-r border-border/40">
                 
                 {/* Title and sequential tag display */}
                 <div className="space-y-1.5 pb-1">
@@ -727,440 +750,7 @@ function TaskDetail() {
                   )}
                 </div>
 
-                {/* Task / Issue Information Accordion (collapsible field grid) */}
-                <div className="border border-border/50 rounded-xl overflow-hidden bg-card/40 backdrop-blur-sm">
-                  <button
-                    onClick={() => setIsInfoExpanded(!isInfoExpanded)}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-muted/10 hover:bg-muted/20 border-b border-border/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Info className="h-4 w-4 text-primary" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                        {task.taskType === "ISSUE" ? "Issue Information" : "Task Information"}
-                      </span>
-                    </div>
-                    {isInfoExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </button>
 
-                  {isInfoExpanded && (
-                    <div className="p-4 bg-background/40">
-                      {task.taskType === "ISSUE" ? (
-                        /* ── Issue mode Information grid ── */
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3.5 text-xs">
-                          {/* Column 1 */}
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Associated Team</Label>
-                              <div className="col-span-2">
-                                <Select value={task.teamId || "_none"} onValueChange={async (tId) => {
-                                  await updateTask.mutateAsync({ id, patch: { teamId: tId === "_none" ? undefined : tId } });
-                                  toast.success("Team updated");
-                                }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue placeholder="No team" /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="_none">No Team</SelectItem>
-                                    {teams.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Assignee</Label>
-                              <div className="col-span-2">
-                                <Select value={currentAssigneeId} onValueChange={async (userId) => {
-                                  await reassign.mutateAsync({ taskId: id, userId: userId === "_none" ? "" : userId });
-                                  toast.success("Assignee updated");
-                                }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="_none">Unassigned</SelectItem>
-                                    {filteredUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Tags</Label>
-                              <div className="col-span-2">
-                                <Input
-                                  placeholder="e.g. core, hotfix"
-                                  value={localTags}
-                                  onChange={(e) => { setLocalTags(e.target.value); localStorage.setItem(`task-tags-${id}`, e.target.value); }}
-                                  className="h-8 text-xs bg-transparent border-border/50"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Reminder</Label>
-                              <div className="col-span-2">
-                                <Select value={localReminder} onValueChange={(val) => { setLocalReminder(val); localStorage.setItem(`task-reminder-${id}`, val); }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="None">None</SelectItem>
-                                    <SelectItem value="15m">15m before</SelectItem>
-                                    <SelectItem value="1h">1h before</SelectItem>
-                                    <SelectItem value="1d">1d before</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Due Date</Label>
-                              <div className="col-span-2">
-                                <Input
-                                  type="date"
-                                  value={task.dueDate ? task.dueDate.split("T")[0] : ""}
-                                  onChange={async (e) => {
-                                    await updateTask.mutateAsync({ id, patch: { dueDate: e.target.value ? new Date(e.target.value).toISOString() : undefined } });
-                                    toast.success("Due date saved");
-                                  }}
-                                  className="h-8 text-xs font-mono bg-transparent border-border/50"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Status</Label>
-                              <div className="col-span-2">
-                                <Select value={task.statusId} onValueChange={async (sId) => {
-                                  await updateTask.mutateAsync({ id, patch: { statusId: sId } });
-                                  toast.success("Status updated");
-                                }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    {statuses.map(st => <SelectItem key={st.id} value={st.id}>{st.name}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Column 2 */}
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Severity</Label>
-                              <div className="col-span-2">
-                                <Select value={issue?.severity || "SEV2"} onValueChange={(val) => handleEditIssueDetail("severity", val)}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="SEV0">SEV0 — Critical</SelectItem>
-                                    <SelectItem value="SEV1">SEV1 — Major</SelectItem>
-                                    <SelectItem value="SEV2">SEV2 — Moderate</SelectItem>
-                                    <SelectItem value="SEV3">SEV3 — Minor</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Release Phase</Label>
-                              <div className="col-span-2">
-                                <Select value={task.sprintId || "_none"} onValueChange={async (sId) => {
-                                  await updateTask.mutateAsync({ id, patch: { sprintId: sId === "_none" ? undefined : sId } });
-                                  toast.success("Sprint phase updated");
-                                }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue placeholder="Backlog" /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="_none">Backlog</SelectItem>
-                                    {phases.map(ph => <SelectItem key={ph.id} value={ph.id}>{ph.name}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Affected Phase</Label>
-                              <div className="col-span-2">
-                                <Select value={issue?.affectedVersion || "_none"} onValueChange={(val) => handleEditIssueDetail("affectedVersion", val === "_none" ? null : val)}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue placeholder="None" /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="_none">None</SelectItem>
-                                    <SelectItem value="v1.0.0">v1.0.0</SelectItem>
-                                    <SelectItem value="v1.1.0">v1.1.0</SelectItem>
-                                    <SelectItem value="v2.0.0">v2.0.0</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Module</Label>
-                              <div className="col-span-2">
-                                <Select value={localModule} onValueChange={(val) => { setLocalModule(val); localStorage.setItem(`task-module-${id}`, val); }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="None">None</SelectItem>
-                                    <SelectItem value="Auth">Authentication</SelectItem>
-                                    <SelectItem value="Billing">Billing Engine</SelectItem>
-                                    <SelectItem value="Checkout">Checkout / Payment</SelectItem>
-                                    <SelectItem value="API">API Gateway</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Classification</Label>
-                              <div className="col-span-2">
-                                <Select value={localClass} onValueChange={(val) => { setLocalClass(val); localStorage.setItem(`task-class-${id}`, val); }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="None">None</SelectItem>
-                                    <SelectItem value="Bug">Security Vulnerability</SelectItem>
-                                    <SelectItem value="UI">UI Layout Issue</SelectItem>
-                                    <SelectItem value="Perf">Performance Bottleneck</SelectItem>
-                                    <SelectItem value="Crash">Runtime Crash</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Reproducible</Label>
-                              <div className="col-span-2">
-                                <Select value={localRepro} onValueChange={(val) => { setLocalRepro(val); localStorage.setItem(`task-repro-${id}`, val); }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="None">None</SelectItem>
-                                    <SelectItem value="Always">Always</SelectItem>
-                                    <SelectItem value="Sometimes">Intermittent</SelectItem>
-                                    <SelectItem value="Never">Cannot Reproduce</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Flag</Label>
-                              <div className="col-span-2">
-                                <Select value={localFlag} onValueChange={(val) => { setLocalFlag(val); localStorage.setItem(`task-flag-${id}`, val); }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="None">None</SelectItem>
-                                    <SelectItem value="Blocked">Blocked</SelectItem>
-                                    <SelectItem value="Escalated">Escalated</SelectItem>
-                                    <SelectItem value="Normal">Normal Priority</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        /* ── Task mode Information grid ── */
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3.5 text-xs">
-                          {/* Column 1 */}
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Associated Team</Label>
-                              <div className="col-span-2">
-                                <Select value={task.teamId || "_none"} onValueChange={async (tId) => {
-                                  await updateTask.mutateAsync({ id, patch: { teamId: tId === "_none" ? undefined : tId } });
-                                  toast.success("Team updated");
-                                }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue placeholder="No team" /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="_none">No Team</SelectItem>
-                                    {teams.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Owner</Label>
-                              <div className="col-span-2">
-                                <Select value={currentAssigneeId} onValueChange={async (userId) => {
-                                  await reassign.mutateAsync({ taskId: id, userId: userId === "_none" ? "" : userId });
-                                  toast.success("Owner updated");
-                                }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="_none">Unassigned</SelectItem>
-                                    {filteredUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Work Hours</Label>
-                              <div className="col-span-2">
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  placeholder="e.g. 18"
-                                  value={task.estimatedHours ?? ""}
-                                  onChange={async (e) => {
-                                    const val = e.target.value === "" ? undefined : Number(e.target.value);
-                                    await updateTask.mutateAsync({ id, patch: { estimatedHours: val } });
-                                  }}
-                                  className="h-8 text-xs font-mono bg-transparent border-border/50"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Status</Label>
-                              <div className="col-span-2">
-                                <Select value={task.statusId} onValueChange={async (sId) => {
-                                  await updateTask.mutateAsync({ id, patch: { statusId: sId } });
-                                  toast.success("Status saved");
-                                }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    {statuses.map(st => <SelectItem key={st.id} value={st.id}>{st.name}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Due Date</Label>
-                              <div className="col-span-2">
-                                <Input
-                                  type="date"
-                                  value={task.dueDate ? task.dueDate.split("T")[0] : ""}
-                                  onChange={async (e) => {
-                                    await updateTask.mutateAsync({ id, patch: { dueDate: e.target.value ? new Date(e.target.value).toISOString() : undefined } });
-                                    toast.success("Due date saved");
-                                  }}
-                                  className="h-8 text-xs font-mono bg-transparent border-border/50"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Priority</Label>
-                              <div className="col-span-2">
-                                <Select value={task.priority || "MEDIUM"} onValueChange={async (prio) => {
-                                  await updateTask.mutateAsync({ id, patch: { priority: prio === "NONE" ? undefined : (prio as any) } });
-                                  toast.success("Priority updated");
-                                }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="CRITICAL">Critical</SelectItem>
-                                    <SelectItem value="HIGH">High</SelectItem>
-                                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                                    <SelectItem value="LOW">Low</SelectItem>
-                                    <SelectItem value="NONE">None</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Tags</Label>
-                              <div className="col-span-2">
-                                <Input
-                                  placeholder="e.g. FE, refactor"
-                                  value={localTags}
-                                  onChange={(e) => { setLocalTags(e.target.value); localStorage.setItem(`task-tags-${id}`, e.target.value); }}
-                                  className="h-8 text-xs bg-transparent border-border/50"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Reminder</Label>
-                              <div className="col-span-2">
-                                <Select value={localReminder} onValueChange={(val) => { setLocalReminder(val); localStorage.setItem(`task-reminder-${id}`, val); }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="None">None</SelectItem>
-                                    <SelectItem value="15m">15m before</SelectItem>
-                                    <SelectItem value="1h">1h before</SelectItem>
-                                    <SelectItem value="1d">1d before</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Billing Type</Label>
-                              <div className="col-span-2">
-                                <Select value={localBilling} onValueChange={(val) => { setLocalBilling(val); localStorage.setItem(`task-billing-${id}`, val); }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="Billable">Billable</SelectItem>
-                                    <SelectItem value="Non-Billable">Non-Billable</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Column 2 */}
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Start Date</Label>
-                              <div className="col-span-2">
-                                <Input
-                                  type="date"
-                                  value={task.startDate ? task.startDate.split("T")[0] : ""}
-                                  onChange={async (e) => {
-                                    await updateTask.mutateAsync({ id, patch: { startDate: e.target.value ? new Date(e.target.value).toISOString() : undefined } });
-                                    toast.success("Start date saved");
-                                  }}
-                                  className="h-8 text-xs font-mono bg-transparent border-border/50"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Duration</Label>
-                              <div className="col-span-2">
-                                <Input
-                                  placeholder="e.g. 2 days"
-                                  value={localDuration}
-                                  onChange={(e) => { setLocalDuration(e.target.value); localStorage.setItem(`task-duration-${id}`, e.target.value); }}
-                                  className="h-8 text-xs bg-transparent border-border/50"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Completion %</Label>
-                              <div className="col-span-2">
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  value={localCompletion}
-                                  onChange={(e) => {
-                                    const val = Math.min(100, Math.max(0, Number(e.target.value)));
-                                    setLocalCompletion(val);
-                                    localStorage.setItem(`task-completion-${id}`, String(val));
-                                  }}
-                                  className="h-8 text-xs font-mono bg-transparent border-border/50"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 items-center">
-                              <Label className="text-[11px] font-bold text-muted-foreground uppercase">Recurrence</Label>
-                              <div className="col-span-2">
-                                <Select value={localRecurrence} onValueChange={(val) => { setLocalRecurrence(val); localStorage.setItem(`task-recurrence-${id}`, val); }}>
-                                  <SelectTrigger className="h-8 text-xs bg-transparent border-border/50"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="None">None</SelectItem>
-                                    <SelectItem value="Daily">Daily</SelectItem>
-                                    <SelectItem value="Weekly">Weekly</SelectItem>
-                                    <SelectItem value="Monthly">Monthly</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
 
                 {/* Bottom Zoho-Style Tabs section */}
                 <div className="space-y-3 pt-2">
@@ -1253,31 +843,156 @@ function TaskDetail() {
 
                     {/* SUBTASKS TAB CONTENT */}
                     {activeTab === "subtasks" && (
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Subtasks List</span>
+                      <div className="space-y-6 animate-in fade-in duration-200">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between border-b border-border/30 pb-2">
+                            <span className="text-xs font-bold text-foreground uppercase tracking-wider">Subtask Flow Pipeline</span>
+                            <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 text-[10px]">
+                              {subtasks.filter(s => s.statusId === "s-done").length} / {subtasks.length} Completed
+                            </Badge>
+                          </div>
+                          
                           {subtasks.length === 0 ? (
-                            <p className="text-xs text-muted-foreground italic">No subtasks found.</p>
+                            <div className="p-8 text-center border border-dashed border-border/60 rounded-2xl bg-muted/5">
+                              <CheckSquare className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                              <p className="text-xs text-muted-foreground font-medium">No steps defined in this task flow yet.</p>
+                              <p className="text-[10px] text-muted-foreground/75 mt-0.5">Add steps below to construct your workflow timeline.</p>
+                            </div>
                           ) : (
-                            <div className="divide-y divide-border/30 border border-border/30 rounded-lg overflow-hidden">
-                              {subtasks.map(sub => {
+                            <div className="relative pl-6 space-y-4">
+                              {/* Connector line */}
+                              <div className="absolute left-2.5 top-3 bottom-3 w-0.5 bg-gradient-to-b from-emerald-500/50 via-indigo-500/30 to-border/40" />
+
+                              {subtasks.map((sub, index) => {
                                 const st = statuses.find(s => s.id === sub.statusId);
+                                const stepNum = String(index + 1).padStart(2, "0");
+                                const isCompleted = sub.statusId === "s-done";
+                                const isCurrent = sub.statusId === "s-progress";
+
                                 return (
-                                  <div key={sub.id} className="flex items-center justify-between p-2.5 hover:bg-muted/10 transition-colors">
-                                    <div className="flex items-center gap-2">
+                                  <div 
+                                    key={sub.id} 
+                                    className={`relative flex flex-col md:flex-row md:items-center justify-between gap-4 p-3 border rounded-xl transition-all duration-300 ${
+                                      isCompleted 
+                                        ? "bg-emerald-500/5 border-emerald-500/20 hover:border-emerald-500/30" 
+                                        : isCurrent
+                                        ? "bg-indigo-500/5 border-indigo-500/20 shadow-sm hover:border-indigo-500/30"
+                                        : "bg-card/50 border-border/50 hover:border-border/80"
+                                    }`}
+                                  >
+                                    {/* Timeline Node Icon */}
+                                    <div className={`absolute -left-[27px] top-1/2 -translate-y-1/2 h-5 w-5 rounded-full flex items-center justify-center border transition-all ${
+                                      isCompleted 
+                                        ? "bg-emerald-500 border-emerald-500 text-white" 
+                                        : isCurrent
+                                        ? "bg-indigo-500 border-indigo-500 text-white"
+                                        : "bg-background border-border text-muted-foreground"
+                                    }`}>
+                                      {isCompleted ? (
+                                        <Check className="h-3 w-3 stroke-[3]" />
+                                      ) : (
+                                        <span className="text-[8px] font-bold">{stepNum}</span>
+                                      )}
+                                    </div>
+
+                                    {/* Step Info */}
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
                                       <input
                                         type="checkbox"
-                                        checked={sub.statusId === "s-done"}
+                                        checked={isCompleted}
                                         onChange={async () => {
-                                          const nextSt = sub.statusId === "s-done" ? statuses[0]?.id || "s-open" : "s-done";
+                                          const nextSt = isCompleted ? statuses[0]?.id || "s-todo" : "s-done";
                                           await updateTask.mutateAsync({ id: sub.id, patch: { statusId: nextSt } });
-                                          toast.success("Subtask status updated");
+                                          toast.success(`Step ${stepNum} updated`);
                                         }}
-                                        className="rounded border-border text-emerald-500 focus:ring-emerald-500 h-3.5 w-3.5"
+                                        className="rounded-full border-border text-emerald-500 focus:ring-emerald-500 h-4 w-4 shrink-0 cursor-pointer"
                                       />
-                                      <span className={`text-xs font-medium ${sub.statusId === "s-done" ? "line-through text-muted-foreground" : "text-foreground"}`}>{sub.title}</span>
+                                      <div className="min-w-0">
+                                        <p className={`text-xs font-semibold truncate ${isCompleted ? "line-through text-muted-foreground animate-pulse" : "text-foreground"}`}>
+                                          {sub.title}
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                          <span className="text-[9px] uppercase font-bold text-muted-foreground">Step {stepNum}</span>
+                                          {st && (
+                                            <span 
+                                              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[8px] font-bold" 
+                                              style={{ color: st.color, backgroundColor: `${st.color}15`, border: `1px solid ${st.color}30` }}
+                                            >
+                                              {st.name}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
-                                    {st && <Badge variant="outline" className="text-[9px] px-1.5 py-0.5" style={{ color: st.color, borderColor: st.color }}>{st.name}</Badge>}
+
+                                    {/* Actions & Assignee / Priority quick selectors */}
+                                    <div className="flex items-center gap-2 flex-wrap shrink-0">
+                                      {/* Assignee select */}
+                                      <Select
+                                        value={sub.assigneeIds?.[0] || "_none"}
+                                        onValueChange={async (uId) => {
+                                          await updateTask.mutateAsync({ id: sub.id, patch: { assigneeIds: uId === "_none" ? [] : [uId] } });
+                                          toast.success("Assignee updated");
+                                        }}
+                                      >
+                                        <SelectTrigger className="h-7 text-[10px] w-28 bg-background border-border/50 px-2 rounded-lg">
+                                          <SelectValue placeholder="Unassigned" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="_none" className="text-xs">Unassigned</SelectItem>
+                                          {filteredUsers.map(u => (
+                                            <SelectItem key={u.id} value={u.id} className="text-xs">{u.name}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+
+                                      {/* Priority select */}
+                                      <Select
+                                        value={sub.priority || "MEDIUM"}
+                                        onValueChange={async (prio) => {
+                                          await updateTask.mutateAsync({ id: sub.id, patch: { priority: prio as any } });
+                                          toast.success("Priority updated");
+                                        }}
+                                      >
+                                        <SelectTrigger className="h-7 text-[10px] w-20 bg-background border-border/50 px-2 rounded-lg font-bold">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="LOW" className="text-xs text-blue-400 font-bold">Low</SelectItem>
+                                          <SelectItem value="MEDIUM" className="text-xs text-indigo-400 font-bold">Medium</SelectItem>
+                                          <SelectItem value="HIGH" className="text-xs text-orange-400 font-bold">High</SelectItem>
+                                          <SelectItem value="CRITICAL" className="text-xs text-red-500 font-bold">Critical</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+
+                                      {/* Hours input */}
+                                      <div className="flex items-center gap-1">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          value={sub.estimatedHours ?? ""}
+                                          placeholder="h"
+                                          onChange={async (e) => {
+                                            const hVal = e.target.value === "" ? undefined : Number(e.target.value);
+                                            await updateTask.mutateAsync({ id: sub.id, patch: { estimatedHours: hVal } });
+                                          }}
+                                          className="h-7 w-12 text-[10px] text-center bg-background border-border/50 rounded-lg font-mono font-bold"
+                                        />
+                                      </div>
+
+                                      {/* Unlink/Delete Step */}
+                                      <Button 
+                                        size="icon" 
+                                        variant="ghost" 
+                                        className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                        onClick={async () => {
+                                          await updateTask.mutateAsync({ id: sub.id, patch: { parentTaskId: "" } });
+                                          toast.success("Step removed from flow");
+                                        }}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -1285,15 +1000,14 @@ function TaskDetail() {
                           )}
                         </div>
 
-                        <div className="flex gap-2 pt-2 border-t border-border/40">
-                          <Input
-                            placeholder="Add new subtask title..."
-                            value={newSubtaskTitle}
-                            onChange={e => setNewSubtaskTitle(e.target.value)}
-                            className="h-8 text-xs"
-                          />
-                          <Button size="sm" onClick={handleCreateSubtask} className="bg-emerald-500 text-white font-semibold h-8 shrink-0 rounded-lg px-3">
-                            Add Subtask
+                        {/* Add Step Button */}
+                        <div className="flex justify-center pt-2">
+                          <Button 
+                            size="sm" 
+                            onClick={() => nav({ to: "/tasks/new", search: { parentTaskId: id } })}
+                            className="bg-teal-600 hover:bg-teal-500 text-white font-semibold h-9 rounded-lg px-5 gap-1.5 shadow"
+                          >
+                            <Plus className="h-4 w-4" /> Add Step to Flow
                           </Button>
                         </div>
                       </div>
@@ -1490,6 +1204,183 @@ function TaskDetail() {
                 </div>
 
               </div>
+
+              {/* Right Attributes Sidebar */}
+                <div className="overflow-y-auto bg-muted/10 p-5 space-y-4 scrollbar-thin flex flex-col justify-between border-l border-border/40">
+                  <div className="space-y-4 animate-in slide-in-from-right duration-300">
+                    {/* Time Tracking & Timer card */}
+                    <Card className="p-4 border border-border/40 bg-card/60 backdrop-blur-md rounded-xl space-y-3 shadow-sm hover:shadow-glow transition-all duration-300">
+                      <div className="flex items-center justify-between border-b border-border/30 pb-2">
+                        <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                          <Clock className={`h-3.5 w-3.5 text-emerald-500 ${runningEntry ? "animate-[spin_4s_linear_infinite]" : ""}`} /> Time Tracking
+                        </h4>
+                        <span className="text-[10px] font-bold text-muted-foreground">{totalLogged.toFixed(1)}h logged</span>
+                      </div>
+                      {runningEntry ? (
+                        <div className="space-y-2.5 animate-in fade-in duration-300">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-muted-foreground flex items-center gap-1.5 font-medium">
+                              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
+                              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 -ml-4" />
+                              Tracking Active
+                            </span>
+                            <span className="text-sm font-bold font-mono text-emerald-500 animate-pulse flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5 animate-[spin_4s_linear_infinite]" />
+                              {formatTimer(elapsed)}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button size="sm" variant="outline" className="h-8 text-xs border-orange-500/25 text-orange-500 hover:bg-orange-500/10 rounded-lg gap-1.5 hover-lift" onClick={handlePauseTimer}>
+                              <Pause className="h-3.5 w-3.5" /> Pause
+                            </Button>
+                            <Button size="sm" className="h-8 text-xs bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg gap-1.5 hover-lift" onClick={handleSubmitTimer}>
+                              <Check className="h-3.5 w-3.5" /> Submit
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5 animate-in fade-in duration-300">
+                          <p className="text-[10px] text-muted-foreground leading-relaxed">Log your progress in real-time or log manually.</p>
+                          <Button size="sm" className="w-full h-8 text-xs bg-gradient-primary text-primary-foreground font-semibold rounded-lg gap-1.5 shadow-sm hover-lift" onClick={handleStartTimer}>
+                            <Play className="h-3.5 w-3.5" /> Start Timer
+                          </Button>
+                        </div>
+                      )}
+                    </Card>
+
+                    {/* Properties List card */}
+                    <Card className="p-4 border border-border/40 bg-card/60 backdrop-blur-md rounded-xl space-y-3.5 shadow-sm hover:shadow-glow transition-all duration-300">
+                      <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground border-b border-border/30 pb-2">Properties</h4>
+                      
+                      <div className="space-y-3 text-[11px]">
+                        {/* Status */}
+                        <div className="grid grid-cols-[100px_1fr] items-center">
+                          <span className="font-medium text-muted-foreground uppercase text-[9px] tracking-wider">Status</span>
+                          <TaskStatusSelect task={task} compact />
+                        </div>
+
+                        {/* Priority */}
+                        <div className="grid grid-cols-[100px_1fr] items-center">
+                          <span className="font-medium text-muted-foreground uppercase text-[9px] tracking-wider">Priority</span>
+                          <Select value={task.priority || "MEDIUM"} onValueChange={async (prio) => {
+                            await updateTask.mutateAsync({ id, patch: { priority: prio === "NONE" ? undefined : (prio as any) } });
+                            toast.success("Priority updated");
+                          }}>
+                            <SelectTrigger className="h-7 text-xs bg-transparent border-transparent hover:bg-muted/40 py-0 px-2 rounded-md font-semibold"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="CRITICAL" className="text-red-500 font-bold">Critical</SelectItem>
+                              <SelectItem value="HIGH" className="text-orange-500 font-bold">High</SelectItem>
+                              <SelectItem value="MEDIUM" className="text-yellow-600 font-bold">Medium</SelectItem>
+                              <SelectItem value="LOW" className="text-blue-500 font-bold">Low</SelectItem>
+                              <SelectItem value="NONE" className="text-muted-foreground">None</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Owner / Assignee */}
+                        <div className="grid grid-cols-[100px_1fr] items-center">
+                          <span className="font-medium text-muted-foreground uppercase text-[9px] tracking-wider">Owner</span>
+                          <Select value={currentAssigneeId} onValueChange={async (userId) => {
+                            await reassign.mutateAsync({ taskId: id, userId: userId === "_none" ? "" : userId });
+                            toast.success("Owner updated");
+                          }}>
+                            <SelectTrigger className="h-7 text-xs bg-transparent border-transparent hover:bg-muted/40 py-0 px-2 rounded-md font-semibold"><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_none">Unassigned</SelectItem>
+                              {filteredUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Team */}
+                        <div className="grid grid-cols-[100px_1fr] items-center">
+                          <span className="font-medium text-muted-foreground uppercase text-[9px] tracking-wider">Team</span>
+                          <Select value={task.teamId || "_none"} onValueChange={async (tId) => {
+                            await updateTask.mutateAsync({ id, patch: { teamId: tId === "_none" ? undefined : tId } });
+                            toast.success("Team updated");
+                          }}>
+                            <SelectTrigger className="h-7 text-xs bg-transparent border-transparent hover:bg-muted/40 py-0 px-2 rounded-md font-semibold"><SelectValue placeholder="No team" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_none">No Team</SelectItem>
+                              {teams.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Start Date */}
+                        <div className="grid grid-cols-[100px_1fr] items-center">
+                          <span className="font-medium text-muted-foreground uppercase text-[9px] tracking-wider">Start Date</span>
+                          <DatePicker
+                            value={task.startDate ? task.startDate.split("T")[0] : ""}
+                            onChange={async (date) => {
+                              await updateTask.mutateAsync({ id, patch: { startDate: date ? new Date(date).toISOString() : undefined } });
+                              toast.success("Start date saved");
+                            }}
+                            className="h-7 border-0 bg-transparent hover:bg-muted/40 text-xs font-mono p-1 rounded"
+                            placeholder="Start date"
+                          />
+                        </div>
+
+                        {/* Due Date */}
+                        <div className="grid grid-cols-[100px_1fr] items-center">
+                          <span className="font-medium text-muted-foreground uppercase text-[9px] tracking-wider">Due Date</span>
+                          <DatePicker
+                            value={task.dueDate ? task.dueDate.split("T")[0] : ""}
+                            onChange={async (date) => {
+                              await updateTask.mutateAsync({ id, patch: { dueDate: date ? new Date(date).toISOString() : undefined } });
+                              toast.success("Due date saved");
+                            }}
+                            className="h-7 border-0 bg-transparent hover:bg-muted/40 text-xs font-mono p-1 rounded"
+                            placeholder="Due date"
+                          />
+                        </div>
+
+                        {/* Story Points */}
+                        <div className="grid grid-cols-[100px_1fr] items-center">
+                          <span className="font-medium text-muted-foreground uppercase text-[9px] tracking-wider">Story Points</span>
+                          <Input
+                            type="number"
+                            value={task.storyPoints ?? ""}
+                            onChange={async (e) => {
+                              const val = e.target.value === "" ? undefined : Number(e.target.value);
+                              await updateTask.mutateAsync({ id, patch: { storyPoints: val } });
+                            }}
+                            placeholder="—"
+                            className="h-7 border-0 bg-transparent hover:bg-muted/40 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring text-xs font-mono p-1 rounded text-left focus-visible:ring-emerald-500"
+                          />
+                        </div>
+
+                        {/* Billing Type */}
+                        <div className="grid grid-cols-[100px_1fr] items-center">
+                          <span className="font-medium text-muted-foreground uppercase text-[9px] tracking-wider">Billing</span>
+                          <Select value={localBilling} onValueChange={(val) => { setLocalBilling(val); localStorage.setItem(`task-billing-${id}`, val); }}>
+                            <SelectTrigger className="h-7 text-xs bg-transparent border-transparent hover:bg-muted/40 py-0 px-2 rounded-md font-semibold"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Billable">Billable</SelectItem>
+                              <SelectItem value="Non-Billable">Non-Billable</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Recurrence */}
+                        <div className="grid grid-cols-[100px_1fr] items-center">
+                          <span className="font-medium text-muted-foreground uppercase text-[9px] tracking-wider">Recurrence</span>
+                          <Select value={localRecurrence} onValueChange={(val) => { setLocalRecurrence(val); localStorage.setItem(`task-recurrence-${id}`, val); }}>
+                            <SelectTrigger className="h-7 text-xs bg-transparent border-transparent hover:bg-muted/40 py-0 px-2 rounded-md font-semibold"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="None">None</SelectItem>
+                              <SelectItem value="Daily">Daily</SelectItem>
+                              <SelectItem value="Weekly">Weekly</SelectItem>
+                              <SelectItem value="Monthly">Monthly</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                </div>
+
+              </div>
             </div>
 
           </div>
@@ -1498,74 +1389,215 @@ function TaskDetail() {
 
       {/* Associated Issue Creation Dialog */}
       <Dialog open={isCreateIssueOpen} onOpenChange={setIsCreateIssueOpen}>
-        <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <ShieldAlert className="h-4 w-4 animate-pulse" /> Create Associated Incident Issue
+        <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto border border-white/10 bg-card/90 backdrop-blur-md rounded-2xl shadow-2xl p-6">
+          <DialogHeader className="border-b border-border/40 pb-3">
+            <DialogTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-red-500">
+              <ShieldAlert className="h-5 w-5 animate-pulse text-red-500" /> Create Associated Incident
             </DialogTitle>
-            <DialogDescription>Link a new incident under: <span className="font-semibold">"{task.title}"</span></DialogDescription>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Link a new incident ticket under parent task: <span className="font-semibold text-foreground">"{task.title}"</span>
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2 text-xs">
+
+          <div className="space-y-4 py-3 text-xs">
+            {/* Title */}
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-bold text-muted-foreground uppercase">Issue Title *</Label>
-              <Input placeholder="e.g. API latency spike on /checkout" value={newIssueTitle} onChange={(e) => setNewIssueTitle(e.target.value)} className="h-9" />
+              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Incident Title *</Label>
+              <Input 
+                placeholder="e.g. Out of Memory error during database migration" 
+                value={newIssueTitle} 
+                onChange={(e) => setNewIssueTitle(e.target.value)} 
+                className="h-9 focus-visible:ring-red-500/35 text-xs" 
+              />
             </div>
+
+            {/* Severity Card Row */}
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Severity Level</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { value: "SEV0", label: "SEV0", desc: "Critical", color: "bg-red-500", activeClass: "border-red-500 bg-red-500/10 text-red-500 ring-2 ring-red-500/20 shadow-red-500/10" },
+                  { value: "SEV1", label: "SEV1", desc: "Major", color: "bg-orange-500", activeClass: "border-orange-500 bg-orange-500/10 text-orange-500 ring-2 ring-orange-500/20 shadow-orange-500/10" },
+                  { value: "SEV2", label: "SEV2", desc: "Moderate", color: "bg-yellow-500", activeClass: "border-yellow-500 bg-yellow-500/10 text-yellow-500 ring-2 ring-yellow-500/20 shadow-yellow-500/10" },
+                  { value: "SEV3", label: "SEV3", desc: "Minor", color: "bg-blue-500", activeClass: "border-blue-500 bg-blue-500/10 text-blue-500 ring-2 ring-blue-500/20 shadow-blue-500/10" }
+                ].map(sev => {
+                  const isActive = newIssueSeverity === sev.value;
+                  return (
+                    <button
+                      key={sev.value}
+                      type="button"
+                      onClick={() => setNewIssueSeverity(sev.value as any)}
+                      className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                        isActive 
+                          ? sev.activeClass
+                          : "border-border bg-background/50 hover:bg-muted/50 text-muted-foreground"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className={`h-1.5 w-1.5 rounded-full ${sev.color}`} />
+                        <span className="font-bold text-[11px]">{sev.label}</span>
+                      </div>
+                      <span className="text-[9px] mt-0.5 font-medium opacity-80">{sev.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Env & Version */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-muted-foreground uppercase">Severity</Label>
-                <Select value={newIssueSeverity} onValueChange={(val: any) => setNewIssueSeverity(val)}>
-                  <SelectTrigger className="h-9 text-xs bg-transparent border-border/50"><SelectValue /></SelectTrigger>
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Target Environment</Label>
+                <Select value={newIssueEnv} onValueChange={setNewIssueEnv}>
+                  <SelectTrigger className="h-9 text-xs bg-background"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="SEV0">SEV0 — Critical</SelectItem>
-                    <SelectItem value="SEV1">SEV1 — Major</SelectItem>
-                    <SelectItem value="SEV2">SEV2 — Moderate</SelectItem>
-                    <SelectItem value="SEV3">SEV3 — Minor</SelectItem>
+                    <SelectItem value="Production" className="text-xs">Production (Live)</SelectItem>
+                    <SelectItem value="Staging" className="text-xs">Staging (Pre-release)</SelectItem>
+                    <SelectItem value="Development" className="text-xs">Development</SelectItem>
+                    <SelectItem value="QA / Sandbox" className="text-xs">QA / Sandbox</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-muted-foreground uppercase">Environment</Label>
-                <Select value={newIssueEnv} onValueChange={setNewIssueEnv}>
-                  <SelectTrigger className="h-9 text-xs bg-transparent border-border/50"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Production">Production</SelectItem>
-                    <SelectItem value="Staging">Staging</SelectItem>
-                    <SelectItem value="Development">Development</SelectItem>
-                    <SelectItem value="QA / Sandbox">QA / Sandbox</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Affected Version</Label>
+                <Input 
+                  placeholder="e.g. v1.4.2" 
+                  value={newIssueVersion} 
+                  onChange={(e) => setNewIssueVersion(e.target.value)} 
+                  className="h-9 text-xs" 
+                />
               </div>
             </div>
+
+            {/* Description */}
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-bold text-muted-foreground uppercase">Description</Label>
-              <Textarea placeholder="Describe the issue, error logs, or reproduction steps..." value={newIssueDesc} onChange={(e) => setNewIssueDesc(e.target.value)} className="min-h-[80px] text-xs" />
+              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Incident Description</Label>
+              <Textarea 
+                placeholder="Describe the incident symptoms, traceback errors, or temporary workarounds..." 
+                value={newIssueDesc} 
+                onChange={(e) => setNewIssueDesc(e.target.value)} 
+                className="min-h-[75px] text-xs resize-none" 
+              />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-[10px] font-bold text-muted-foreground uppercase">Affected Version</Label>
-              <Input placeholder="e.g. v1.4.2" value={newIssueVersion} onChange={(e) => setNewIssueVersion(e.target.value)} className="h-8" />
+
+            {/* Customer Toggle */}
+            <div className={`flex items-center justify-between p-3 rounded-xl border transition-all duration-300 ${
+              newIssueCustomerReported 
+                ? "bg-red-500/5 border-red-500/20" 
+                : "bg-muted/20 border-border/50"
+            }`}>
+              <div className="flex items-center space-x-2.5">
+                <Checkbox 
+                  id="custRep" 
+                  checked={newIssueCustomerReported} 
+                  onCheckedChange={(val: boolean) => setNewIssueCustomerReported(val)} 
+                  className="rounded"
+                />
+                <Label htmlFor="custRep" className="font-semibold cursor-pointer select-none">Customer Escalated / Reported Incident</Label>
+              </div>
+              {newIssueCustomerReported && (
+                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-[9px] uppercase font-bold animate-pulse">
+                  High Priority SLA
+                </Badge>
+              )}
             </div>
-            <div className="flex items-center space-x-2.5 bg-muted/30 border border-border p-3 rounded-xl">
-              <Checkbox id="custRep" checked={newIssueCustomerReported} onCheckedChange={(val: boolean) => setNewIssueCustomerReported(val)} />
-              <Label htmlFor="custRep" className="font-semibold cursor-pointer">Customer Reported</Label>
-            </div>
+
+            {/* Customer Details */}
             {newIssueCustomerReported && (
-              <div className="grid gap-3 sm:grid-cols-2 bg-red-500/5 p-3 rounded-xl border border-red-500/10">
+              <div className="grid gap-3 sm:grid-cols-2 bg-red-500/5 p-3.5 rounded-xl border border-red-500/10 animate-in slide-in-from-top-2 duration-200">
                 <div className="space-y-1.5">
-                  <Label className="text-[9px] uppercase text-red-400 font-bold">Customer Name</Label>
-                  <Input placeholder="Acme Corp" value={newIssueCustomerName} onChange={(e) => setNewIssueCustomerName(e.target.value)} className="h-8" />
+                  <Label className="text-[9px] uppercase text-red-500 font-bold tracking-wider">Customer / Organization Name</Label>
+                  <Input placeholder="e.g. Acme Corp" value={newIssueCustomerName} onChange={(e) => setNewIssueCustomerName(e.target.value)} className="h-8 bg-background border-red-500/20 focus-visible:ring-red-500/35 text-xs" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[9px] uppercase text-red-400 font-bold">Impact Description</Label>
-                  <Input placeholder="Blocks checkout flow" value={newIssueCustomerImpact} onChange={(e) => setNewIssueCustomerImpact(e.target.value)} className="h-8" />
+                  <Label className="text-[9px] uppercase text-red-500 font-bold tracking-wider">SLA Impact Description</Label>
+                  <Input placeholder="Blocks checkout billing flow" value={newIssueCustomerImpact} onChange={(e) => setNewIssueCustomerImpact(e.target.value)} className="h-8 bg-background border-red-500/20 focus-visible:ring-red-500/35 text-xs" />
                 </div>
               </div>
             )}
+
+            {/* Drag & Drop File Attachments */}
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Incident Attachments / Logs</Label>
+              <div
+                onDragOver={(e) => { e.preventDefault(); setIssueDragOver(true); }}
+                onDragLeave={() => setIssueDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIssueDragOver(false);
+                  if (e.dataTransfer.files) addStagedIssueFiles(e.dataTransfer.files);
+                }}
+                onClick={() => issueFileInputRef.current?.click()}
+                className={`rounded-xl border border-dashed p-3 text-center cursor-pointer transition-all duration-200 ${
+                  issueDragOver
+                    ? "border-red-500 bg-red-500/5 scale-[0.98]"
+                    : "border-border/80 hover:border-red-500/40 bg-muted/10 hover:bg-muted/20"
+                }`}
+              >
+                <Paperclip className="mx-auto mb-1.5 h-6 w-6 text-muted-foreground/60" />
+                <p className="font-semibold text-foreground">Drag & drop files here</p>
+                <p className="text-[9px] text-muted-foreground mt-0.5">or click to browse local logs / screenshots</p>
+                <input
+                  ref={issueFileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => e.target.files && addStagedIssueFiles(e.target.files)}
+                />
+              </div>
+
+              {/* Staged file list */}
+              {issueFiles.length > 0 && (
+                <div className="space-y-1.5 mt-2 max-h-[120px] overflow-y-auto pr-1">
+                  {issueFiles.map((file, idx) => (
+                    <div 
+                      key={idx}
+                      className="flex items-center justify-between gap-2 bg-background border border-border/60 p-2 rounded-lg text-[10px] hover:border-red-500/20 transition-all"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground truncate max-w-[280px]" title={file.name}>
+                            {file.name}
+                          </p>
+                          <p className="text-[8px] text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIssueFiles(prev => prev.filter((_, i) => i !== idx));
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="ghost" size="sm" onClick={() => setIsCreateIssueOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleCreateAssociatedIssueSubmit} disabled={createTask.isPending}
-              className="bg-destructive text-destructive-foreground font-semibold">
-              {createTask.isPending ? "Creating..." : "Create Issue"}
+
+          <DialogFooter className="border-t border-border/40 pt-3">
+            <Button variant="ghost" size="sm" onClick={() => setIsCreateIssueOpen(false)} className="rounded-lg h-9">
+              Cancel
+            </Button>
+            <Button 
+              size="sm" 
+              onClick={handleCreateAssociatedIssueSubmit} 
+              disabled={createTask.isPending}
+              className="bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg h-9 gap-1.5 shadow-lg shadow-red-500/10"
+            >
+              {createTask.isPending ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Creating...
+                </>
+              ) : (
+                "Create Incident Ticket"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

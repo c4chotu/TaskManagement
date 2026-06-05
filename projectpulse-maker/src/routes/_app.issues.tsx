@@ -12,6 +12,7 @@ import { useIssues, useTasks, useProjects, useUsers, useStatuses } from "@/lib/q
 import { format, isAfter } from "date-fns";
 import { Search, Plus, Filter, Layers, ArrowUpDown, AlertOctagon, ShieldAlert, Flame, SlidersHorizontal, X } from "lucide-react";
 import { ZChip } from "@/components/tfp/zoho";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ZPageHeader, ZToolStrip, ZToolBtn } from "@/components/zoho/components";
 
 export const Route = createFileRoute("/_app/issues")({
@@ -91,6 +92,12 @@ function IssuesPage() {
       };
     });
   }, [issues, tasks, projects, users]);
+
+  const sev0Count = rows.filter(r => r.severity === "SEV0" && r.statusId !== "s-done").length;
+  const sev1Count = rows.filter(r => r.severity === "SEV1" && r.statusId !== "s-done").length;
+  const sev2Count = rows.filter(r => r.severity === "SEV2" && r.statusId !== "s-done").length;
+  const sev3Count = rows.filter(r => r.severity === "SEV3" && r.statusId !== "s-done").length;
+  const breachCount = rows.filter(r => r.slaBreached).length;
 
   const filtered = useMemo(() => {
     return rows.filter((row) => {
@@ -292,12 +299,12 @@ function IssuesPage() {
                 <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Due Date Range</Label>
                 <div className="space-y-2">
                   <div>
-                    <Label htmlFor="issueDueStart" className="text-[9px] text-muted-foreground">From</Label>
-                    <Input id="issueDueStart" type="date" value={filterDateStart} onChange={(e) => setFilterDateStart(e.target.value)} className="h-7 text-[10px] px-1.5" />
+                    <Label htmlFor="issueDueStart" className="text-[9px] text-muted-foreground mb-1 block">From</Label>
+                    <DatePicker value={filterDateStart} onChange={(date) => setFilterDateStart(date || "")} className="h-7 text-[10px]" />
                   </div>
                   <div>
-                    <Label htmlFor="issueDueEnd" className="text-[9px] text-muted-foreground">To</Label>
-                    <Input id="issueDueEnd" type="date" value={filterDateEnd} onChange={(e) => setFilterDateEnd(e.target.value)} className="h-7 text-[10px] px-1.5" />
+                    <Label htmlFor="issueDueEnd" className="text-[9px] text-muted-foreground mb-1 block">To</Label>
+                    <DatePicker value={filterDateEnd} onChange={(date) => setFilterDateEnd(date || "")} className="h-7 text-[10px]" />
                   </div>
                 </div>
               </div>
@@ -338,6 +345,43 @@ function IssuesPage() {
               <Plus className="mr-1 h-3.5 w-3.5" /> Report Incident
             </Button>
           </div>
+
+          {/* Premium Stat strip */}
+          <section className="grid grid-cols-2 gap-3 sm:grid-cols-6 z-10 relative">
+            <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-br from-red-500/10 to-transparent p-4 shadow-sm backdrop-blur-md hover-lift transition-all">
+              <div className="absolute right-2 top-2 text-red-500/10 pointer-events-none">
+                <AlertOctagon className="h-10 w-10 animate-pulse" />
+              </div>
+              <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">SEV0 Critical</div>
+              <div className="text-2xl font-extrabold text-red-500">{sev0Count}</div>
+            </div>
+            <div className="relative overflow-hidden rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-transparent p-4 shadow-sm backdrop-blur-md hover-lift transition-all">
+              <div className="absolute right-2 top-2 text-orange-500/10 pointer-events-none">
+                <AlertTriangle className="h-10 w-10" />
+              </div>
+              <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">SEV1 High</div>
+              <div className="text-2xl font-extrabold text-orange-500">{sev1Count}</div>
+            </div>
+            <div className="relative overflow-hidden rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/10 to-transparent p-4 shadow-sm backdrop-blur-md hover-lift transition-all">
+              <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">SEV2 Medium</div>
+              <div className="text-2xl font-extrabold text-yellow-500">{sev2Count}</div>
+            </div>
+            <div className="relative overflow-hidden rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-transparent p-4 shadow-sm backdrop-blur-md hover-lift transition-all">
+              <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">SEV3 Low</div>
+              <div className="text-2xl font-extrabold text-blue-500">{sev3Count}</div>
+            </div>
+            <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-br from-red-500/10 to-transparent p-4 shadow-sm backdrop-blur-md hover-lift transition-all col-span-2 sm:col-span-1">
+              <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">SLA Breached</div>
+              <div className="text-2xl font-extrabold text-red-500">{breachCount}</div>
+            </div>
+            <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 to-transparent p-4 shadow-sm backdrop-blur-md hover-lift transition-all col-span-2 sm:col-span-1">
+              <div className="absolute right-2 top-2 text-primary/10 pointer-events-none">
+                <Activity className="h-10 w-10" />
+              </div>
+              <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">MTTR (30d)</div>
+              <div className="text-2xl font-extrabold text-primary">2.4h</div>
+            </div>
+          </section>
 
           {/* Toolbar */}
           <Card className="glass-card-green sticky top-0 z-20 rounded-2xl relative">
@@ -385,7 +429,10 @@ function IssuesPage() {
           <div className="space-y-3">
             {grouped.map((group) => (
               <section key={group.key} className="glass-card-green rounded-2xl transition-all duration-300 relative z-10 overflow-hidden">
-                <div className="flex items-center gap-3 border-b border-white/10 bg-muted/40 px-4 py-2.5">
+                <div 
+                  className="flex items-center gap-3 border-b border-white/10 bg-muted/40 px-4 py-2.5"
+                  style={{ borderLeft: `4px solid ${group.color}` }}
+                >
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: group.color }} />
                   <h3 className="font-semibold text-xs text-foreground">{group.label}</h3>
                   <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-md font-bold">{group.items.length}</span>
@@ -419,7 +466,7 @@ function IssuesPage() {
                         const status = statuses.find((s) => s.id === row.statusId);
                         const project = projects.find((p) => p.id === row.projectId);
                         return (
-                          <tr key={row.issueId} className="border-b border-border/50 hover:bg-muted/40">
+                          <tr key={row.issueId} className="border-b border-border/50 hover:bg-muted/40 hover-lift transition-all duration-200">
                             <td className="px-3 py-2.5">
                               <Checkbox checked={selected.has(row.issueId)} onCheckedChange={() => toggleSelect(row.issueId)} />
                             </td>

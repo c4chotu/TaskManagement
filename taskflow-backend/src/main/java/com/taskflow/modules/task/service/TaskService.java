@@ -173,6 +173,7 @@ public class TaskService {
                 .parentTaskId(request.getParentTaskId())
                 .phaseId(request.getPhaseId())
                 .sprintId(request.getSprintId())
+                .estimatedHours(request.getEstimatedHours())
                 .organizationId(orgId)
                 .createdBy(currentUserId)
                 .build();
@@ -259,8 +260,54 @@ public class TaskService {
         return mapToResponse(savedTask);
     }
 
+    private UUID parseUUID(Object val) {
+        if (val == null) return null;
+        String str = val.toString().trim();
+        if (str.isEmpty() || "null".equalsIgnoreCase(str) || "_none".equalsIgnoreCase(str)) return null;
+        return UUID.fromString(str);
+    }
+
+    private Instant parseInstant(Object val) {
+        if (val == null) return null;
+        String str = val.toString().trim();
+        if (str.isEmpty() || "null".equalsIgnoreCase(str)) return null;
+        return Instant.parse(str);
+    }
+
+    private Integer parseInteger(Object val) {
+        if (val == null) return null;
+        if (val instanceof Number) return ((Number) val).intValue();
+        String str = val.toString().trim();
+        if (str.isEmpty() || "null".equalsIgnoreCase(str)) return null;
+        return Integer.parseInt(str);
+    }
+
+    private Double parseDouble(Object val) {
+        if (val == null) return null;
+        if (val instanceof Number) return ((Number) val).doubleValue();
+        String str = val.toString().trim();
+        if (str.isEmpty() || "null".equalsIgnoreCase(str)) return null;
+        return Double.parseDouble(str);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<UUID> parseUUIDList(Object val) {
+        if (val == null) return null;
+        if (val instanceof List) {
+            List<?> list = (List<?>) val;
+            List<UUID> uuids = new ArrayList<>();
+            for (Object item : list) {
+                if (item != null) {
+                    uuids.add(UUID.fromString(item.toString()));
+                }
+            }
+            return uuids;
+        }
+        return null;
+    }
+
     @Transactional
-    public TaskResponse updateTask(UUID taskId, TaskRequest request) {
+    public TaskResponse updateTask(UUID taskId, Map<String, Object> body) {
         UUID currentUserId = SecurityContextHelper.getCurrentUserId();
         Task task = getTaskEntity(taskId); // Verifies tenant and project membership access
 
@@ -272,102 +319,168 @@ public class TaskService {
         verifyRoleRequirement(task.getProjectId(), List.of("PROJECT_OWNER", "PROJECT_MANAGER", "PROJECT_MEMBER"), "update tasks");
 
         // Validate parent task if it is changed
-        if (request.getParentTaskId() != null && !Objects.equals(task.getParentTaskId(), request.getParentTaskId())) {
-            if (taskId.equals(request.getParentTaskId())) {
-                throw new IllegalArgumentException("Task cannot be its own parent");
+        if (body.containsKey("parentTaskId")) {
+            UUID parentTaskId = parseUUID(body.get("parentTaskId"));
+            if (parentTaskId != null && !Objects.equals(task.getParentTaskId(), parentTaskId)) {
+                if (taskId.equals(parentTaskId)) {
+                    throw new IllegalArgumentException("Task cannot be its own parent");
+                }
+                Task parentTask = taskRepository.findById(parentTaskId)
+                        .orElseThrow(() -> new EntityNotFoundException("Parent task not found with ID: " + parentTaskId));
+                if (!Objects.equals(parentTask.getProjectId(), task.getProjectId())) {
+                    throw new IllegalArgumentException("Parent task must belong to the same project");
+                }
+                if (calculateDepth(parentTaskId) > 3) {
+                    throw new IllegalArgumentException("Subtask depth cannot exceed 3 levels");
+                }
             }
-            Task parentTask = taskRepository.findById(request.getParentTaskId())
-                    .orElseThrow(() -> new EntityNotFoundException("Parent task not found with ID: " + request.getParentTaskId()));
-            if (!Objects.equals(parentTask.getProjectId(), task.getProjectId())) {
-                throw new IllegalArgumentException("Parent task must belong to the same project");
-            }
-            if (calculateDepth(request.getParentTaskId()) > 3) {
-                throw new IllegalArgumentException("Subtask depth cannot exceed 3 levels");
-            }
+            task.setParentTaskId(parentTaskId);
         }
 
         // Validate status ID if updated
-        if (request.getStatusId() != null && !Objects.equals(task.getStatusId(), request.getStatusId())) {
-            TaskStatus status = taskStatusRepository.findById(request.getStatusId())
-                    .orElseThrow(() -> new EntityNotFoundException("Status not found: " + request.getStatusId()));
-            if (!Objects.equals(status.getProjectId(), task.getProjectId())) {
-                throw new IllegalArgumentException("Status does not belong to this project");
+        if (body.containsKey("statusId")) {
+            UUID statusId = parseUUID(body.get("statusId"));
+            if (statusId != null && !Objects.equals(task.getStatusId(), statusId)) {
+                TaskStatus status = taskStatusRepository.findById(statusId)
+                        .orElseThrow(() -> new EntityNotFoundException("Status not found: " + statusId));
+                if (!Objects.equals(status.getProjectId(), task.getProjectId())) {
+                    throw new IllegalArgumentException("Status does not belong to this project");
+                }
+
+                // If updating standard statusId directly to a completed status, validate subtask completion
+                if (status.isCompleted()) {
+                    List<Task> subtasks = taskRepository.findByParentTaskIdAndDeletedAtIsNull(taskId);
+                    for (Task sub : subtasks) {
+                        boolean subCompleted = false;
+                        if (sub.getCurrentStatusId() != null) {
+                            CustomTaskStatus subCustomStatus = customTaskStatusRepository.findById(sub.getCurrentStatusId()).orElse(null);
+                            if (subCustomStatus != null && "COMPLETED".equalsIgnoreCase(subCustomStatus.getCategory())) {
+                                subCompleted = true;
+                            }
+                        } else if (sub.getStatusId() != null) {
+                            TaskStatus subStandardStatus = taskStatusRepository.findById(sub.getStatusId()).orElse(null);
+                            if (subStandardStatus != null && subStandardStatus.isCompleted()) {
+                                subCompleted = true;
+                            }
+                        }
+                        if (!subCompleted) {
+                            throw new IllegalArgumentException("Cannot complete task because subtask '" + sub.getTitle() + "' is not completed.");
+                        }
+                    }
+                }
+
+                logActivity(taskId, currentUserId, "STATUS_CHANGE", "Status updated", task.getStatusId().toString(), statusId.toString());
+                task.setStatusId(statusId);
             }
-            logActivity(taskId, currentUserId, "STATUS_CHANGE", "Status updated", task.getStatusId().toString(), request.getStatusId().toString());
-            task.setStatusId(request.getStatusId());
         }
 
         // Validate custom status ID if updated
-        if (request.getCurrentStatusId() != null && !Objects.equals(task.getCurrentStatusId(), request.getCurrentStatusId())) {
-            if (statusWorkflowService != null) {
-                statusWorkflowService.transitionStatus(taskId, request.getCurrentStatusId(), currentUserId, "Task updated via REST API");
-            } else {
-                task.setCurrentStatusId(request.getCurrentStatusId());
-                UUID resolvedStatusId = resolveStandardStatusId(task.getProjectId(), request.getCurrentStatusId());
-                if (resolvedStatusId != null) {
-                    task.setStatusId(resolvedStatusId);
+        if (body.containsKey("currentStatusId")) {
+            UUID currentStatusId = parseUUID(body.get("currentStatusId"));
+            if (currentStatusId != null && !Objects.equals(task.getCurrentStatusId(), currentStatusId)) {
+                if (statusWorkflowService != null) {
+                    statusWorkflowService.transitionStatus(taskId, currentStatusId, currentUserId, "Task updated via REST API");
+                } else {
+                    task.setCurrentStatusId(currentStatusId);
+                    UUID resolvedStatusId = resolveStandardStatusId(task.getProjectId(), currentStatusId);
+                    if (resolvedStatusId != null) {
+                        task.setStatusId(resolvedStatusId);
+                    }
                 }
             }
         }
 
         // Map updates and check changes for audit logs
-        if (!Objects.equals(task.getTitle(), request.getTitle())) {
-            logActivity(taskId, currentUserId, "TITLE_CHANGE", "Title updated", task.getTitle(), request.getTitle());
-            task.setTitle(request.getTitle());
+        if (body.containsKey("title")) {
+            String title = (String) body.get("title");
+            if (title == null || title.trim().isEmpty()) {
+                throw new IllegalArgumentException("Task title cannot be blank");
+            }
+            if (!Objects.equals(task.getTitle(), title)) {
+                logActivity(taskId, currentUserId, "TITLE_CHANGE", "Title updated", task.getTitle(), title);
+                task.setTitle(title);
+            }
         }
-        if (!Objects.equals(task.getDescription(), request.getDescription())) {
-            logActivity(taskId, currentUserId, "DESC_CHANGE", "Description updated", task.getDescription(), request.getDescription());
-            task.setDescription(request.getDescription());
+        if (body.containsKey("description")) {
+            String description = (String) body.get("description");
+            if (!Objects.equals(task.getDescription(), description)) {
+                logActivity(taskId, currentUserId, "DESC_CHANGE", "Description updated", task.getDescription(), description);
+                task.setDescription(description);
+            }
         }
-        if (!Objects.equals(task.getCategory(), request.getCategory())) {
-            logActivity(taskId, currentUserId, "CATEGORY_CHANGE", "Category updated", task.getCategory(), request.getCategory());
-            task.setCategory(request.getCategory());
+        if (body.containsKey("category")) {
+            String category = (String) body.get("category");
+            if (!Objects.equals(task.getCategory(), category)) {
+                logActivity(taskId, currentUserId, "CATEGORY_CHANGE", "Category updated", task.getCategory(), category);
+                task.setCategory(category);
+            }
         }
-        if (!Objects.equals(task.getBadgeId(), request.getBadgeId())) {
-            logActivity(taskId, currentUserId, "BADGE_CHANGE", "Badge updated", task.getBadgeId() != null ? task.getBadgeId().toString() : null, request.getBadgeId() != null ? request.getBadgeId().toString() : null);
-            task.setBadgeId(request.getBadgeId());
+        if (body.containsKey("badgeId")) {
+            UUID badgeId = parseUUID(body.get("badgeId"));
+            if (!Objects.equals(task.getBadgeId(), badgeId)) {
+                logActivity(taskId, currentUserId, "BADGE_CHANGE", "Badge updated", task.getBadgeId() != null ? task.getBadgeId().toString() : null, badgeId != null ? badgeId.toString() : null);
+                task.setBadgeId(badgeId);
+            }
         }
-        if (!Objects.equals(task.getPriority(), request.getPriority()) && request.getPriority() != null) {
-            logActivity(taskId, currentUserId, "PRIORITY_CHANGE", "Priority updated", task.getPriority(), request.getPriority());
-            task.setPriority(request.getPriority());
+        if (body.containsKey("priority")) {
+            String priority = (String) body.get("priority");
+            if (priority != null && !Objects.equals(task.getPriority(), priority)) {
+                logActivity(taskId, currentUserId, "PRIORITY_CHANGE", "Priority updated", task.getPriority(), priority);
+                task.setPriority(priority);
+            }
         }
-        
-        task.setStartDate(request.getStartDate());
-        task.setDueDate(request.getDueDate());
-        task.setStoryPoints(request.getStoryPoints());
-        task.setParentTaskId(request.getParentTaskId());
-        task.setPhaseId(request.getPhaseId());
-        task.setSprintId(request.getSprintId());
-        if (request.getTaskType() != null) {
-            task.setTaskType(request.getTaskType());
+
+        if (body.containsKey("startDate")) {
+            task.setStartDate(parseInstant(body.get("startDate")));
         }
-        if (request.getDepartmentId() != null) {
-            task.setDepartmentId(request.getDepartmentId());
+        if (body.containsKey("dueDate")) {
+            task.setDueDate(parseInstant(body.get("dueDate")));
         }
-        if (request.getTeamId() != null) {
-            task.setTeamId(request.getTeamId());
+        if (body.containsKey("storyPoints")) {
+            task.setStoryPoints(parseInteger(body.get("storyPoints")));
+        }
+        if (body.containsKey("estimatedHours")) {
+            task.setEstimatedHours(parseDouble(body.get("estimatedHours")));
+        }
+        if (body.containsKey("phaseId")) {
+            task.setPhaseId(parseUUID(body.get("phaseId")));
+        }
+        if (body.containsKey("sprintId")) {
+            task.setSprintId(parseUUID(body.get("sprintId")));
+        }
+        if (body.containsKey("taskType")) {
+            task.setTaskType((String) body.get("taskType"));
+        }
+        if (body.containsKey("departmentId")) {
+            task.setDepartmentId(parseUUID(body.get("departmentId")));
+        }
+        if (body.containsKey("teamId")) {
+            task.setTeamId(parseUUID(body.get("teamId")));
         }
 
         Task updatedTask = taskRepository.save(task);
 
         // Process Task Assignments if provided
-        if (request.getAssigneeIds() != null) {
-            taskAssignmentRepository.deleteByTaskId(taskId);
-            for (UUID assigneeId : request.getAssigneeIds()) {
-                projectMemberRepository.findByProjectIdAndUserId(task.getProjectId(), assigneeId)
-                        .orElseThrow(() -> new IllegalArgumentException("Assignee must be a member of the project: " + assigneeId));
-                TaskAssignment assignment = TaskAssignment.builder()
-                        .id(UUID.randomUUID())
-                        .taskId(taskId)
-                        .userId(assigneeId)
-                        .role("ASSIGNEE")
-                        .build();
-                taskAssignmentRepository.save(assignment);
+        if (body.containsKey("assigneeIds")) {
+            List<UUID> assigneeIds = parseUUIDList(body.get("assigneeIds"));
+            if (assigneeIds != null) {
+                taskAssignmentRepository.deleteByTaskId(taskId);
+                for (UUID assigneeId : assigneeIds) {
+                    projectMemberRepository.findByProjectIdAndUserId(task.getProjectId(), assigneeId)
+                            .orElseThrow(() -> new IllegalArgumentException("Assignee must be a member of the project: " + assigneeId));
+                    TaskAssignment assignment = TaskAssignment.builder()
+                            .id(UUID.randomUUID())
+                            .taskId(taskId)
+                            .userId(assigneeId)
+                            .role("ASSIGNEE")
+                            .build();
+                    taskAssignmentRepository.save(assignment);
+                }
             }
         }
 
         // Trigger routing rules on status changes
-        if (taskRouterService != null && request.getCurrentStatusId() != null && !Objects.equals(oldCurrentStatusId, request.getCurrentStatusId())) {
+        if (taskRouterService != null && body.containsKey("currentStatusId") && !Objects.equals(oldCurrentStatusId, updatedTask.getCurrentStatusId())) {
             try {
                 taskRouterService.routeTask(updatedTask, "TASK_STATUS_CHANGED");
             } catch (Exception e) {
@@ -377,11 +490,11 @@ public class TaskService {
 
         // Trigger automation for status changes and due date updates
         try {
-            if (request.getCurrentStatusId() != null && !Objects.equals(oldCurrentStatusId, request.getCurrentStatusId())) {
+            if (body.containsKey("currentStatusId") && !Objects.equals(oldCurrentStatusId, updatedTask.getCurrentStatusId())) {
                 java.util.Map<String, Object> ctx = new java.util.HashMap<>();
                 ctx.put("changedBy", currentUserId != null ? currentUserId.toString() : null);
                 ctx.put("oldStatus", oldCurrentStatusId != null ? oldCurrentStatusId.toString() : null);
-                ctx.put("newStatus", request.getCurrentStatusId().toString());
+                ctx.put("newStatus", updatedTask.getCurrentStatusId().toString());
                 ctx.put("priority", updatedTask.getPriority());
                 ctx.put("category", updatedTask.getCategory());
                 ctx.put("title", updatedTask.getTitle());
@@ -393,11 +506,11 @@ public class TaskService {
                 automationService.evaluateRules("TASK_STATUS_CHANGED", updatedTask.getProjectId(), updatedTask, ctx);
             }
 
-            if (!Objects.equals(oldDueDate, request.getDueDate())) {
+            if (body.containsKey("dueDate") && !Objects.equals(oldDueDate, updatedTask.getDueDate())) {
                 java.util.Map<String, Object> ctx2 = new java.util.HashMap<>();
                 ctx2.put("changedBy", currentUserId != null ? currentUserId.toString() : null);
                 ctx2.put("oldDueDate", oldDueDate != null ? oldDueDate.toString() : null);
-                ctx2.put("newDueDate", request.getDueDate() != null ? request.getDueDate().toString() : null);
+                ctx2.put("newDueDate", updatedTask.getDueDate() != null ? updatedTask.getDueDate().toString() : null);
                 ctx2.put("priority", updatedTask.getPriority());
                 ctx2.put("category", updatedTask.getCategory());
                 ctx2.put("title", updatedTask.getTitle());
@@ -431,6 +544,31 @@ public class TaskService {
         }
 
         return mapToResponse(updatedTask);
+    }
+
+    @Transactional
+    public TaskResponse updateTask(UUID taskId, TaskRequest request) {
+        Map<String, Object> body = new HashMap<>();
+        if (request.getProjectId() != null) body.put("projectId", request.getProjectId());
+        if (request.getStatusId() != null) body.put("statusId", request.getStatusId());
+        if (request.getCurrentStatusId() != null) body.put("currentStatusId", request.getCurrentStatusId());
+        if (request.getTaskType() != null) body.put("taskType", request.getTaskType());
+        if (request.getDepartmentId() != null) body.put("departmentId", request.getDepartmentId());
+        if (request.getTeamId() != null) body.put("teamId", request.getTeamId());
+        if (request.getTitle() != null) body.put("title", request.getTitle());
+        if (request.getDescription() != null) body.put("description", request.getDescription());
+        if (request.getPriority() != null) body.put("priority", request.getPriority());
+        if (request.getStartDate() != null) body.put("startDate", request.getStartDate().toString());
+        if (request.getDueDate() != null) body.put("dueDate", request.getDueDate().toString());
+        if (request.getStoryPoints() != null) body.put("storyPoints", request.getStoryPoints());
+        if (request.getParentTaskId() != null) body.put("parentTaskId", request.getParentTaskId().toString());
+        if (request.getPhaseId() != null) body.put("phaseId", request.getPhaseId().toString());
+        if (request.getCategory() != null) body.put("category", request.getCategory());
+        if (request.getBadgeId() != null) body.put("badgeId", request.getBadgeId().toString());
+        if (request.getAssigneeIds() != null) body.put("assigneeIds", request.getAssigneeIds());
+        if (request.getSprintId() != null) body.put("sprintId", request.getSprintId().toString());
+        if (request.getEstimatedHours() != null) body.put("estimatedHours", request.getEstimatedHours());
+        return updateTask(taskId, body);
     }
 
     @Transactional
@@ -874,6 +1012,7 @@ public class TaskService {
                 .parentTaskId(task.getParentTaskId())
                 .phaseId(task.getPhaseId())
                 .sprintId(task.getSprintId())
+                .estimatedHours(task.getEstimatedHours())
                 .organizationId(task.getOrganizationId())
                 .version(task.getVersion())
                 .createdBy(task.getCreatedBy())

@@ -95,7 +95,7 @@ public class TaskServiceTest {
         mockedSecurityHelper.when(SecurityContextHelper::getCurrentUser).thenReturn(currentUser);
 
         CustomTaskStatus customStatus = CustomTaskStatus.builder()
-                .id(UUID.randomUUID())
+                .id(statusId)
                 .projectId(projectId)
                 .organizationId(orgId)
                 .name("To Do")
@@ -105,6 +105,8 @@ public class TaskServiceTest {
                 .build();
         Mockito.lenient().when(customTaskStatusRepository.findByProjectIdOrderBySortOrderAsc(any(UUID.class)))
                 .thenReturn(List.of(customStatus));
+        Mockito.lenient().when(customTaskStatusRepository.findById(any(UUID.class)))
+                .thenReturn(java.util.Optional.of(customStatus));
     }
 
     @AfterEach

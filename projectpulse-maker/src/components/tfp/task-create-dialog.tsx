@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useCreateTask, useProjects, useStatuses, useUsers, useTeams, useProjectMembers, useProject, useSprints, usePhases, useUploadAttachment } from "@/lib/queries";
 import { Plus, Sparkles, AlertOctagon, ListChecks, Calendar, Flag, X, Paperclip } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
 import type { Task, TaskCategory } from "@/lib/types";
 
@@ -355,7 +356,7 @@ export function TaskCreateDialog({
               <Label className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <Calendar className="h-3 w-3" /> Due
               </Label>
-              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <DatePicker value={dueDate} onChange={(date) => setDueDate(date || "")} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

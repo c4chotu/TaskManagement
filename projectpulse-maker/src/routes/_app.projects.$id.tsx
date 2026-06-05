@@ -7,17 +7,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import { useIssues, useProject, useProjectMembers, useSprints, useStatuses, useTasks, useProjectAttachments, useUploadProjectAttachment, useDeleteProjectAttachment, useCreateSprint, useUpdateSprint, useUsers, useTimeEntries } from "@/lib/queries";
+import { useIssues, useProject, useProjectMembers, useSprints, useStatuses, useTasks, useProjectAttachments, useUploadProjectAttachment, useDeleteProjectAttachment, useCreateSprint, useUpdateSprint, useUsers, useTimeEntries, useTeams, useAddProjectMember, useRemoveProjectMember, useProjectTeams, useAddProjectTeam, useRemoveProjectTeam } from "@/lib/queries";
+import { apiRequest, USE_MOCK } from "@/lib/api";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import {
   TrendingUp, Users, Calendar, AlertTriangle, ArrowLeft, ArrowRight,
   Plus, CheckCircle2, ShieldAlert, BadgeDollarSign, Activity,
-  Milestone, Briefcase, Clock, PlayCircle, Flame, Paperclip, Download, Trash2, FileText, X, UploadCloud
+  Milestone, Briefcase, Clock, PlayCircle, Flame, Paperclip, Download, Trash2, FileText, X, UploadCloud, Info, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from "recharts";
 
 export const Route = createFileRoute("/_app/projects/$id")({
   head: () => ({ meta: [{ title: "Project Dashboard — TaskFlow Pro" }] }),
@@ -43,6 +46,10 @@ function ProjectDetail() {
   const { data: sprints = [] } = useSprints(id);
   const { data: projectAttachments = [] } = useProjectAttachments(id);
   const { data: timeEntries = [] } = useTimeEntries();
+  const { data: teams = [] } = useTeams();
+  const { data: projectTeams = [] } = useProjectTeams(id);
+  const addProjectTeamMutation = useAddProjectTeam();
+  const removeProjectTeamMutation = useRemoveProjectTeam();
 
   const projectTaskIds = useMemo(() => new Set(tasks.map((t) => t.id)), [tasks]);
   const projectTimeEntries = useMemo(() => {
@@ -54,6 +61,10 @@ function ProjectDetail() {
 
   const createSprintMutation = useCreateSprint();
   const updateSprintMutation = useUpdateSprint();
+
+  const [selectedPhase, setSelectedPhase] = useState<any>(null);
+  const [isPhaseOpen, setIsPhaseOpen] = useState(false);
+  const [phaseActiveTab, setPhaseActiveTab] = useState("tasks");
 
   // Auto-activate phases/sprints according to timeline schedule
   useEffect(() => {
@@ -114,8 +125,9 @@ function ProjectDetail() {
   const sprintsRoadmap = useMemo(() => {
     if (sprints.length > 0) {
       return sprints.map((s) => {
-        const completedTasks = tasks.filter((t) => s.taskIds?.includes(t.id) && t.statusId === "s-done").length;
-        const totalTasks = s.taskIds?.length ?? 0;
+        const sprintTasks = tasks.filter((t) => t.sprintId === s.id);
+        const completedTasks = sprintTasks.filter((t) => t.statusId === "s-done").length;
+        const totalTasks = sprintTasks.length;
         const pct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
         return {
           id: s.id,
@@ -364,6 +376,9 @@ function ProjectDetail() {
             <TabsTrigger value="timelogs" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
               Project Timelogs ({projectTimeEntries.length})
             </TabsTrigger>
+            <TabsTrigger value="teams" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
+              Project Teams ({projectTeams.length})
+            </TabsTrigger>
           </TabsList>
 
           {/* TAB 1: DASHBOARD & ROADMAP */}
@@ -445,7 +460,13 @@ function ProjectDetail() {
                             {isDone && <CheckCircle2 className="h-3.5 w-3.5 fill-current bg-background rounded-full" />}
                             {isActive && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
                           </div>
-                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between cursor-pointer hover:bg-muted/5 p-2 rounded-xl transition-all"
+                            onClick={(e) => {
+                              if ((e.target as HTMLElement).closest("button")) return;
+                              setSelectedPhase(m);
+                              setIsPhaseOpen(true);
+                            }}
+                          >
                             <div>
                               <p className={`text-sm font-medium ${isActive ? "text-primary font-bold" : "text-foreground"}`}>{m.name}</p>
                               {m.goal && <p className="text-[11px] text-muted-foreground mt-0.5">{m.goal}</p>}
@@ -976,8 +997,542 @@ function ProjectDetail() {
               )}
             </Card>
           </TabsContent>
+
+          {/* TAB 7: PROJECT TEAMS */}
+          <TabsContent value="teams" className="p-0 outline-none animate-in fade-in-50 duration-200">
+            <Card className="p-6 border border-white/10 bg-card/65 backdrop-blur-md rounded-2xl shadow-xl shadow-indigo-500/5 hover:border-primary/10 transition-all space-y-6">
+              <div className="flex items-center justify-between border-b border-border/50 pb-3">
+                <div className="space-y-1">
+                  <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" /> Project Teams
+                  </h3>
+                  <p className="text-xs text-muted-foreground">Manage which organizational teams are assigned to this project.</p>
+                </div>
+                <div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="bg-gradient-primary text-primary-foreground font-semibold rounded-xl hover:shadow-glow transition-all gap-1.5">
+                        <Plus className="h-4 w-4" /> Assign Team
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[400px]">
+                      <DialogHeader>
+                        <DialogTitle>Assign Team to Project</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 pt-2">
+                        <div className="space-y-1.5">
+                          <Label>Select Team</Label>
+                          <Select
+                            onValueChange={async (teamId) => {
+                              try {
+                                await addProjectTeamMutation.mutateAsync({ projectId: id, teamId });
+                                toast.success("Team assigned successfully!");
+                              } catch {
+                                toast.error("Failed to assign team.");
+                              }
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a team..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {teams
+                                .filter((t) => !projectTeams.some((pt: any) => pt.teamId === t.id))
+                                .map((t) => (
+                                  <SelectItem key={t.id} value={t.id}>
+                                    {t.name}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+
+              {projectTeams.length === 0 ? (
+                <div className="text-center py-16 border-2 border-dashed border-border/40 rounded-2xl bg-muted/15 flex flex-col items-center justify-center space-y-3">
+                  <Users className="h-8 w-8 text-muted-foreground" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">No teams assigned yet</p>
+                    <p className="text-xs text-muted-foreground">Assign teams to organize resources and work allocation.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {projectTeams.map((pt: any) => {
+                    const teamObj = teams.find((t) => t.id === pt.teamId);
+                    if (!teamObj) return null;
+                    const leadUser = users.find((u) => u.id === teamObj.leadUserId);
+                    const teamMembers = users.filter((u) => u.teamId === teamObj.id);
+
+                    return (
+                      <Card
+                        key={pt.id}
+                        className="group flex flex-col justify-between p-5 border border-white/5 bg-background/50 hover:bg-muted/15 hover:border-primary/20 rounded-xl transition-all shadow-sm"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between gap-3 min-w-0">
+                            <div>
+                              <h4 className="font-bold text-sm text-foreground truncate">
+                                {teamObj.name}
+                              </h4>
+                              <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                                {teamObj.description || "No description provided."}
+                              </p>
+                            </div>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                              onClick={async () => {
+                                if (confirm(`Are you sure you want to remove team "${teamObj.name}" from this project?`)) {
+                                  try {
+                                    await removeProjectTeamMutation.mutateAsync({ projectId: id, teamId: teamObj.id });
+                                    toast.success("Team removed from project");
+                                  } catch {
+                                    toast.error("Failed to remove team");
+                                  }
+                                }
+                              }}
+                              title="Remove Team"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-3 border-t border-border/10">
+                            <Avatar className="h-6 w-6 border border-emerald-500/20 shrink-0">
+                              <AvatarFallback className="bg-emerald-500/10 text-[9px] text-emerald-700 font-bold">
+                                {leadUser?.name?.slice(0, 2).toUpperCase() || "TL"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] font-semibold truncate text-foreground">
+                                {leadUser?.name || "Unassigned"}
+                              </p>
+                              <p className="text-[8px] text-muted-foreground">Team Lead</p>
+                            </div>
+                            <Badge variant="secondary" className="text-[9px] py-0.5 px-1.5 font-bold">
+                              {teamMembers.length} Members
+                            </Badge>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+          </TabsContent>
         </Tabs>
       </main>
+
+      {/* Phase Detail Dialog */}
+      <Dialog open={isPhaseOpen} onOpenChange={setIsPhaseOpen}>
+        <DialogContent className="max-w-6xl h-[85vh] p-0 overflow-hidden bg-card/95 backdrop-blur-md border border-white/10 rounded-2xl flex flex-col">
+          {selectedPhase && (() => {
+            const sprint = sprints.find(s => s.id === selectedPhase.id);
+            // Use sprintId linkage (correct) instead of non-existent sprint.taskIds
+            const sprintTasks = tasks.filter(t => t.sprintId === sprint?.id || t.sprintId === selectedPhase.id);
+            const standardTasks = sprintTasks.filter(t => t.taskType !== "ISSUE");
+            const sprintIssues = sprintTasks.filter(t => t.taskType === "ISSUE");
+            
+            const currentIdx = sprintsRoadmap.findIndex(m => m.id === selectedPhase.id);
+            const prevPhase = currentIdx > 0 ? sprintsRoadmap[currentIdx - 1] : null;
+            const nextPhase = currentIdx < sprintsRoadmap.length - 1 ? sprintsRoadmap[currentIdx + 1] : null;
+
+            const taskStatusMap: Record<string, { count: number; color: string }> = {};
+            standardTasks.forEach(t => {
+              const st = statuses.find(x => x.id === t.statusId);
+              const name = st?.name || "Open";
+              const color = st?.color || "#cbd5e1";
+              if (!taskStatusMap[name]) taskStatusMap[name] = { count: 0, color };
+              taskStatusMap[name].count++;
+            });
+            const taskStatusData = Object.entries(taskStatusMap).map(([name, val]) => ({ name, value: val.count, color: val.color }));
+
+            let openCount = 0;
+            let closedCount = 0;
+            standardTasks.forEach(t => {
+              const st = statuses.find(x => x.id === t.statusId);
+              const isDone = t.statusId === "s-done" || st?.name?.toLowerCase().includes("done") || st?.name?.toLowerCase().includes("closed");
+              if (isDone) closedCount++;
+              else openCount++;
+            });
+            const openClosedData = [
+              { name: "Open", value: openCount, color: "#f87171" },
+              { name: "Closed", value: closedCount, color: "#3b82f6" }
+            ].filter(d => d.value > 0);
+
+            const ownerMap: Record<string, number> = {};
+            standardTasks.forEach(t => {
+              t.assigneeIds.forEach(uid => {
+                const u = users.find(x => x.id === uid);
+                const name = u?.name || "Unassigned";
+                ownerMap[name] = (ownerMap[name] || 0) + 1;
+              });
+              if (t.assigneeIds.length === 0) {
+                ownerMap["Unassigned"] = (ownerMap["Unassigned"] || 0) + 1;
+              }
+            });
+            const colorsList = ["#84cc16", "#eab308", "#06b6d4", "#a855f7", "#ec4899", "#f97316", "#10b981", "#3b82f6", "#6366f1"];
+            const ownerData = Object.entries(ownerMap).map(([name, count], idx) => ({
+              name,
+              value: count,
+              color: colorsList[idx % colorsList.length]
+            }));
+
+            const issueStatusMap: Record<string, { count: number; color: string }> = {};
+            sprintIssues.forEach(t => {
+              const st = statuses.find(x => x.id === t.statusId);
+              const name = st?.name || "Open";
+              const color = st?.color || "#f97316";
+              if (!issueStatusMap[name]) issueStatusMap[name] = { count: 0, color };
+              issueStatusMap[name].count++;
+            });
+            const issueStatusData = Object.entries(issueStatusMap).map(([name, val]) => ({ name, value: val.count, color: val.color }));
+
+            return (
+              <>
+                <div className="flex items-center justify-between border-b border-border/40 p-4 bg-muted/20 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="relative h-10 w-10 shrink-0 rounded-full border border-border flex items-center justify-center font-mono text-xs font-bold text-teal-600 bg-teal-500/5">
+                      {selectedPhase.pct}%
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded flex items-center gap-1">
+                          <Milestone className="h-3 w-3" /> Phase
+                        </span>
+                        <h2 className="text-base font-bold text-foreground">{selectedPhase.name}</h2>
+                        <Badge variant={selectedPhase.status === "ACTIVE" ? "default" : "secondary"} className="text-[10px]">
+                          {selectedPhase.status}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                        <span>Flag: <span className="font-semibold text-foreground">Internal</span></span>
+                        <span>·</span>
+                        <span>Project: <span className="font-semibold text-foreground">{project?.name}</span></span>
+                        <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-pointer" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center border border-border/80 bg-background/50 rounded-lg p-0.5 mr-2">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 rounded-md"
+                        disabled={!prevPhase}
+                        onClick={() => prevPhase && setSelectedPhase(prevPhase)}
+                        title="Previous Phase"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 rounded-md"
+                        disabled={!nextPhase}
+                        onClick={() => nextPhase && setSelectedPhase(nextPhase)}
+                        title="Next Phase"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setIsPhaseOpen(false)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <Tabs value={phaseActiveTab} onValueChange={setPhaseActiveTab} className="flex-1 flex flex-col overflow-hidden">
+                    <TabsList className="border-b border-border bg-transparent p-0 px-4 shrink-0 justify-start gap-3 h-10">
+                      <TabsTrigger value="tasks" className="rounded-none border-b-2 border-transparent px-3 py-2 text-xs font-semibold data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                        Task Lists ({standardTasks.length})
+                      </TabsTrigger>
+                      <TabsTrigger value="issues-release" className="rounded-none border-b-2 border-transparent px-3 py-2 text-xs font-semibold data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                        Issues (Release Phase) ({sprintIssues.length})
+                      </TabsTrigger>
+                      <TabsTrigger value="notes" className="rounded-none border-b-2 border-transparent px-3 py-2 text-xs font-semibold data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                        Release Notes
+                      </TabsTrigger>
+                      <TabsTrigger value="comments" className="rounded-none border-b-2 border-transparent px-3 py-2 text-xs font-semibold data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                        Comments
+                      </TabsTrigger>
+                      <TabsTrigger value="fields" className="rounded-none border-b-2 border-transparent px-3 py-2 text-xs font-semibold data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                        Fields
+                      </TabsTrigger>
+                      <TabsTrigger value="chart" className="rounded-none border-b-2 border-transparent px-3 py-2 text-xs font-semibold data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                        Chart View
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
+                      
+                      <TabsContent value="chart" className="mt-0 outline-none space-y-6">
+                        <div className="grid gap-6 sm:grid-cols-2">
+                          <Card className="p-4 bg-muted/10 border-border/60">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Task Status</h4>
+                            {taskStatusData.length === 0 ? (
+                              <div className="h-48 flex items-center justify-center text-xs text-muted-foreground italic">No tasks in this phase.</div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-4">
+                                <ResponsiveContainer width="55%" height={180}>
+                                  <PieChart>
+                                    <Pie data={taskStatusData} dataKey="value" nameKey="name" innerRadius={40} outerRadius={65} paddingAngle={2}>
+                                      {taskStatusData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                                    </Pie>
+                                    <RechartsTooltip contentStyle={{ background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 11 }} />
+                                  </PieChart>
+                                </ResponsiveContainer>
+                                <div className="flex-1 space-y-1.5 max-h-[160px] overflow-y-auto text-xs pr-2">
+                                  {taskStatusData.map((d, i) => (
+                                    <div key={i} className="flex items-center justify-between gap-2">
+                                      <span className="flex items-center gap-1.5 truncate text-muted-foreground">
+                                        <span className="h-2 w-2 rounded-full shrink-0" style={{ background: d.color }} />
+                                        <span className="truncate">{d.name}</span>
+                                      </span>
+                                      <span className="font-mono font-semibold">{d.value}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </Card>
+
+                          <Card className="p-4 bg-muted/10 border-border/60">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Task List By Status</h4>
+                            {openClosedData.length === 0 ? (
+                              <div className="h-48 flex items-center justify-center text-xs text-muted-foreground italic">No tasks in this phase.</div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-4">
+                                <ResponsiveContainer width="55%" height={180}>
+                                  <PieChart>
+                                    <Pie data={openClosedData} dataKey="value" nameKey="name" innerRadius={40} outerRadius={65} paddingAngle={2}>
+                                      {openClosedData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                                    </Pie>
+                                    <RechartsTooltip contentStyle={{ background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 11 }} />
+                                  </PieChart>
+                                </ResponsiveContainer>
+                                <div className="flex-1 space-y-1.5 text-xs pr-2">
+                                  {openClosedData.map((d, i) => (
+                                    <div key={i} className="flex items-center justify-between gap-2">
+                                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                                        <span className="h-2 w-2 rounded-full shrink-0" style={{ background: d.color }} />
+                                        <span>{d.name}</span>
+                                      </span>
+                                      <span className="font-mono font-semibold">{d.value}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </Card>
+
+                          <Card className="p-4 bg-muted/10 border-border/60">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Task Count by Owner</h4>
+                            {ownerData.length === 0 ? (
+                              <div className="h-48 flex items-center justify-center text-xs text-muted-foreground italic">No assigned tasks.</div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-4">
+                                <ResponsiveContainer width="55%" height={180}>
+                                  <PieChart>
+                                    <Pie data={ownerData} dataKey="value" nameKey="name" innerRadius={40} outerRadius={65} paddingAngle={2}>
+                                      {ownerData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                                    </Pie>
+                                    <RechartsTooltip contentStyle={{ background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 11 }} />
+                                  </PieChart>
+                                </ResponsiveContainer>
+                                <div className="flex-1 space-y-1.5 max-h-[160px] overflow-y-auto text-xs pr-2">
+                                  {ownerData.map((d, i) => (
+                                    <div key={i} className="flex items-center justify-between gap-2">
+                                      <span className="flex items-center gap-1.5 truncate text-muted-foreground">
+                                        <span className="h-2 w-2 rounded-full shrink-0" style={{ background: d.color }} />
+                                        <span className="truncate">{d.name}</span>
+                                      </span>
+                                      <span className="font-mono font-semibold">{d.value}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </Card>
+
+                          <Card className="p-4 bg-muted/10 border-border/60">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Issue Status</h4>
+                            {issueStatusData.length === 0 ? (
+                              <div className="h-48 flex items-center justify-center text-xs text-muted-foreground italic">No issues associated with this phase.</div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-4">
+                                <ResponsiveContainer width="55%" height={180}>
+                                  <PieChart>
+                                    <Pie data={issueStatusData} dataKey="value" nameKey="name" innerRadius={40} outerRadius={65} paddingAngle={2}>
+                                      {issueStatusData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                                    </Pie>
+                                    <RechartsTooltip contentStyle={{ background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 11 }} />
+                                  </PieChart>
+                                </ResponsiveContainer>
+                                <div className="flex-1 space-y-1.5 max-h-[160px] overflow-y-auto text-xs pr-2">
+                                  {issueStatusData.map((d, i) => (
+                                    <div key={i} className="flex items-center justify-between gap-2">
+                                      <span className="flex items-center gap-1.5 truncate text-muted-foreground">
+                                        <span className="h-2 w-2 rounded-full shrink-0" style={{ background: d.color }} />
+                                        <span className="truncate">{d.name}</span>
+                                      </span>
+                                      <span className="font-mono font-semibold">{d.value}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </Card>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="tasks" className="mt-0 outline-none">
+                        <div className="border border-border/50 rounded-xl overflow-hidden">
+                          <table className="w-full text-xs text-left">
+                            <thead className="bg-muted/50 border-b border-border font-semibold text-muted-foreground">
+                              <tr>
+                                <th className="px-4 py-2.5">Display ID</th>
+                                <th className="px-4 py-2.5">Task Name</th>
+                                <th className="px-4 py-2.5">Status</th>
+                                <th className="px-4 py-2.5">Priority</th>
+                                <th className="px-4 py-2.5">Due Date</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/30">
+                              {standardTasks.map(t => {
+                                const st = statuses.find(x => x.id === t.statusId);
+                                return (
+                                  <tr key={t.id} className="hover:bg-muted/10">
+                                    <td className="px-4 py-2.5 font-mono text-[10.5px]">{t.displayId || t.id.substring(0,8)}</td>
+                                    <td className="px-4 py-2.5 font-medium">{t.title}</td>
+                                    <td className="px-4 py-2.5">
+                                      <Badge style={{ background: st?.color + "15", color: st?.color, borderColor: st?.color + "30" }} variant="outline" className="text-[10px]">
+                                        {st?.name || "Open"}
+                                      </Badge>
+                                    </td>
+                                    <td className="px-4 py-2.5 capitalize">{t.priority?.toLowerCase() || "medium"}</td>
+                                    <td className="px-4 py-2.5 font-mono text-[10.5px]">{t.dueDate ? format(new Date(t.dueDate), "yyyy-MM-dd") : "—"}</td>
+                                  </tr>
+                                );
+                              })}
+                              {standardTasks.length === 0 && (
+                                <tr>
+                                  <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground italic">No tasks inside this phase.</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="issues-release" className="mt-0 outline-none">
+                        <div className="border border-border/50 rounded-xl overflow-hidden">
+                          <table className="w-full text-xs text-left">
+                            <thead className="bg-muted/50 border-b border-border font-semibold text-muted-foreground">
+                              <tr>
+                                <th className="px-4 py-2.5">Display ID</th>
+                                <th className="px-4 py-2.5">Issue Title</th>
+                                <th className="px-4 py-2.5">Status</th>
+                                <th className="px-4 py-2.5">Priority</th>
+                                <th className="px-4 py-2.5">Severity</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/30">
+                              {sprintIssues.map(t => {
+                                const st = statuses.find(x => x.id === t.statusId);
+                                return (
+                                  <tr key={t.id} className="hover:bg-muted/10">
+                                    <td className="px-4 py-2.5 font-mono text-[10.5px]">{t.displayId || t.id.substring(0,8)}</td>
+                                    <td className="px-4 py-2.5 font-medium">{t.title}</td>
+                                    <td className="px-4 py-2.5">
+                                      <Badge style={{ background: st?.color + "15", color: st?.color, borderColor: st?.color + "30" }} variant="outline" className="text-[10px]">
+                                        {st?.name || "Open"}
+                                      </Badge>
+                                    </td>
+                                    <td className="px-4 py-2.5 capitalize">{t.priority?.toLowerCase() || "medium"}</td>
+                                    <td className="px-4 py-2.5 font-mono text-[10.5px]">{t.severity || "SEV3"}</td>
+                                  </tr>
+                                );
+                              })}
+                              {sprintIssues.length === 0 && (
+                                <tr>
+                                  <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground italic">No issues associated with this phase.</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="notes" className="mt-0 outline-none space-y-4">
+                        <div className="p-4 bg-muted/15 border border-border/50 rounded-xl space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-bold text-foreground">Phase Release Summary</h4>
+                            <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => {
+                              const text = standardTasks.filter(t => t.statusId === "s-done").map(t => `- ${t.title} (${t.displayId || t.id.substring(0,8)})`).join("\n");
+                              navigator.clipboard.writeText(text);
+                              toast.success("Release notes copied to clipboard!");
+                            }}>Copy to Clipboard</Button>
+                          </div>
+                          <div className="font-mono text-muted-foreground whitespace-pre-line leading-relaxed bg-background/50 p-3 rounded-lg border border-border/20">
+                            {standardTasks.filter(t => t.statusId === "s-done").length > 0 
+                              ? standardTasks.filter(t => t.statusId === "s-done").map(t => `- ${t.title} (${t.displayId || t.id.substring(0,8)})`).join("\n")
+                              : "No completed tasks to report in this release yet."
+                            }
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="comments" className="mt-0 outline-none space-y-4">
+                        <div className="space-y-3">
+                          <div className="border border-border/40 bg-background/50 rounded-xl p-3 flex flex-col gap-2">
+                            <textarea placeholder="Write a comment..." className="w-full bg-transparent resize-none text-xs outline-none h-14" />
+                            <div className="flex justify-end">
+                              <Button size="sm" className="bg-gradient-primary text-primary-foreground text-[10.5px]">Post Comment</Button>
+                            </div>
+                          </div>
+                          <div className="text-center text-muted-foreground text-xs py-6 italic">No comments posted yet.</div>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="fields" className="mt-0 outline-none">
+                        <div className="grid gap-3 sm:grid-cols-2 text-xs">
+                          <div className="p-3 bg-muted/10 border border-border/45 rounded-xl flex items-center justify-between">
+                            <span className="text-muted-foreground font-medium">Start Date</span>
+                            <span className="font-mono font-semibold">{sprint ? format(new Date(sprint.startDate), "yyyy-MM-dd HH:mm") : "—"}</span>
+                          </div>
+                          <div className="p-3 bg-muted/10 border border-border/45 rounded-xl flex items-center justify-between">
+                            <span className="text-muted-foreground font-medium">End Date</span>
+                            <span className="font-mono font-semibold">{sprint ? format(new Date(sprint.endDate), "yyyy-MM-dd HH:mm") : "—"}</span>
+                          </div>
+                          <div className="p-3 bg-muted/10 border border-border/45 rounded-xl flex items-center justify-between">
+                            <span className="text-muted-foreground font-medium">Total Tasks</span>
+                            <span className="font-mono font-semibold">{sprintTasks.length} tasks</span>
+                          </div>
+                          <div className="p-3 bg-muted/10 border border-border/45 rounded-xl flex items-center justify-between">
+                            <span className="text-muted-foreground font-medium">Estimated Hours</span>
+                            <span className="font-mono font-semibold">{sprint?.estimatedHours || 0}h</span>
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                    </div>
+                  </Tabs>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

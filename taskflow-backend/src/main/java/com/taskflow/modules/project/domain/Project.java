@@ -44,6 +44,11 @@ public class Project {
 
     private String type;
 
+    @Column(name = "project_group")
+    private String projectGroup;
+
+    private String customer;
+
     @Column(name = "start_date")
     private Instant startDate;
 

@@ -44,4 +44,5 @@ public class TaskRequest {
     // Sprints and assignments support
     private java.util.List<UUID> assigneeIds;
     private UUID sprintId;
+    private Double estimatedHours;
 }

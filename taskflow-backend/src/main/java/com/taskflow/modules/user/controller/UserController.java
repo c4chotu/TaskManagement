@@ -10,6 +10,8 @@ import lombok.Data;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.taskflow.modules.user.service.TeamService;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -18,10 +20,13 @@ import java.util.UUID;
 public class UserController {
 
     private final UserProfileService userProfileService;
+    private final TeamService teamService;
 
-    public UserController(UserProfileService userProfileService) {
+    public UserController(UserProfileService userProfileService, TeamService teamService) {
         this.userProfileService = userProfileService;
+        this.teamService = teamService;
     }
+
 
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponse> getMyProfile() {
@@ -60,6 +65,17 @@ public class UserController {
     public ResponseEntity<UserProfileResponse> promoteUser(
             @PathVariable UUID userId,
             @RequestBody PromoteUserRequest request) {
+        return updateUserRoleInternal(userId, request);
+    }
+
+    @PutMapping("/{userId}/role")
+    public ResponseEntity<UserProfileResponse> updateUserRole(
+            @PathVariable UUID userId,
+            @RequestBody PromoteUserRequest request) {
+        return updateUserRoleInternal(userId, request);
+    }
+
+    private ResponseEntity<UserProfileResponse> updateUserRoleInternal(UUID userId, PromoteUserRequest request) {
         UUID actorId = SecurityContextHelper.getCurrentUserId();
         if (actorId == null) {
             return ResponseEntity.status(401).build();
@@ -67,6 +83,7 @@ public class UserController {
         UserProfileResponse updated = userProfileService.promoteUser(userId, request.getRoleName(), request.getRoleLevel(), actorId);
         return ResponseEntity.ok(updated);
     }
+
 
     @PostMapping
     public ResponseEntity<UserProfileResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
@@ -87,6 +104,23 @@ public class UserController {
                 actorId
         );
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{userId}/team")
+    public ResponseEntity<UserProfileResponse> updateUserTeam(
+            @PathVariable UUID userId,
+            @RequestBody UpdateUserTeamRequest request) {
+        UUID actorId = SecurityContextHelper.getCurrentUserId();
+        if (actorId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        teamService.transferMember(userId, request.getTeamId());
+        return ResponseEntity.ok(userProfileService.getProfile(userId));
+    }
+
+    @Data
+    public static class UpdateUserTeamRequest {
+        private UUID teamId;
     }
 
     @Data
@@ -110,3 +144,4 @@ public class UserController {
         private UUID departmentId;
     }
 }
+

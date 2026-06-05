@@ -37,6 +37,7 @@ export const mockUsers: User[] = [
     roleName: "ORG_ADMIN",
     roleLevel: 4,
     bio: "Platform Director",
+    teamId: "t-be",
   },
   {
     id: "u-dept",
@@ -45,6 +46,7 @@ export const mockUsers: User[] = [
     roleName: "DEPT_HEAD",
     roleLevel: 3,
     bio: "Head of SRE",
+    teamId: "t-sre",
   },
   {
     id: "u-lead",
@@ -53,6 +55,7 @@ export const mockUsers: User[] = [
     roleName: "TEAM_LEAD",
     roleLevel: 2,
     bio: "Frontend Lead",
+    teamId: "t-fe",
   },
   {
     id: "u-dev1",
@@ -60,6 +63,7 @@ export const mockUsers: User[] = [
     email: "priya@cyberdyne.io",
     roleName: "TEAM_MEMBER",
     roleLevel: 1,
+    teamId: "t-sre",
   },
   {
     id: "u-dev2",
@@ -67,6 +71,7 @@ export const mockUsers: User[] = [
     email: "jordan@cyberdyne.io",
     roleName: "TEAM_MEMBER",
     roleLevel: 1,
+    teamId: "t-fe",
   },
   {
     id: "u-dev3",
@@ -74,6 +79,7 @@ export const mockUsers: User[] = [
     email: "mei@cyberdyne.io",
     roleName: "TEAM_MEMBER",
     roleLevel: 1,
+    teamId: "t-be",
   },
   { id: "u-guest", name: "Acme Reviewer", email: "guest@acme.io", roleName: "GUEST", roleLevel: 0 },
 ];
@@ -313,6 +319,7 @@ export const mockTasks: Task[] = [
     badges: ["MILESTONE"],
     storyPoints: 2,
     displayId: "ING-T5",
+    sprintId: "sp-3",
   },
   {
     id: "t-6",
@@ -605,7 +612,7 @@ export const mockDependencies: TaskDependency[] = [
 export const mockSprints: Sprint[] = [
   {
     id: "sp-1",
-    projectId: "p-billing",
+    projectId: "p-ingress",
     name: "Sprint 12 · Event Sourcing",
     goal: "Migrate billing reads to event store.",
     startDate: iso(-7),
@@ -615,7 +622,7 @@ export const mockSprints: Sprint[] = [
   },
   {
     id: "sp-2",
-    projectId: "p-billing",
+    projectId: "p-ingress",
     name: "Sprint 13 · Cutover",
     goal: "Switch writes to new pipeline.",
     startDate: iso(8),
@@ -625,7 +632,7 @@ export const mockSprints: Sprint[] = [
   },
   {
     id: "sp-3",
-    projectId: "p-mobile",
+    projectId: "p-ingress",
     name: "Beta-A",
     goal: "Stabilize cold-start crashloops.",
     startDate: iso(-14),
@@ -687,4 +694,10 @@ export const mockProjectMembers = [
   { id: "pm-3", projectId: "p-ingress", userId: "u-dept", role: "PROJECT_MANAGER" },
   { id: "pm-4", projectId: "p-ingress", userId: "u-dev1", role: "PROJECT_MEMBER" }
 ];
+
+export const mockProjectTeams = [
+  { id: "pt-1", projectId: "p-ingress", teamId: "t-sre" },
+  { id: "pt-2", projectId: "p-ingress", teamId: "t-fe" }
+];
+
 

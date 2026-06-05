@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { useProjects, useTasks } from "@/lib/queries";
+import { useProjects, useTasks, useStatuses } from "@/lib/queries";
 import { Plus, Calendar, ArrowRight, Search, SlidersHorizontal, FolderKanban, CheckSquare, Layers } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/_app/projects")({
@@ -20,6 +20,18 @@ function ProjectsPage() {
   const isProjectsRoot = pathname === "/projects";
   const { data: projects = [] } = useProjects();
   const { data: allTasks = [] } = useTasks();
+  const { data: customStatuses = [] } = useStatuses();
+
+  const completedStatusIds = useMemo(() => {
+    const set = new Set<string>();
+    customStatuses.forEach((s) => {
+      if (s.category === "COMPLETED" || s.name.toLowerCase() === "done" || s.id === "s-done") {
+        set.add(s.id);
+      }
+    });
+    set.add("s-done");
+    return set;
+  }, [customStatuses]);
 
   // Search and filter states
   const [search, setSearch] = useState("");
@@ -32,8 +44,8 @@ function ProjectsPage() {
 
   // Apply filters
   const filteredProjects = projects.filter((p) => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
-                          (p.description && p.description.toLowerCase().includes(search.toLowerCase()));
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.description && p.description.toLowerCase().includes(search.toLowerCase()));
     const matchesStatus = statusFilter === "ALL" || p.status === statusFilter;
     const matchesType = typeFilter === "ALL" || p.type === typeFilter;
     return matchesSearch && matchesStatus && matchesType;
@@ -76,8 +88,8 @@ function ProjectsPage() {
         <Card className="glass-card-green p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search projects by name or description..." 
+            <Input
+              placeholder="Search projects by name or description..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 text-xs h-9 focus-visible:ring-primary rounded-xl bg-background/50 border-white/10"
@@ -91,11 +103,10 @@ function ProjectsPage() {
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
-                  className={`px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all ${
-                    statusFilter === status 
-                      ? "bg-card text-foreground shadow-2xs" 
+                  className={`px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all ${statusFilter === status
+                      ? "bg-card text-foreground shadow-2xs"
                       : "text-muted-foreground hover:text-foreground"
-                  }`}
+                    }`}
                 >
                   {status === "ALL" ? "All" : status.replace("_", " ")}
                 </button>
@@ -129,6 +140,8 @@ function ProjectsPage() {
             {filteredProjects.map((p) => {
               const projectTasks = allTasks.filter(t => t.projectId === p.id);
               const taskCount = projectTasks.length;
+              const completedTasksCount = projectTasks.filter(t => completedStatusIds.has(t.statusId)).length;
+              const calculatedProgress = taskCount > 0 ? Math.round((completedTasksCount / taskCount) * 100) : 0;
 
               return (
                 <Card
@@ -154,9 +167,9 @@ function ProjectsPage() {
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs font-semibold">
                         <span className="text-muted-foreground">Progress Completion</span>
-                        <span className="font-mono text-primary">{p.progress ?? 0}%</span>
+                        <span className="font-mono text-primary">{calculatedProgress}%</span>
                       </div>
-                      <Progress value={p.progress ?? 0} className="h-1.5 rounded-full" />
+                      <Progress value={calculatedProgress} className="h-1.5 rounded-full" />
                     </div>
 
                     {/* Basic statistics */}
@@ -177,7 +190,7 @@ function ProjectsPage() {
                         {format(new Date(p.startDate), "MMM d")} — {format(new Date(p.endDate), "MMM d, yyyy")}
                       </span>
                     </div>
-                    
+
                     <Button asChild variant="ghost" size="sm" className="h-8 gap-1 text-xs hover:bg-primary hover:text-primary-foreground rounded-xl transition-all duration-300">
                       <Link to="/projects/$id" params={{ id: p.id }}>
                         Dashboard <ArrowRight className="h-3.5 w-3.5" />

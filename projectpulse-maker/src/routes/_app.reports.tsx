@@ -229,7 +229,7 @@ function ReportsPage() {
       let groupName = "Unassigned";
 
       if (groupBy === "status") {
-        groupName = task.statusId === "s-done" ? "DONE" : task.statusId === "s-in-prog" ? "IN PROGRESS" : "TODO";
+        groupName = task.statusId === "s-done" ? "DONE" : task.statusId === "s-progress" ? "IN PROGRESS" : task.statusId === "s-todo" ? "TO DO" : task.statusId === "s-blocked" ? "BLOCKED" : task.statusId === "s-backlog" ? "BACKLOG" : "TODO";
       } else if (groupBy === "priority") {
         groupName = task.priority || "MEDIUM";
       } else if (groupBy === "project") {

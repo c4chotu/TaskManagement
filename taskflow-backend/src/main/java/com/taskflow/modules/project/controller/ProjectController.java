@@ -2,6 +2,8 @@ package com.taskflow.modules.project.controller;
 
 import com.taskflow.modules.project.domain.Project;
 import com.taskflow.modules.project.domain.ProjectMember;
+import com.taskflow.modules.project.domain.ProjectTeam;
+import com.taskflow.modules.project.repository.ProjectTeamRepository;
 import com.taskflow.modules.project.service.ProjectService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -9,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -17,12 +20,16 @@ public class ProjectController {
 
     private final ProjectService projectService;
     private final com.taskflow.modules.file.service.FileService fileService;
+    private final ProjectTeamRepository projectTeamRepository;
 
     public ProjectController(ProjectService projectService,
-                             com.taskflow.modules.file.service.FileService fileService) {
+                             com.taskflow.modules.file.service.FileService fileService,
+                             ProjectTeamRepository projectTeamRepository) {
         this.projectService = projectService;
         this.fileService = fileService;
+        this.projectTeamRepository = projectTeamRepository;
     }
+
 
     @PostMapping
     public ResponseEntity<Project> createProject(@RequestBody Map<String, Object> body) {
@@ -139,4 +146,44 @@ public class ProjectController {
         map.put("uploadedAt", att.getCreatedAt().toString());
         return map;
     }
+
+    // ── Project Teams ──────────────────────────────────────────────────
+
+    @GetMapping("/{projectId}/teams")
+    public ResponseEntity<List<ProjectTeam>> getProjectTeams(@PathVariable UUID projectId) {
+        return ResponseEntity.ok(projectTeamRepository.findByProjectId(projectId));
+    }
+
+    @PostMapping("/{projectId}/teams")
+    public ResponseEntity<ProjectTeam> addProjectTeam(
+            @PathVariable UUID projectId,
+            @RequestBody Map<String, String> body) {
+        String teamIdStr = body.get("teamId");
+        if (teamIdStr == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        UUID teamId = UUID.fromString(teamIdStr);
+
+        Optional<ProjectTeam> existing = projectTeamRepository.findByProjectIdAndTeamId(projectId, teamId);
+        if (existing.isPresent()) {
+            return ResponseEntity.ok(existing.get());
+        }
+
+        ProjectTeam pt = ProjectTeam.builder()
+                .id(UUID.randomUUID())
+                .projectId(projectId)
+                .teamId(teamId)
+                .build();
+        return ResponseEntity.ok(projectTeamRepository.save(pt));
+    }
+
+    @DeleteMapping("/{projectId}/teams/{teamId}")
+    public ResponseEntity<Void> removeProjectTeam(
+            @PathVariable UUID projectId,
+            @PathVariable UUID teamId) {
+        projectTeamRepository.findByProjectIdAndTeamId(projectId, teamId)
+                .ifPresent(projectTeamRepository::delete);
+        return ResponseEntity.noContent().build();
+    }
 }
+

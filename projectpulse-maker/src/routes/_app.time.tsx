@@ -25,6 +25,7 @@ import { format, startOfWeek, addDays, parseISO, isWithinInterval } from "date-f
 import { CheckCircle, ChevronLeft, ChevronRight, BarChart2, Calendar, Clock, DollarSign, Edit, Trash2, Search, Briefcase, Plus, Filter, User, Play, Pause, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   BarChart,
   Bar,
@@ -465,9 +466,9 @@ function TimesheetPage() {
           {/* Date range picker inputs */}
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Custom Range:</span>
-            <Input type="date" value={filterStart} onChange={(e) => setFilterStart(e.target.value)} className="h-8 text-xs w-[120px] bg-background/40 border-white/10 rounded-lg" />
+            <DatePicker value={filterStart} onChange={(date) => setFilterStart(date || "")} className="h-8 text-xs w-[120px] bg-background/40 border-white/10 rounded-lg" />
             <span className="text-muted-foreground">to</span>
-            <Input type="date" value={filterEnd} onChange={(e) => setFilterEnd(e.target.value)} className="h-8 text-xs w-[120px] bg-background/40 border-white/10 rounded-lg" />
+            <DatePicker value={filterEnd} onChange={(date) => setFilterEnd(date || "")} className="h-8 text-xs w-[120px] bg-background/40 border-white/10 rounded-lg" />
           </div>
         </div>
 
@@ -643,8 +644,8 @@ function TimesheetPage() {
                           </div>
 
                           <div className="space-y-1">
-                            <Label htmlFor="logDate" className="text-[10px] font-bold text-muted-foreground uppercase">Date</Label>
-                            <Input id="logDate" type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} className="h-8 text-[11px] bg-background/50 border-white/10 rounded-lg" required />
+                            <Label htmlFor="logDate" className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">Date</Label>
+                            <DatePicker value={logDate} onChange={(date) => setLogDate(date || "")} className="h-8 text-[11px] bg-background/50 border-white/10 rounded-lg" />
                           </div>
                         </div>
 
@@ -1071,8 +1072,8 @@ function TimesheetPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <Label htmlFor="logDateUser" className="text-[10px] font-bold text-muted-foreground uppercase">Date</Label>
-                        <Input id="logDateUser" type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} className="h-8 text-[11px] bg-background/50 border-white/10 rounded-lg" required />
+                        <Label htmlFor="logDateUser" className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">Date</Label>
+                        <DatePicker value={logDate} onChange={(date) => setLogDate(date || "")} className="h-8 text-[11px] bg-background/50 border-white/10 rounded-lg" />
                       </div>
                     </div>
 
@@ -1218,8 +1219,8 @@ function TimesheetPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="editDate">Date</Label>
-                  <Input id="editDate" type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} required />
+                  <Label htmlFor="editDate" className="mb-1 block">Date</Label>
+                  <DatePicker value={editDate} onChange={(date) => setEditDate(date || "")} />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="editHours">Hours</Label>

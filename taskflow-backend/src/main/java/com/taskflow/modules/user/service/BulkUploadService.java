@@ -440,7 +440,7 @@ public class BulkUploadService {
                         .description("Imported via bulk upload")
                         .triggerType(triggerType.toUpperCase())
                         .createdBy(SecurityContextHelper.getCurrentUserId())
-                        .isActive(true)
+                        .enabled(true)
                         .conditions(new ArrayList<>())
                         .actions(new ArrayList<>())
                         .build();

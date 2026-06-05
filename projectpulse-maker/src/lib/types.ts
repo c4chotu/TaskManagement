@@ -22,6 +22,7 @@ export interface User {
   bio?: string | null;
   roleName?: RoleName;
   roleLevel?: RoleLevel;
+  teamId?: string;
 }
 
 export interface AuthResult {
@@ -65,6 +66,7 @@ export interface Project {
   organizationId?: string;
   progress?: number;
   estimatedHours?: number;
+  group?: string;
 }
 
 export interface CustomTaskStatus {

@@ -15,4 +15,6 @@ public class UserProfileResponse {
     private String bio;
     private String roleName;
     private Integer roleLevel;
+    private UUID teamId;
 }
+

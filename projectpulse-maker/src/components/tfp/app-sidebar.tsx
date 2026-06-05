@@ -55,7 +55,7 @@ export function AppSidebar() {
     { title: "Calendar", url: "/calendar", icon: CalendarDays },
     { title: "Sprints", url: "/sprints", icon: CalendarRange },
     { title: "Issues", url: "/incidents", icon: AlertOctagon },
-        // { title: "Issues", url: "/issues", icon: AlertOctagon },
+    // { title: "Issues", url: "/issues", icon: AlertOctagon },
 
   ];
 
