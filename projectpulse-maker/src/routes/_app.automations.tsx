@@ -420,10 +420,10 @@ function AutomationsPage() {
                       <div className="flex items-center gap-1 text-[9px] font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/10 w-fit">
                         <Sparkles className="h-3 w-3" /> Trigger: {w.triggerType}
                       </div>
-                      <Button size="xs" variant="ghost" className="h-6 px-2 text-[10px] text-primary" onClick={() => handleOpenEditAutomation(w)}>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-primary" onClick={() => handleOpenEditAutomation(w)}>
                         Edit
                       </Button>
-                      <Button size="xs" variant="ghost" className="h-6 px-2 text-[10px] text-destructive hover:bg-destructive/10" onClick={async () => {
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-destructive hover:bg-destructive/10" onClick={async () => {
                         if (confirm("Are you sure you want to delete this automation rule?")) {
                           try {
                             await deleteAutomation.mutateAsync(w.id);

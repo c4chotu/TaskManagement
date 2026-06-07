@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIssues, useTasks, useProjects, useUsers, useStatuses } from "@/lib/queries";
 import { format, isAfter } from "date-fns";
-import { Search, Plus, Filter, Layers, ArrowUpDown, AlertOctagon, ShieldAlert, Flame, SlidersHorizontal, X } from "lucide-react";
+import { Search, Plus, Filter, Layers, ArrowUpDown, AlertOctagon, ShieldAlert, Flame, SlidersHorizontal, X, AlertTriangle, Activity } from "lucide-react";
 import { ZChip } from "@/components/tfp/zoho";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ZPageHeader, ZToolStrip, ZToolBtn } from "@/components/zoho/components";

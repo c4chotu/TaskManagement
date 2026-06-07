@@ -90,58 +90,39 @@ function HomePage() {
           </div>
         </div>
 
-        {/* 5-Column Metrics Grid */}
+        {/* 5-Column Metrics Grid — operational, click-through */}
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          {/* Card 1: My Tasks Due Today */}
-          <Card className="p-5 border border-border bg-card/65 backdrop-blur-md shadow-xs flex flex-col justify-between h-[120px] rounded-2xl">
-            <div className="text-xs font-semibold text-muted-foreground">My Tasks Due Today</div>
-            <div className="text-3xl font-extrabold text-foreground tracking-tight mt-1">{dueTodayTasks.length || 5}</div>
-            <div className="text-[10px] text-red-500 font-bold flex items-center gap-1 mt-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-              <span>+ 2 high priority</span>
-            </div>
-          </Card>
-
-          {/* Card 2: Overdue Tasks */}
-          <Card className="p-5 border border-border bg-card/65 backdrop-blur-md shadow-xs flex flex-col justify-between h-[120px] rounded-2xl">
-            <div className="text-xs font-semibold text-muted-foreground">Overdue Tasks</div>
-            <div className="text-3xl font-extrabold text-foreground tracking-tight mt-1">{overdueTasks.length || 2}</div>
-            <div className="text-[10px] text-red-500 font-bold flex items-center gap-1 mt-1">
-              <AlertTriangle className="h-3 w-3 text-red-500" />
-              <span>+ 1 urgent</span>
-            </div>
-          </Card>
-
-          {/* Card 3: Tasks In Progress */}
-          <Card className="p-5 border border-border bg-card/65 backdrop-blur-md shadow-xs flex flex-col justify-between h-[120px] rounded-2xl">
-            <div className="text-xs font-semibold text-muted-foreground">Tasks In Progress</div>
-            <div className="text-3xl font-extrabold text-foreground tracking-tight mt-1">{inProgressTasksCount || 7}</div>
-            <div className="text-[10px] text-blue-500 font-bold flex items-center gap-1 mt-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-              <span>+ 2 from yesterday</span>
-            </div>
-          </Card>
-
-          {/* Card 4: Completed This Week */}
-          <Card className="p-5 border border-border bg-card/65 backdrop-blur-md shadow-xs flex flex-col justify-between h-[120px] rounded-2xl">
-            <div className="text-xs font-semibold text-muted-foreground">Completed This Week</div>
-            <div className="text-3xl font-extrabold text-foreground tracking-tight mt-1">{completedThisWeekCount || 12}</div>
-            <div className="text-[10px] text-emerald-500 font-bold flex items-center gap-1 mt-1">
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
-              <span>+ 20% from last week</span>
-            </div>
-          </Card>
-
-          {/* Card 5: Total Projects */}
-          <Card className="p-5 border border-border bg-card/65 backdrop-blur-md shadow-xs flex flex-col justify-between h-[120px] rounded-2xl">
-            <div className="text-xs font-semibold text-muted-foreground">Total Projects</div>
-            <div className="text-3xl font-extrabold text-foreground tracking-tight mt-1">{projects.length || 4}</div>
-            <div className="text-[10px] text-emerald-500 font-bold flex items-center gap-1 mt-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <span>+ 3 active</span>
-            </div>
-          </Card>
+          {[
+            { label: "My Tasks Due Today", value: dueTodayTasks.length || 5, sub: "+ 2 high priority", tone: "red", icon: <Clock className="h-3 w-3" />, to: "/tasks" as const },
+            { label: "Overdue Tasks", value: overdueTasks.length || 2, sub: "+ 1 urgent", tone: "red", icon: <AlertTriangle className="h-3 w-3" />, to: "/tasks" as const },
+            { label: "Tasks In Progress", value: inProgressTasksCount || 7, sub: "+ 2 from yesterday", tone: "blue", icon: <Activity className="h-3 w-3" />, to: "/tasks" as const },
+            { label: "Completed This Week", value: completedThisWeekCount || 12, sub: "+ 20% from last week", tone: "emerald", icon: <CheckCircle2 className="h-3 w-3" />, to: "/tasks" as const },
+            { label: "Total Projects", value: projects.length || 4, sub: "+ 3 active", tone: "emerald", icon: <FolderKanban className="h-3 w-3" />, to: "/projects" as const },
+          ].map((c) => {
+            const toneCls: Record<string, string> = {
+              red: "text-rose-500 bg-rose-500/10 border-rose-500/20",
+              blue: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+              emerald: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+            };
+            return (
+              <Link
+                key={c.label}
+                to={c.to}
+                className="group relative overflow-hidden p-4 border border-border bg-card hover:border-emerald-500/40 hover:shadow-lg hover:-translate-y-0.5 transition-all rounded-2xl flex flex-col justify-between h-[120px]"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] font-semibold text-muted-foreground">{c.label}</div>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
+                </div>
+                <div className="text-3xl font-extrabold text-foreground tracking-tight">{c.value}</div>
+                <div className={`inline-flex items-center gap-1 self-start text-[10px] font-bold px-2 py-0.5 rounded-full border ${toneCls[c.tone]}`}>
+                  {c.icon}<span>{c.sub}</span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
+
 
         {/* 3-Column Layout Workspace */}
         <div className="grid gap-6 lg:grid-cols-3">

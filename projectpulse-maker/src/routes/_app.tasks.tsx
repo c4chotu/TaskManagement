@@ -494,77 +494,70 @@ function TasksPage() {
           <div className="flex flex-1 overflow-hidden">
             {/* ── Main Content ──────────────────────────────────────────── */}
             <main className="flex-1 flex flex-col overflow-hidden">
-              {/* Hero Banner */}
+              {/* Task Overview Strip */}
               <div className="px-6 pt-5 pb-3 flex-shrink-0">
-                <div className="relative overflow-hidden rounded-2xl glass-card p-6 transition-all duration-300 hover:shadow-glow">
-                  {/* Decorative background shapes with active animations */}
-                  <div className="absolute -right-8 -top-8 h-48 w-48 rounded-full bg-primary/8 blur-3xl pointer-events-none animate-pulse" />
-                  <div className="absolute right-32 top-4 h-32 w-32 rounded-full bg-emerald-500/8 blur-2xl pointer-events-none animate-bounce duration-10000" />
+                <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/30 dark:from-card dark:via-card dark:to-emerald-950/20 p-5 shadow-sm">
+                  {/* Decorative clipboard illustration */}
+                  <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none opacity-70 hidden md:block">
+                    <svg width="120" height="100" viewBox="0 0 160 130" fill="none">
+                      <rect x="30" y="20" width="90" height="100" rx="8" fill="white" stroke="#10b981" strokeWidth="2"/>
+                      <rect x="55" y="10" width="40" height="18" rx="4" fill="#10b981"/>
+                      <line x1="45" y1="50" x2="105" y2="50" stroke="#10b981" strokeWidth="2" strokeLinecap="round" opacity="0.4"/>
+                      <line x1="45" y1="65" x2="95" y2="65" stroke="#10b981" strokeWidth="2" strokeLinecap="round" opacity="0.4"/>
+                      <line x1="45" y1="80" x2="100" y2="80" stroke="#10b981" strokeWidth="2" strokeLinecap="round" opacity="0.4"/>
+                      <circle cx="135" cy="35" r="4" fill="#fbbf24"/>
+                      <circle cx="145" cy="55" r="3" fill="#34d399"/>
+                      <circle cx="20" cy="100" r="5" fill="#a78bfa" opacity="0.5"/>
+                    </svg>
+                  </div>
 
-                  <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3.5">
-                        <div className="h-11 w-11 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-105 transition-transform">
-                          <CheckSquare className="h-5.5 w-5.5 text-primary-foreground" />
-                        </div>
-                        <div>
-                          <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                            Task Pipeline
-                            <span className="text-xs font-normal text-emerald-500 animate-pulse">✦</span>
-                          </h1>
-                          <p className="text-[11px] text-muted-foreground/90 max-w-xl leading-relaxed">
-                            Organize, sequence, and execute work items across projects. Balance user load and track completion metrics with custom HSL widgets.
-                          </p>
-                        </div>
+                  <div className="relative flex flex-col gap-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h1 className="text-xl font-bold tracking-tight text-foreground">Task Overview</h1>
+                        <p className="text-xs text-muted-foreground mt-0.5">Track and manage your tasks efficiently</p>
                       </div>
-                      {/* Stats Pills */}
-                      <div className="flex items-center gap-2.5 flex-wrap">
-                        <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-1 hover:bg-emerald-500/15 transition-colors cursor-pointer">
-                          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-                          <span className="h-2 w-2 rounded-full bg-emerald-500 -ml-3.5" />
-                          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">{totalActive} Active Tasks</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 px-3.5 py-1 hover:bg-blue-500/15 transition-colors cursor-pointer">
-                          <Check className="h-3.5 w-3.5 text-blue-500" />
-                          <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">{totalCompleted} Completed</span>
-                        </div>
-                        {overdueCount > 0 && (
-                          <div className="flex items-center gap-1.5 rounded-full bg-red-500/10 border border-red-500/20 px-3.5 py-1 hover:bg-red-500/15 transition-colors cursor-pointer animate-shake">
-                            <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
-                            <span className="text-[11px] font-semibold text-red-500">{overdueCount} Overdue</span>
-                          </div>
-                        )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <ZViewSwitcher value={view} onChange={setView} />
+                        <Button size="sm" onClick={() => nav({ to: "/tasks/new" })} className="h-8 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white font-semibold shadow-[0_4px_12px_-2px_rgba(16,185,129,0.5)] border-0 text-xs">
+                          <Plus className="mr-1 h-3.5 w-3.5" /> New Task
+                        </Button>
                       </div>
                     </div>
 
-                    {/* Right side: metric cards */}
-                    <div className="flex items-center gap-4 shrink-0">
-                      <div className="hidden lg:flex items-center gap-4">
-                        <div className="rounded-xl border border-border bg-card/40 backdrop-blur-md p-3 text-center min-w-[90px] shadow-sm hover:border-emerald-500/30 transition-all duration-300">
-                          <div className="text-[10px] text-muted-foreground font-medium mb-1">On Track</div>
-                          <div className="text-xl font-extrabold text-emerald-500">
-                            {filtered.length > 0 ? Math.round(((filtered.length - overdueCount) / filtered.length) * 100) : 100}%
-                          </div>
-                        </div>
-                        <div className="rounded-xl border border-border bg-card/40 backdrop-blur-md p-3 text-center min-w-[90px] shadow-sm hover:border-primary/30 transition-all duration-300">
-                          <div className="text-[10px] text-muted-foreground font-medium mb-1">Efficiency</div>
-                          <div className="text-xl font-extrabold text-primary">
-                            {tasks.filter(t => t.taskType === "TASK").length > 0
-                              ? Math.round((totalCompleted / tasks.filter(t => t.taskType === "TASK").length) * 100)
-                              : 0}%
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-2.5">
-                        <ZViewSwitcher value={view} onChange={setView} />
-                        <Button size="sm" onClick={() => nav({ to: "/tasks/new" })} className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20 shadow-sm hover:bg-emerald-500 hover:text-white transition-all duration-300 rounded-xl text-xs px-4 py-2 hover-lift">
-                          <Plus className="mr-1 h-4 w-4" /> Add Task
-                        </Button>
-                      </div>
+                    {/* 5 colorful stat cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 max-w-3xl">
+                      {[
+                        { key: "all", label: "All Tasks", value: tasks.filter(t => t.taskType === "TASK").length, color: "emerald", filterFn: () => { setFilter("all"); setFilterStatuses([]); } },
+                        { key: "todo", label: "To Do", value: tasks.filter(t => t.taskType === "TASK" && (t.statusId === "s-todo" || t.statusId === "s-open")).length, color: "amber", filterFn: () => { setFilter("open"); setFilterStatuses(["s-todo", "s-open"]); } },
+                        { key: "progress", label: "In Progress", value: tasks.filter(t => t.taskType === "TASK" && (t.statusId === "s-progress" || t.statusId === "s-in-progress")).length, color: "orange", filterFn: () => { setFilter("open"); setFilterStatuses(["s-progress", "s-in-progress"]); } },
+                        { key: "review", label: "In Review", value: tasks.filter(t => t.taskType === "TASK" && t.statusId === "s-review").length, color: "violet", filterFn: () => { setFilter("open"); setFilterStatuses(["s-review"]); } },
+                        { key: "done", label: "Done", value: tasks.filter(t => t.taskType === "TASK" && t.statusId === "s-done").length, color: "blue", filterFn: () => { setFilter("closed"); setFilterStatuses(["s-done"]); } },
+                      ].map((s) => {
+                        const palettes: Record<string, string> = {
+                          emerald: "from-emerald-50 to-emerald-100/50 dark:from-emerald-950/40 dark:to-emerald-900/20 border-emerald-200/60 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400",
+                          amber: "from-amber-50 to-amber-100/50 dark:from-amber-950/40 dark:to-amber-900/20 border-amber-200/60 dark:border-amber-800/40 text-amber-600 dark:text-amber-400",
+                          orange: "from-orange-50 to-orange-100/50 dark:from-orange-950/40 dark:to-orange-900/20 border-orange-200/60 dark:border-orange-800/40 text-orange-600 dark:text-orange-400",
+                          violet: "from-violet-50 to-violet-100/50 dark:from-violet-950/40 dark:to-violet-900/20 border-violet-200/60 dark:border-violet-800/40 text-violet-600 dark:text-violet-400",
+                          blue: "from-blue-50 to-blue-100/50 dark:from-blue-950/40 dark:to-blue-900/20 border-blue-200/60 dark:border-blue-800/40 text-blue-600 dark:text-blue-400",
+                        };
+                        return (
+                          <button
+                            key={s.key}
+                            onClick={() => { s.filterFn(); setPage(1); }}
+                            className={`group relative overflow-hidden rounded-xl border bg-gradient-to-br ${palettes[s.color]} px-3.5 py-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-${s.color}-400`}
+                          >
+                            <div className="text-[10px] font-bold uppercase tracking-wider opacity-80">{s.label}</div>
+                            <div className="mt-1.5 text-2xl font-extrabold tracking-tight">{s.value}</div>
+                            <div className="absolute inset-x-0 bottom-0 h-0.5 bg-current opacity-40 group-hover:opacity-100 transition-opacity" />
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
               </div>
+
 
               {/* Toolbar */}
               <div className="px-6 py-2 flex-shrink-0">

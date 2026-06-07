@@ -143,7 +143,7 @@ export function Topbar({ title, actions }: { title?: string; actions?: React.Rea
               aiSummary += `- 📝 **Tasks & Incidents**: Found ${matchedTasks.length} task(s), with ${openCount} active. Key item: **${matchedTasks[0].title}**.\n`;
             }
             if (matchedUsers.length > 0) {
-              aiSummary += `- 👥 **People**: Found ${matchedUsers.length} member(s). Top: **${matchedUsers[0].name}** (Role: \`${matchedUsers[0].role}\`).\n`;
+              aiSummary += `- 👥 **People**: Found ${matchedUsers.length} member(s). Top: **${matchedUsers[0].name}** (Role: \`${(matchedUsers[0] as any).roleName ?? "MEMBER"}\`).\n`;
             }
             if (matchedTeams.length > 0) {
               aiSummary += `- 🗂️ **Teams**: ${matchedTeams.length} team(s) matching.\n`;

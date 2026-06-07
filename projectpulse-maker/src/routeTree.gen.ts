@@ -28,6 +28,7 @@ import { Route as AppOnCallRouteImport } from './routes/_app.on-call'
 import { Route as AppIssuesRouteImport } from './routes/_app.issues'
 import { Route as AppIncidentsRouteImport } from './routes/_app.incidents'
 import { Route as AppHomeRouteImport } from './routes/_app.home'
+import { Route as AppDownloadsRouteImport } from './routes/_app.downloads'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCollaborationRouteImport } from './routes/_app.collaboration'
 import { Route as AppCalendarRouteImport } from './routes/_app.calendar'
@@ -136,6 +137,11 @@ const AppHomeRoute = AppHomeRouteImport.update({
   path: '/home',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDownloadsRoute = AppDownloadsRouteImport.update({
+  id: '/downloads',
+  path: '/downloads',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -212,6 +218,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof AppCalendarRoute
   '/collaboration': typeof AppCollaborationRoute
   '/dashboard': typeof AppDashboardRoute
+  '/downloads': typeof AppDownloadsRoute
   '/home': typeof AppHomeRoute
   '/incidents': typeof AppIncidentsRouteWithChildren
   '/issues': typeof AppIssuesRoute
@@ -245,6 +252,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof AppCalendarRoute
   '/collaboration': typeof AppCollaborationRoute
   '/dashboard': typeof AppDashboardRoute
+  '/downloads': typeof AppDownloadsRoute
   '/home': typeof AppHomeRoute
   '/incidents': typeof AppIncidentsRouteWithChildren
   '/issues': typeof AppIssuesRoute
@@ -280,6 +288,7 @@ export interface FileRoutesById {
   '/_app/calendar': typeof AppCalendarRoute
   '/_app/collaboration': typeof AppCollaborationRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/downloads': typeof AppDownloadsRoute
   '/_app/home': typeof AppHomeRoute
   '/_app/incidents': typeof AppIncidentsRouteWithChildren
   '/_app/issues': typeof AppIssuesRoute
@@ -315,6 +324,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/collaboration'
     | '/dashboard'
+    | '/downloads'
     | '/home'
     | '/incidents'
     | '/issues'
@@ -348,6 +358,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/collaboration'
     | '/dashboard'
+    | '/downloads'
     | '/home'
     | '/incidents'
     | '/issues'
@@ -382,6 +393,7 @@ export interface FileRouteTypes {
     | '/_app/calendar'
     | '/_app/collaboration'
     | '/_app/dashboard'
+    | '/_app/downloads'
     | '/_app/home'
     | '/_app/incidents'
     | '/_app/issues'
@@ -549,6 +561,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppHomeRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/downloads': {
+      id: '/_app/downloads'
+      path: '/downloads'
+      fullPath: '/downloads'
+      preLoaderRoute: typeof AppDownloadsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -713,6 +732,7 @@ interface AppRouteChildren {
   AppCalendarRoute: typeof AppCalendarRoute
   AppCollaborationRoute: typeof AppCollaborationRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppDownloadsRoute: typeof AppDownloadsRoute
   AppHomeRoute: typeof AppHomeRoute
   AppIncidentsRoute: typeof AppIncidentsRouteWithChildren
   AppIssuesRoute: typeof AppIssuesRoute
@@ -737,6 +757,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCalendarRoute: AppCalendarRoute,
   AppCollaborationRoute: AppCollaborationRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppDownloadsRoute: AppDownloadsRoute,
   AppHomeRoute: AppHomeRoute,
   AppIncidentsRoute: AppIncidentsRouteWithChildren,
   AppIssuesRoute: AppIssuesRoute,

@@ -111,7 +111,7 @@ export function TaskCreateDialog({
         projectId: activeProjectId,
         statusId: activeStatusId,
         sprintId: sprintId === "none" ? undefined : sprintId || undefined,
-        phaseId: phaseId === "none" ? undefined : phaseId || undefined,
+        ...(phaseId && phaseId !== "none" ? { phaseId } as any : {}),
         taskType,
         priority,
         dueDate: dueDate || undefined,
@@ -491,8 +491,9 @@ export function TaskCreateDialog({
                 multiple
                 className="hidden"
                 onChange={(e) => {
-                  if (e.target.files && e.target.files.length > 0) {
-                    setTaskFiles((prev) => [...prev, ...Array.from(e.target.files)]);
+                  const files = e.target.files;
+                  if (files && files.length > 0) {
+                    setTaskFiles((prev) => [...prev, ...Array.from(files)]);
                   }
                 }}
               />
