@@ -64,7 +64,7 @@ export function ZViewSwitcher({
             onClick={() => onChange(v)}
             title={v}
             className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] capitalize transition ${
-              active ? "bg-emerald-500/30 text-emerald-500 shadow-sm" : "text-muted-foreground hover:text-foreground"
+              active ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <Icon className="h-3.5 w-3.5" />

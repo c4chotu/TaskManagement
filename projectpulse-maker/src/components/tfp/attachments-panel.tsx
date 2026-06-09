@@ -2,14 +2,45 @@ import { useRef, useState } from "react";
 import { useAttachments, useDeleteAttachment, useUploadAttachment } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Paperclip, Upload, Trash2, FileText, Image as ImageIcon, Download } from "lucide-react";
+import { Paperclip, Upload, Trash2, FileText, Image as ImageIcon, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/ui/dialog";
+import { tokenStore, USE_MOCK } from "@/lib/api";
 
 function humanSize(b: number) {
   if (b < 1024) return `${b} B`;
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
   return `${(b / 1024 / 1024).toFixed(2)} MB`;
+}
+
+export async function downloadAuthenticatedFile(url: string, fileName: string) {
+  if (USE_MOCK) {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    return;
+  }
+  try {
+    const token = tokenStore.get();
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error("Download failed");
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    toast.error("Download failed: " + (err instanceof Error ? err.message : String(err)));
+  }
 }
 
 export function AttachmentsPanel({ taskId }: { taskId: string }) {
@@ -18,7 +49,8 @@ export function AttachmentsPanel({ taskId }: { taskId: string }) {
   const del = useDeleteAttachment();
   const inputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<{ name: string; pct: number } | null>(null);
-  const [preview, setPreview] = useState<{ url: string; name: string; mime: string } | null>(null);
+  const [preview, setPreview] = useState<{ url: string; name: string; mime: string; blobUrl?: string } | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
   const handleFiles = async (files: FileList | null) => {
@@ -38,6 +70,36 @@ export function AttachmentsPanel({ taskId }: { taskId: string }) {
         setProgress(null);
       }
     }
+  };
+
+  const handlePreview = async (url: string, name: string, mime: string, fileId: string) => {
+    if (USE_MOCK) {
+      setPreview({ url, name, mime, blobUrl: url });
+      return;
+    }
+    setLoadingPreview(fileId);
+    try {
+      const token = tokenStore.get();
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error("Preview failed to load");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setPreview({ url, name, mime, blobUrl });
+    } catch (err) {
+      toast.error("Could not open preview: unauthorized or server error");
+    } finally {
+      setLoadingPreview(null);
+    }
+  };
+
+  const closePreview = () => {
+    if (preview?.blobUrl && !USE_MOCK) {
+      URL.revokeObjectURL(preview.blobUrl);
+    }
+    setPreview(null);
   };
 
   return (
@@ -88,6 +150,7 @@ export function AttachmentsPanel({ taskId }: { taskId: string }) {
         {attachments.map((a) => {
           const isImage = a.mimeType.startsWith("image/");
           const Icon = isImage ? ImageIcon : FileText;
+          const isLoading = loadingPreview === a.id;
           return (
             <li
               key={a.id}
@@ -95,20 +158,23 @@ export function AttachmentsPanel({ taskId }: { taskId: string }) {
             >
               <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <button
-                onClick={() => setPreview({ url: a.url, name: a.fileName, mime: a.mimeType })}
-                className="min-w-0 flex-1 text-left"
+                disabled={isLoading}
+                onClick={() => handlePreview(a.url, a.fileName, a.mimeType, a.id)}
+                className="min-w-0 flex-1 text-left flex items-center gap-1.5"
               >
-                <p className="truncate text-xs font-medium">{a.fileName}</p>
-                <p className="text-[10px] text-muted-foreground">{humanSize(a.sizeBytes)}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium hover:underline text-primary/80 hover:text-primary cursor-pointer">{a.fileName}</p>
+                  <p className="text-[10px] text-muted-foreground">{humanSize(a.sizeBytes)}</p>
+                </div>
+                {isLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
               </button>
-              <a
-                href={a.url}
-                download={a.fileName}
+              <button
+                onClick={() => downloadAuthenticatedFile(a.url, a.fileName)}
                 className="text-muted-foreground opacity-0 transition hover:text-foreground group-hover:opacity-100"
                 title="Download"
               >
                 <Download className="h-3.5 w-3.5" />
-              </a>
+              </button>
               <button
                 onClick={async () => {
                   await del.mutateAsync({ taskId, attachmentId: a.id });
@@ -129,30 +195,33 @@ export function AttachmentsPanel({ taskId }: { taskId: string }) {
         )}
       </ul>
 
-      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+      <Dialog open={!!preview} onOpenChange={(o) => !o && closePreview()}>
         <DialogContent className="max-w-3xl">
-          <DialogHeader>
+          <DialogHeader className="flex flex-row items-center justify-between border-b pb-2">
             <DialogTitle className="truncate text-sm">{preview?.name}</DialogTitle>
           </DialogHeader>
-          {preview &&
+          {preview && preview.blobUrl &&
             (preview.mime.startsWith("image/") ? (
               <img
-                src={preview.url}
+                src={preview.blobUrl}
                 alt={preview.name}
                 className="max-h-[70vh] w-full rounded object-contain"
               />
             ) : preview.mime === "application/pdf" ? (
               <iframe
-                src={preview.url}
+                src={preview.blobUrl}
                 className="h-[70vh] w-full rounded border border-border"
                 title={preview.name}
               />
             ) : (
               <div className="rounded border border-border bg-muted/30 p-8 text-center text-sm text-muted-foreground">
                 Preview not available for this file type.{" "}
-                <a className="text-primary underline" href={preview.url} download={preview.name}>
-                  Download
-                </a>
+                <button 
+                  className="text-primary underline font-semibold" 
+                  onClick={() => downloadAuthenticatedFile(preview.url, preview.name)}
+                >
+                  Download File
+                </button>
               </div>
             ))}
         </DialogContent>

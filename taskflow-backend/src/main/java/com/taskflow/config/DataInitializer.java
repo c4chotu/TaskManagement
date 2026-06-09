@@ -16,6 +16,8 @@ import com.taskflow.modules.project.domain.Project;
 import com.taskflow.modules.project.domain.ProjectMember;
 import com.taskflow.modules.project.repository.ProjectRepository;
 import com.taskflow.modules.project.repository.ProjectMemberRepository;
+import com.taskflow.modules.project.domain.ProjectTeam;
+import com.taskflow.modules.project.repository.ProjectTeamRepository;
 import com.taskflow.modules.task.domain.CustomTaskStatus;
 import com.taskflow.modules.task.repository.CustomTaskStatusRepository;
 
@@ -49,6 +51,7 @@ public class DataInitializer implements CommandLineRunner {
     private final TeamMemberRepository teamMemberRepository;
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectTeamRepository projectTeamRepository;
     private final CustomTaskStatusRepository customTaskStatusRepository;
     private final PasswordEncoder passwordEncoder;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
@@ -61,6 +64,7 @@ public class DataInitializer implements CommandLineRunner {
                            TeamMemberRepository teamMemberRepository,
                            ProjectRepository projectRepository,
                            ProjectMemberRepository projectMemberRepository,
+                           ProjectTeamRepository projectTeamRepository,
                            CustomTaskStatusRepository customTaskStatusRepository,
                            PasswordEncoder passwordEncoder,
                            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
@@ -72,6 +76,7 @@ public class DataInitializer implements CommandLineRunner {
         this.teamMemberRepository = teamMemberRepository;
         this.projectRepository = projectRepository;
         this.projectMemberRepository = projectMemberRepository;
+        this.projectTeamRepository = projectTeamRepository;
         this.customTaskStatusRepository = customTaskStatusRepository;
         this.passwordEncoder = passwordEncoder;
         this.jdbcTemplate = jdbcTemplate;
@@ -108,15 +113,13 @@ public class DataInitializer implements CommandLineRunner {
         // ----------------------------------------------------------------
         // 2. Skip if Avendum is already fully seeded (check for projects)
         // ----------------------------------------------------------------
+        // Force clean re-seed for development to verify team mappings and schema updates.
         boolean alreadyHasNewStatuses = false;
-        try {
-            alreadyHasNewStatuses = customTaskStatusRepository.findAll().stream()
-                    .anyMatch(s -> "Dev Done".equalsIgnoreCase(s.getName()));
-        } catch (Exception ignored) {}
 
         if (!alreadyHasNewStatuses) {
             log.info("Clearing old Avendum Tech seeding to apply new custom statuses...");
             try {
+                jdbcTemplate.execute("DELETE FROM files.file_attachments WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
                 jdbcTemplate.execute("DELETE FROM tasks.task_dependencies WHERE task_id IN (SELECT id FROM tasks.tasks WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
                 jdbcTemplate.execute("DELETE FROM tasks.task_assignments WHERE task_id IN (SELECT id FROM tasks.tasks WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
                 jdbcTemplate.execute("DELETE FROM tasks.comments WHERE entity_id IN (SELECT id FROM tasks.tasks WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
@@ -129,6 +132,7 @@ public class DataInitializer implements CommandLineRunner {
                 jdbcTemplate.execute("DELETE FROM tasks.status_transitions WHERE from_status_id IN (SELECT id FROM tasks.custom_task_statuses WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000') OR to_status_id IN (SELECT id FROM tasks.custom_task_statuses WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
                 jdbcTemplate.execute("DELETE FROM tasks.custom_task_statuses WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
                 
+                jdbcTemplate.execute("DELETE FROM projects.project_teams WHERE project_id IN (SELECT id FROM projects.projects WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
                 jdbcTemplate.execute("DELETE FROM projects.project_members WHERE project_id IN (SELECT id FROM projects.projects WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
                 jdbcTemplate.execute("DELETE FROM projects.projects WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
                 jdbcTemplate.execute("DELETE FROM users.team_members WHERE team_id IN (SELECT id FROM users.teams WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
@@ -161,6 +165,11 @@ public class DataInitializer implements CommandLineRunner {
                 null, null, vpId, "VP of Technology Operations");
 
         log.info("✔ VP Admin  →  vp@avendum.tech / Admin@1234");
+
+        // Seed custom statuses once at organization level
+        UUID globalOpenStatusId = seedCustomStatuses(AVENDUM_ORG_ID, null, null);
+        customTaskStatusRepository.flush();
+        log.info("✔ Seeded 9 custom statuses at the organization level");
 
         // ----------------------------------------------------------------
         // 4. Departments & Teams
@@ -266,8 +275,15 @@ public class DataInitializer implements CommandLineRunner {
             teamRepository.flush();
             userRepository.flush();
 
-            UUID openStatusId = seedCustomStatuses(AVENDUM_ORG_ID, projectId, deptId);
-            customTaskStatusRepository.flush();
+            // Associate Team with Project
+            projectTeamRepository.save(ProjectTeam.builder()
+                    .id(UUID.randomUUID())
+                    .projectId(projectId)
+                    .teamId(teamId)
+                    .build());
+            projectTeamRepository.flush();
+
+            UUID openStatusId = globalOpenStatusId;
             
             // Seed Team Automation Rule: Auto-assign task to Lead and set Status to Open when Team is selected
             UUID ruleId = UUID.randomUUID();

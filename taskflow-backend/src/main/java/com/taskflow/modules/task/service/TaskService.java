@@ -114,13 +114,13 @@ public class TaskService {
             }
         }
 
-        // Auto-initialize default custom statuses for the project if none exist
         List<CustomTaskStatus> projectCustomStatuses = customTaskStatusRepository.findByProjectIdOrderBySortOrderAsc(request.getProjectId());
-        if (projectCustomStatuses.isEmpty()) {
+        List<CustomTaskStatus> orgCustomStatuses = customTaskStatusRepository.findByOrganizationIdAndProjectIdIsNullOrderBySortOrderAsc(orgId);
+        if (projectCustomStatuses.isEmpty() && orgCustomStatuses.isEmpty()) {
             projectCustomStatuses = createDefaultCustomStatusesForProject(request.getProjectId(), orgId);
         }
         List<CustomTaskStatus> customStatuses = new ArrayList<>(projectCustomStatuses);
-        customStatuses.addAll(customTaskStatusRepository.findByOrganizationIdAndProjectIdIsNullOrderBySortOrderAsc(orgId));
+        customStatuses.addAll(orgCustomStatuses);
 
         // Resolve custom status ID
         UUID currentStatusId = request.getCurrentStatusId();

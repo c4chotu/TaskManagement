@@ -22,6 +22,7 @@ import {
   MoreHorizontal,
   Bug,
   FileText,
+  LogOut,
 } from "lucide-react";
 import {
   Sidebar,
@@ -47,7 +48,10 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
-import logo from "@/assets/logo.svg";
+import logoIcon from "@/assets/logo-icon.png";
+import logoNew from "@/assets/LogoNew.png";
+import logo from "@/assets/logo-full.png";
+
 
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
@@ -104,24 +108,31 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border gap-2">
         {/* Brand row */}
-        <div className="flex items-center justify-between gap-2 px-2 pt-1.5">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 shadow-[0_4px_14px_-2px_rgba(16,185,129,0.45)]">
-              {/* <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 text-white">
-                <path d="M4 12l5 5L20 6" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg> */}
-              <img src={logo} alt="TaskFlow Pro" className="h-20 w-20" />
-            </div>
+        <div className={`flex items-center pt-1.5 ${collapsed ? "justify-center px-0 w-full" : "justify-center px-2 relative"}`}>
+          <div className={`flex items-center min-w-0 ${collapsed ? "justify-center w-full" : "w-full"}`}>
             {!collapsed && (
-              <span className="truncate text-[13px] font-bold tracking-tight bg-gradient-to-r from-emerald-500 to-teal-600 bg-clip-text text-transparent">
-                TaskFlow Pro
-              </span>
+              <div className="flex items-center justify-center py-1 w-full px-8">
+                <img
+                  src={`${logoNew}?v=4`}
+                  alt="TaskFlow Pro"
+                  className="h-14 w-auto object-contain transition-transform hover:scale-[1.02]"
+                />
+              </div>
+            )}
+
+            {collapsed && (
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 shadow-[0_4px_14px_-2px_rgba(16,185,129,0.45)]">
+                <img
+                  src={logo}
+                  alt="TaskFlow Pro"
+                  className="h-5 w-5 object-contain drop-shadow-[0_1px_4px_rgba(255,255,255,1)] border-red"
+                />              </div>
             )}
           </div>
           {!collapsed && (
             <button
               onClick={toggleSidebar}
-              className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition"
+              className="absolute right-2 top-1/2 -translate-y-1/2 grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition"
               title="Collapse sidebar"
             >
               <PanelLeftClose className="h-4 w-4" />
@@ -208,43 +219,79 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="scrollbar-thin">
         {groups.map((g) => (
-          <SidebarGroup key={g.label}>
+          <SidebarGroup key={g.label} className="py-2">
             {!collapsed && (
-              <SidebarGroupLabel className="text-[10px] font-mono uppercase tracking-widest">
+              <SidebarGroupLabel className="text-[10px] font-bold text-muted-foreground/60 tracking-wider uppercase px-2 py-1">
                 {g.label}
               </SidebarGroupLabel>
             )}
             <SidebarGroupContent>
               <SidebarMenu>
-                {g.items.map((item) => (
-                  <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
-                      <Link to={item.url} className="flex items-center gap-2">
-                        <item.icon className="h-4 w-4 shrink-0" />
-                        {!collapsed && <span>{item.title}</span>}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                {g.items.map((item) => {
+                  const active = isActive(item.url);
+                  return (
+                    <SidebarMenuItem key={item.url}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={active}
+                        tooltip={item.title}
+                        className={`transition-all duration-150 rounded-lg ${active
+                          ? "bg-gradient-to-r from-emerald-500/10 to-emerald-500/0 text-emerald-600 dark:text-emerald-400 border-l-[3px] border-emerald-500 rounded-l-none font-semibold"
+                          : "hover:bg-sidebar-accent/50 text-muted-foreground hover:text-foreground"
+                          }`}
+                      >
+                        <Link to={item.url} className="flex items-center gap-2.5">
+                          <item.icon className={`h-4 w-4 shrink-0 transition-transform ${active ? "text-emerald-500 scale-105" : "text-muted-foreground"
+                            }`} />
+                          {!collapsed && <span className="text-xs">{item.title}</span>}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
       </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border">
-        <div className="flex items-center gap-2 px-2 py-2">
-          <Avatar className="h-8 w-8 border border-sidebar-border">
-            <AvatarFallback className="bg-sidebar-accent text-xs">
-              {user?.name?.slice(0, 2).toUpperCase() ?? "??"}
-            </AvatarFallback>
-          </Avatar>
-          {!collapsed && (
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate text-xs font-medium">{user?.name}</span>
-              <span className="truncate text-[10px] text-muted-foreground">{user?.email}</span>
-            </div>
-          )}
-        </div>
+      <SidebarFooter className="border-t border-sidebar-border p-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className={`flex w-full items-center gap-2.5 rounded-lg p-1.5 hover:bg-sidebar-accent/50 text-left transition-all duration-200 outline-none group ${collapsed ? "justify-center" : ""}`}>
+              <Avatar className="h-8 w-8 border border-sidebar-border shrink-0 transition-transform group-hover:scale-105">
+                <AvatarFallback className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                  {user?.name?.slice(0, 2).toUpperCase() ?? "??"}
+                </AvatarFallback>
+              </Avatar>
+              {!collapsed && (
+                <div className="flex flex-1 min-w-0 flex-col">
+                  <span className="truncate text-xs font-semibold text-foreground group-hover:text-emerald-500 transition-colors">{user?.name}</span>
+                  <span className="truncate text-[10px] text-muted-foreground/80">{user?.email}</span>
+                </div>
+              )}
+              {!collapsed && (
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-muted-foreground transition-transform" />
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52 mb-2">
+            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/80">My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => nav({ to: "/settings" })} className="text-xs cursor-pointer py-2 flex items-center">
+              <Settings className="h-3.5 w-3.5 mr-2 text-muted-foreground" /> Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                logout();
+                nav({ to: "/login" });
+              }}
+              className="text-xs cursor-pointer py-2 flex items-center text-red-500 hover:text-red-600 hover:bg-red-500/5 focus:text-red-500 focus:bg-red-500/5"
+            >
+              <LogOut className="h-3.5 w-3.5 mr-2" /> Log Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SidebarFooter>
     </Sidebar>
   );

@@ -350,10 +350,24 @@ export function useCreateTask() {
       }
       return apiRequest<Task>("/tasks", { method: "POST", body: payload });
     },
-    onSuccess: (_d, vars) => {
+    onSuccess: (createdTask, vars) => {
       qc.invalidateQueries({ queryKey: ["tasks"] });
       if (vars.projectId)
         qc.invalidateQueries({ queryKey: ["tasks", { projectId: vars.projectId }] });
+      // Dispatch activity event
+      try {
+        window.dispatchEvent(new CustomEvent("tfp:activity:new", {
+          detail: {
+            type: vars.taskType === "ISSUE" ? "issue_created" : "task_created",
+            taskId: createdTask?.id,
+            taskTitle: vars.title,
+            taskDisplayId: createdTask?.displayId,
+            actor: "You",
+            at: new Date().toISOString(),
+            message: `${vars.taskType === "ISSUE" ? "Issue" : "Task"} "${vars.title}" was created`,
+          }
+        }));
+      } catch {}
     },
   });
 }
@@ -361,7 +375,7 @@ export function useCreateTask() {
 export function useUpdateTaskStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (vars: { taskId: string; statusId: string; comment?: string }) => {
+    mutationFn: async (vars: { taskId: string; statusId: string; comment?: string; fromStatusName?: string; toStatusName?: string; taskTitle?: string; taskDisplayId?: string }) => {
       if (USE_MOCK) {
         const t = mock.mockTasks.find((x) => x.id === vars.taskId);
         if (t) t.statusId = vars.statusId;
@@ -375,6 +389,22 @@ export function useUpdateTaskStatus() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ["tasks"] });
       qc.invalidateQueries({ queryKey: ["task", vars.taskId] });
+      // Dispatch activity event for status change
+      try {
+        window.dispatchEvent(new CustomEvent("tfp:activity:new", {
+          detail: {
+            type: "status_changed",
+            taskId: vars.taskId,
+            taskTitle: vars.taskTitle,
+            taskDisplayId: vars.taskDisplayId,
+            from: vars.fromStatusName,
+            to: vars.toStatusName,
+            actor: "You",
+            at: new Date().toISOString(),
+            message: `Status changed${vars.taskTitle ? ` for "${vars.taskTitle}"` : ""}`,
+          }
+        }));
+      } catch {}
     },
   });
 }
@@ -1480,15 +1510,6 @@ export function useSuperAdminOrgs() {
   });
 }
 
-export function useSuperAdminPlans() {
-  return useQuery({
-    queryKey: ["superadmin-plans"],
-    queryFn: async () => {
-      if (USE_MOCK) return []; // Mock plans if needed
-      return apiRequest<any[]>("/superadmin/plans");
-    }
-  });
-}
 
 export function useCreateOrUpdatePlan() {
   const qc = useQueryClient();
@@ -1817,9 +1838,9 @@ async function bulkUploadCsv(endpoint: string, file: File): Promise<BulkUploadRe
   }
   const fd = new FormData();
   fd.append("file", file);
-  const base = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/api/v1";
-  const token = localStorage.getItem("access_token");
-  const res = await fetch(`${base}/bulk/${endpoint}`, {
+  const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "";
+  const token = tokenStore.get();
+  const res = await fetch(`${baseUrl}/api/v1/bulk/${endpoint}`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: fd,
@@ -1942,6 +1963,23 @@ export function useUpdateOrganization() {
       qc.invalidateQueries({ queryKey: ["superadmin-organizations"] });
       qc.invalidateQueries({ queryKey: ["superadmin-organizations", vars.orgId] });
     },
+  });
+}
+
+export function useSuperAdminPlans() {
+  return useQuery({
+    queryKey: ["superadmin-plans"],
+    queryFn: async () => {
+      if (USE_MOCK) {
+        return [
+          { id: "p-free", name: "FREE" },
+          { id: "p-starter", name: "STARTER" },
+          { id: "p-professional", name: "PROFESSIONAL" },
+          { id: "p-enterprise", name: "ENTERPRISE" }
+        ];
+      }
+      return apiRequest<any[]>("/superadmin/plans");
+    }
   });
 }
 export function useApproveJoinRequest() {
@@ -2083,10 +2121,7 @@ export function useAddProjectTeam() {
           projectId: vars.projectId,
           teamId: vars.teamId
         };
-        if (!(mock as any).mockProjectTeams) {
-          (mock as any).mockProjectTeams = [];
-        }
-        (mock as any).mockProjectTeams.push(newTeam);
+        mock.mockProjectTeams.push(newTeam);
         return newTeam;
       }
       return apiRequest<any>(`/projects/${vars.projectId}/teams`, {
@@ -2105,10 +2140,11 @@ export function useRemoveProjectTeam() {
   return useMutation({
     mutationFn: async (vars: { projectId: string; teamId: string }) => {
       if (USE_MOCK) {
-        const filtered = ((mock as any).mockProjectTeams || []).filter(
+        const filtered = mock.mockProjectTeams.filter(
           (pt: any) => !(pt.projectId === vars.projectId && pt.teamId === vars.teamId)
         );
-        (mock as any).mockProjectTeams = filtered;
+        mock.mockProjectTeams.length = 0;
+        mock.mockProjectTeams.push(...filtered);
         return { ok: true };
       }
       return apiRequest<void>(`/projects/${vars.projectId}/teams/${vars.teamId}`, {

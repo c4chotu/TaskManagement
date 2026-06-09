@@ -9,6 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import { useState, useMemo, useEffect, useRef } from "react";
 import {
   useCreateTask, useProjects, useStatuses, useUsers, useTeams, useTasks, useProjectMembers, useProject, useSprints, usePhases, useUploadAttachment, useTask,
@@ -83,9 +89,6 @@ function NewTaskPage() {
   const [recurrence, setRecurrence] = useState("none");
   const [billingType, setBillingType] = useState("HOURLY");
   const [reminder, setReminder] = useState("none");
-
-  const [descExpanded, setDescExpanded] = useState(true);
-  const [infoExpanded, setInfoExpanded] = useState(true);
 
   const [categories, setCategories] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
@@ -201,27 +204,29 @@ function NewTaskPage() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to create");
     }
-  };  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col glass-card shadow-2xl rounded-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-background/80 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col bg-card border border-border/80 shadow-2xl rounded-2xl overflow-hidden animate-in zoom-in-95 duration-300">
         
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 bg-muted/5 px-6 py-4">
-          <div>
+        {/* Header Section */}
+        <div className="bg-gradient-to-br from-primary/10 via-card to-card border-b border-border/60 px-6 py-4 flex items-center justify-between">
+          <div className="space-y-1">
             <h2 className="text-base font-bold flex items-center gap-2 tracking-tight text-foreground">
-              <Sparkles className="h-5 w-5 text-emerald-500 animate-pulse" />
+              <Sparkles className="h-5 w-5 text-primary animate-pulse" />
               {parentTask ? "Add Subtask Flow" : (taskType === "ISSUE" ? "Report Incident Operations" : "Initialize New Task")}
             </h2>
             {parentTask && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                Subtask of <span className="font-semibold text-emerald-500">{parentTask.title}</span>
+                Subtask of <span className="font-semibold text-primary">{parentTask.title}</span>
               </p>
             )}
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl"
             onClick={handleCancel}
           >
             <X className="h-4 w-4" />
@@ -229,7 +234,7 @@ function NewTaskPage() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto p-6 space-y-5 scrollbar-thin">
           
           {/* Title and Type Toggle */}
           <div className="space-y-4">
@@ -238,9 +243,9 @@ function NewTaskPage() {
                 <button
                   type="button"
                   onClick={() => setTaskType("TASK")}
-                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-300 ${
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-300 cursor-pointer ${
                     taskType === "TASK"
-                      ? "bg-emerald-500 text-white shadow-sm scale-105"
+                      ? "bg-primary text-primary-foreground shadow-glow"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -249,9 +254,9 @@ function NewTaskPage() {
                 <button
                   type="button"
                   onClick={() => setTaskType("ISSUE")}
-                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-300 ${
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-300 cursor-pointer ${
                     taskType === "ISSUE"
-                      ? "bg-red-500 text-white shadow-sm scale-105"
+                      ? "bg-destructive text-destructive-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -269,59 +274,269 @@ function NewTaskPage() {
                 onChange={(e) => setTitle(e.target.value)}
                 autoFocus
                 placeholder={taskType === "ISSUE" ? "Brief incident summary..." : "What needs to be done?"}
-                className="border-0 border-b border-border/50 text-lg font-bold focus-visible:ring-0 focus-visible:border-emerald-500 px-0 rounded-none bg-transparent transition-all duration-300"
+                className="border-0 border-b border-border/50 text-lg font-bold focus-visible:ring-0 focus-visible:border-primary px-0 rounded-none bg-transparent transition-all duration-300"
               />
             </div>
           </div>
 
-          {/* Collapsible Description Section */}
-          <div className="border border-border/60 rounded-xl overflow-hidden bg-muted/5">
-            <button
-              type="button"
-              onClick={() => setDescExpanded(!descExpanded)}
-              className="flex items-center justify-between w-full p-4 font-semibold text-sm hover:bg-muted/20 transition text-left"
-            >
-              <span className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-teal-500" />
-                Description & Attachments
-              </span>
-              {descExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
+          {/* Accordion Group */}
+          <Accordion type="multiple" defaultValue={["info", "description", "members"]} className="w-full space-y-4">
+            
+            {/* Section 1: Task Information */}
+            <AccordionItem value="info" className="border border-border/60 rounded-xl bg-muted/5 overflow-hidden">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/10 font-bold text-xs uppercase tracking-wider text-muted-foreground flex items-center justify-between [&[data-state=open]>svg]:rotate-180">
+                <span className="flex items-center gap-2">
+                  <Info className="h-4 w-4 text-primary" />
+                  Task Information
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4 pt-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
+                  {/* Project */}
+                  <Field label="Project *">
+                    <Select value={activeProjectId} onValueChange={setProjectId} disabled={!!parentTask}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-primary rounded-xl animate-none">
+                        <SelectValue placeholder="Select Project" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/80">
+                        {projects.map((p) => (
+                          <SelectItem key={p.id} value={p.id} className="text-xs">
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
 
-            {descExpanded && (
-              <div className="p-4 pt-0 space-y-4 border-t border-border/40 animate-in slide-in-from-top-1 duration-200">
+                  {/* Team */}
+                  <Field label="Team">
+                    <Select value={teamId} onValueChange={setTeamId}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-primary rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/80">
+                        <SelectItem value="none" className="text-xs text-muted-foreground">No Team</SelectItem>
+                        {teams.map((t) => (
+                          <SelectItem key={t.id} value={t.id} className="text-xs">
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  {/* Status */}
+                  <Field label="Status">
+                    <Select value={statusId} onValueChange={setStatusId}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-primary rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/80">
+                        {statuses.map((s) => (
+                          <SelectItem key={s.id} value={s.id} className="text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
+                              {s.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  {/* Sprint/Phase */}
+                  {project?.type === "SCRUM" && sprints.length > 0 && (
+                    <Field label="Sprint">
+                      <Select value={sprintId} onValueChange={setSprintId}>
+                        <SelectTrigger className="h-9 text-xs focus:ring-primary rounded-xl">
+                          <SelectValue placeholder="Select Sprint" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border/80">
+                          <SelectItem value="none" className="text-xs text-muted-foreground">None</SelectItem>
+                          {sprints.map((s) => (
+                            <SelectItem key={s.id} value={s.id} className="text-xs">
+                              {s.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
+                  {project?.type === "WATERFALL" && sprints.length > 0 && (
+                    <Field label="Phase">
+                      <Select value={sprintId} onValueChange={setSprintId}>
+                        <SelectTrigger className="h-9 text-xs focus:ring-primary rounded-xl">
+                          <SelectValue placeholder="Select Phase" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border/80">
+                          <SelectItem value="none" className="text-xs text-muted-foreground">None</SelectItem>
+                          {sprints.map((p) => (
+                            <SelectItem key={p.id} value={p.id} className="text-xs">
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
+
+                  {/* Priority */}
+                  <Field label="Priority">
+                    <Select value={priority} onValueChange={(v) => setPriority(v as any)}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-primary rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/80">
+                        <SelectItem value="NONE" className="text-xs text-muted-foreground">None</SelectItem>
+                        <SelectItem value="LOW" className="text-xs text-blue-500 font-semibold">Low</SelectItem>
+                        <SelectItem value="MEDIUM" className="text-xs text-amber-500 font-semibold">Medium</SelectItem>
+                        <SelectItem value="HIGH" className="text-xs text-orange-500 font-semibold">High</SelectItem>
+                        <SelectItem value="CRITICAL" className="text-xs text-red-500 font-bold">Critical</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  {/* Work Hours */}
+                  <Field label="Work Hours (h)">
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        className="h-9 text-xs pl-8 focus-visible:ring-primary rounded-xl"
+                        value={estimatedHours}
+                        onChange={(e) => setEstimatedHours(e.target.value)}
+                        placeholder="e.g. 4.5"
+                      />
+                      <Clock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground/60" />
+                    </div>
+                  </Field>
+
+                  {/* Start Date */}
+                  <Field label="Start Date">
+                    <DatePicker
+                      value={startDate}
+                      onChange={(dateStr) => setStartDate(dateStr || "")}
+                      placeholder="Start date"
+                    />
+                  </Field>
+
+                  {/* Due Date */}
+                  <Field label="Due Date">
+                    <DatePicker
+                      value={dueDate}
+                      onChange={(dateStr) => setDueDate(dateStr || "")}
+                      placeholder="Due date"
+                    />
+                  </Field>
+
+                  {/* Billing Type */}
+                  <Field label="Billing Type">
+                    <Select value={billingType} onValueChange={setBillingType}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-primary rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/80">
+                        <SelectItem value="HOURLY" className="text-xs">Hourly Billing</SelectItem>
+                        <SelectItem value="FIXED" className="text-xs">Fixed Price</SelectItem>
+                        <SelectItem value="NON_BILLABLE" className="text-xs">Non-billable</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  {/* Reminder */}
+                  <Field label="Reminder">
+                    <Select value={reminder} onValueChange={setReminder}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-primary rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/80">
+                        <SelectItem value="none" className="text-xs text-muted-foreground">No Reminder</SelectItem>
+                        <SelectItem value="due" className="text-xs">At Due Time</SelectItem>
+                        <SelectItem value="15m" className="text-xs">15 Minutes Before</SelectItem>
+                        <SelectItem value="1h" className="text-xs">1 Hour Before</SelectItem>
+                        <SelectItem value="1d" className="text-xs">1 Day Before</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  {/* Category */}
+                  <Field label="Category">
+                    <Select value={category} onValueChange={setCategory}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-primary rounded-xl">
+                        <SelectValue placeholder="Select Category" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/80">
+                        <SelectItem value="none" className="text-xs text-muted-foreground">No Category</SelectItem>
+                        {categories.map((c) => (
+                          <SelectItem key={c} value={c} className="text-xs">
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  {/* Recurrence */}
+                  <Field label="Recurrence">
+                    <Select value={recurrence} onValueChange={setRecurrence}>
+                      <SelectTrigger className="h-9 text-xs focus:ring-primary rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/80">
+                        <SelectItem value="none" className="text-xs text-muted-foreground">Does Not Repeat</SelectItem>
+                        <SelectItem value="DAILY" className="text-xs">Daily</SelectItem>
+                        <SelectItem value="WEEKLY" className="text-xs">Weekly</SelectItem>
+                        <SelectItem value="MONTHLY" className="text-xs">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Section 2: Description & Attachments */}
+            <AccordionItem value="description" className="border border-border/60 rounded-xl bg-muted/5 overflow-hidden">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/10 font-bold text-xs uppercase tracking-wider text-muted-foreground flex items-center justify-between [&[data-state=open]>svg]:rotate-180">
+                <span className="flex items-center gap-2">
+                  <Paperclip className="h-4 w-4 text-primary" />
+                  Description & Attachments
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4 pt-2 space-y-4">
                 
                 {/* Formatting Toolbar */}
-                <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-muted/40 rounded-lg border border-border/40 mt-3">
+                <div className="flex flex-wrap items-center gap-1 p-1 bg-muted/40 rounded-lg border border-border/40 mt-3">
                   <button
                     type="button"
                     title="Bold"
                     onClick={() => insertMarkdown("**", "**")}
-                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition text-xs font-bold px-2 cursor-pointer"
                   >
-                    <span className="font-bold text-xs px-1">B</span>
+                    B
                   </button>
                   <button
                     type="button"
                     title="Italic"
                     onClick={() => insertMarkdown("*", "*")}
-                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition text-xs italic px-2 cursor-pointer"
                   >
-                    <span className="italic text-xs px-1">I</span>
+                    I
                   </button>
                   <button
                     type="button"
                     title="Underline"
                     onClick={() => insertMarkdown("<u>", "</u>")}
-                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition text-xs underline px-2 cursor-pointer"
                   >
-                    <span className="underline text-xs px-1">U</span>
+                    U
                   </button>
+                  <div className="w-px h-4 bg-border mx-1" />
                   <button
                     type="button"
                     title="Code block"
                     onClick={() => insertMarkdown("```\n", "\n```")}
-                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition cursor-pointer"
                   >
                     <Code className="h-3.5 w-3.5" />
                   </button>
@@ -329,7 +544,7 @@ function NewTaskPage() {
                     type="button"
                     title="Bullet List"
                     onClick={() => insertMarkdown("- ", "")}
-                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition cursor-pointer"
                   >
                     <List className="h-3.5 w-3.5" />
                   </button>
@@ -337,23 +552,15 @@ function NewTaskPage() {
                     type="button"
                     title="Numbered List"
                     onClick={() => insertMarkdown("1. ", "")}
-                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition cursor-pointer"
                   >
                     <ListOrdered className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
-                    title="Quote"
-                    onClick={() => insertMarkdown("> ", "")}
-                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
-                  >
-                    <span className="font-serif font-bold text-xs px-1">“</span>
-                  </button>
-                  <button
-                    type="button"
                     title="Link"
                     onClick={() => insertMarkdown("[", "](url)")}
-                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition cursor-pointer"
                   >
                     <Link2 className="h-3.5 w-3.5" />
                   </button>
@@ -389,7 +596,7 @@ function NewTaskPage() {
                   }}
                   rows={4}
                   placeholder="Describe details, acceptance criteria, links... Paste images to embed inline"
-                  className="w-full text-sm border-border focus-visible:ring-1 focus-visible:ring-teal-500 bg-background"
+                  className="w-full text-xs border-border/60 focus-visible:ring-1 focus-visible:ring-primary bg-background rounded-xl"
                 />
 
                 {/* Drag-and-Drop file attachment zone */}
@@ -406,12 +613,12 @@ function NewTaskPage() {
                       setTaskFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files || [])]);
                     }
                   }}
-                  className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-background/50 hover:border-emerald-500/50 hover:bg-emerald-500/5 cursor-pointer py-5 text-xs text-muted-foreground transition-all duration-300 shadow-sm"
+                  className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-background hover:border-primary/40 hover:bg-primary/5 cursor-pointer py-5 text-xs text-muted-foreground transition-all duration-300 shadow-sm"
                 >
-                  <Paperclip className="h-5.5 w-5.5 text-emerald-500 mb-1.5 animate-pulse" />
+                  <Paperclip className="h-6 w-6 text-primary mb-1.5 animate-pulse" />
                   <span className="font-medium">
                     Drag & drop files here, or{" "}
-                    <span className="text-emerald-500 font-bold hover:underline">browse files</span>
+                    <span className="text-primary font-bold hover:underline">browse files</span>
                   </span>
                   <input
                     id="task-file-input"
@@ -432,12 +639,12 @@ function NewTaskPage() {
                     {taskFiles.map((file, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-1.5 text-xs"
+                        className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-xs"
                       >
                         <div className="flex items-center gap-2 truncate">
                           <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                          <span className="truncate font-medium">{file.name}</span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="truncate font-semibold">{file.name}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono">
                             ({(file.size / 1024).toFixed(1)} KB)
                           </span>
                         </div>
@@ -445,247 +652,36 @@ function NewTaskPage() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-transparent"
+                          className="h-5.5 w-5.5 text-muted-foreground hover:text-destructive hover:bg-transparent"
                           onClick={(e) => {
                             e.stopPropagation();
                             setTaskFiles((prev) => prev.filter((_, i) => i !== idx));
                           }}
                         >
-                          <X className="h-3.5 w-3.5" />
+                          <X className="h-3 w-3" />
                         </Button>
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
-            )}
-          </div>
+              </AccordionContent>
+            </AccordionItem>
 
-          {/* Collapsible Task Information Section */}
-          <div className="border border-border/60 rounded-xl overflow-hidden bg-muted/5">
-            <button
-              type="button"
-              onClick={() => setInfoExpanded(!infoExpanded)}
-              className="flex items-center justify-between w-full p-4 font-semibold text-sm hover:bg-muted/20 transition text-left"
-            >
-              <span className="flex items-center gap-2">
-                <Info className="h-4 w-4 text-teal-500" />
-                Task Information
-              </span>
-              {infoExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-
-            {infoExpanded && (
-              <div className="p-6 pt-0 border-t border-border/40 animate-in slide-in-from-top-1 duration-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
-                  
-                  {/* Project */}
-                  <Field label="Project *">
-                    <Select value={activeProjectId} onValueChange={setProjectId} disabled={!!parentTask}>
-                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
-                        <SelectValue placeholder="Select Project" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {projects.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  {/* Team */}
-                  <Field label="Team">
-                    <Select value={teamId} onValueChange={setTeamId}>
-                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Team</SelectItem>
-                        {teams.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  {/* Status */}
-                  <Field label="Status">
-                    <Select value={statusId} onValueChange={setStatusId}>
-                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statuses.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            <div className="flex items-center gap-2">
-                              <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
-                              {s.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  {/* Sprint/Phase */}
-                  {project?.type === "SCRUM" && sprints.length > 0 && (
-                    <Field label="Sprint">
-                      <Select value={sprintId} onValueChange={setSprintId}>
-                        <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
-                          <SelectValue placeholder="Select Sprint" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          {sprints.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  )}
-                  {project?.type === "WATERFALL" && sprints.length > 0 && (
-                    <Field label="Phase">
-                      <Select value={sprintId} onValueChange={setSprintId}>
-                        <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
-                          <SelectValue placeholder="Select Phase" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          {sprints.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  )}
-
-                  {/* Priority */}
-                  <Field label="Priority">
-                    <Select value={priority} onValueChange={(v) => setPriority(v as any)}>
-                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NONE">None</SelectItem>
-                        <SelectItem value="LOW">Low</SelectItem>
-                        <SelectItem value="MEDIUM">Medium</SelectItem>
-                        <SelectItem value="HIGH">High</SelectItem>
-                        <SelectItem value="CRITICAL">Critical</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  {/* Work Hours */}
-                  <Field label="Work Hours (h)">
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        min={0}
-                        step={0.5}
-                        className="h-9 text-xs pl-8 focus-visible:ring-teal-500"
-                        value={estimatedHours}
-                        onChange={(e) => setEstimatedHours(e.target.value)}
-                        placeholder="e.g. 4.5"
-                      />
-                      <Clock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground/60" />
-                    </div>
-                  </Field>
-
-                  {/* Start Date */}
-                  <Field label="Start Date">
-                    <DatePicker
-                      value={startDate}
-                      onChange={(dateStr) => setStartDate(dateStr || "")}
-                      placeholder="Start date"
-                    />
-                  </Field>
-
-                  {/* Due Date */}
-                  <Field label="Due Date">
-                    <DatePicker
-                      value={dueDate}
-                      onChange={(dateStr) => setDueDate(dateStr || "")}
-                      placeholder="Due date"
-                    />
-                  </Field>
-
-                  {/* Billing Type */}
-                  <Field label="Billing Type">
-                    <Select value={billingType} onValueChange={setBillingType}>
-                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="HOURLY">Hourly Billing</SelectItem>
-                        <SelectItem value="FIXED">Fixed Price</SelectItem>
-                        <SelectItem value="NON_BILLABLE">Non-billable</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  {/* Reminder */}
-                  <Field label="Reminder">
-                    <Select value={reminder} onValueChange={setReminder}>
-                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Reminder</SelectItem>
-                        <SelectItem value="due">At Due Time</SelectItem>
-                        <SelectItem value="15m">15 Minutes Before</SelectItem>
-                        <SelectItem value="1h">1 Hour Before</SelectItem>
-                        <SelectItem value="1d">1 Day Before</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  {/* Category */}
-                  <Field label="Category">
-                    <Select value={category} onValueChange={setCategory}>
-                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
-                        <SelectValue placeholder="Select Category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Category</SelectItem>
-                        {categories.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {c}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  {/* Recurrence */}
-                  <Field label="Recurrence">
-                    <Select value={recurrence} onValueChange={setRecurrence}>
-                      <SelectTrigger className="h-9 text-xs focus:ring-teal-500">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Does Not Repeat</SelectItem>
-                        <SelectItem value="DAILY">Daily</SelectItem>
-                        <SelectItem value="WEEKLY">Weekly</SelectItem>
-                        <SelectItem value="MONTHLY">Monthly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                </div>
-
+            {/* Section 3: Member Selection */}
+            <AccordionItem value="members" className="border border-border/60 rounded-xl bg-muted/5 overflow-hidden">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/10 font-bold text-xs uppercase tracking-wider text-muted-foreground flex items-center justify-between [&[data-state=open]>svg]:rotate-180">
+                <span className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-primary" />
+                  Assignees & Tags
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4 pt-2 space-y-5">
                 {/* Owner / Assignees Section */}
-                <div className="mt-6 space-y-2">
-                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1">
-                    <Users className="h-3.5 w-3.5 text-teal-500" /> Assignees (Owner)
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Users className="h-4 w-4 text-primary" /> Assignees (Owner)
                   </Label>
-                  <div className="flex flex-wrap gap-2 p-3 bg-muted/20 border border-border/55 rounded-xl">
+                  <div className="flex flex-wrap gap-2 p-3 bg-muted/5 border border-border/60 rounded-xl">
                     {filteredUsers.length === 0 ? (
                       <span className="text-xs text-muted-foreground italic">
                         Add members to the project first
@@ -698,19 +694,19 @@ function NewTaskPage() {
                             type="button"
                             key={u.id}
                             onClick={() => toggle(u.id)}
-                            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-all ${
+                            className={`group flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all duration-300 cursor-pointer ${
                               on
-                                ? "border-teal-500 bg-teal-500/10 text-teal-900 dark:text-teal-200"
-                                : "border-border text-muted-foreground hover:border-teal-500/40 hover:bg-muted/50"
+                                ? "border-primary bg-primary/10 text-foreground font-semibold"
+                                : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
                             }`}
                           >
-                            <Avatar className="h-4 w-4">
-                              <AvatarFallback className="bg-muted text-[8px] font-bold">
+                            <Avatar className="h-4.5 w-4.5">
+                              <AvatarFallback className="bg-muted-foreground/15 text-[8px] font-bold text-foreground">
                                 {u.name?.slice(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
-                            {u.name}
-                            {on && <X className="h-3 w-3 text-teal-500" />}
+                            <span>{u.name}</span>
+                            {on && <X className="h-3 w-3 text-primary shrink-0" />}
                           </button>
                         );
                       })
@@ -719,16 +715,16 @@ function NewTaskPage() {
                 </div>
 
                 {/* Tags Section */}
-                <div className="mt-6 space-y-2">
-                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1">
-                    <Tag className="h-3.5 w-3.5 text-teal-500" /> Tags
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Tag className="h-4 w-4 text-primary" /> Tags
                   </Label>
-                  <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border/80 bg-background p-2 focus-within:border-teal-500 transition">
+                  <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border/60 bg-background p-2 focus-within:border-primary transition duration-300">
                     {tags.map((t, i) => (
-                      <Badge key={i} variant="secondary" className="gap-1 bg-teal-500/10 border border-teal-500/20 text-teal-900 dark:text-teal-200 text-xs py-0.5">
+                      <Badge key={i} variant="secondary" className="gap-1 bg-primary/10 border border-primary/20 text-foreground text-xs py-0.5 rounded-lg">
                         {t}
                         <button type="button" onClick={() => setTags((p) => p.filter((_, x) => x !== i))}>
-                          <X className="h-3 w-3 text-teal-500 hover:text-teal-600" />
+                          <X className="h-3 w-3 text-primary hover:text-primary/80" />
                         </button>
                       </Badge>
                     ))}
@@ -741,27 +737,28 @@ function NewTaskPage() {
                     />
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+
         </div>
 
         {/* Sticky Footer */}
-        <div className="sticky bottom-0 z-20 border-t border-white/10 bg-card/90 backdrop-blur px-6 py-4">
+        <div className="sticky bottom-0 z-20 border-t border-border bg-card/90 backdrop-blur px-6 py-4">
           <div className="flex items-center justify-between">
             <p className="text-[11px] text-muted-foreground">
               Will be added to project <span className="font-bold text-foreground underline">{projects.find((p) => p.id === activeProjectId)?.name ?? "—"}</span>
             </p>
             <div className="flex gap-2">
-              <Button variant="ghost" onClick={handleCancel} className="text-xs rounded-xl">Cancel</Button>
+              <Button variant="ghost" onClick={handleCancel} className="text-xs rounded-xl border border-border/80">Cancel</Button>
               <Button variant="outline" onClick={() => submit("another")} disabled={create.isPending} className="text-xs rounded-xl border-border/60 hover-lift">Save & Add More</Button>
               <Button
                 onClick={() => submit("save")}
                 disabled={create.isPending}
-                className={`text-xs font-bold rounded-xl shadow-lg px-4 py-2 hover-lift transition-all duration-300 text-white ${
+                className={`text-xs font-semibold rounded-xl px-4 py-2 hover-lift transition-all duration-300 text-white ${
                   taskType === "ISSUE"
-                    ? "bg-red-500 hover:bg-red-600 shadow-red-500/10"
-                    : "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10"
+                    ? "bg-destructive hover:bg-destructive/95 shadow-lg shadow-destructive/10"
+                    : "bg-gradient-primary text-primary-foreground shadow-glow hover:opacity-95"
                 }`}
               >
                 <Sparkles className="mr-1.5 h-4 w-4" />

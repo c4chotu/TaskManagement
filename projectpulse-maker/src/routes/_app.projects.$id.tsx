@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { Topbar } from "@/components/tfp/topbar";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,18 +9,54 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { useIssues, useProject, useProjectMembers, useSprints, useStatuses, useTasks, useProjectAttachments, useUploadProjectAttachment, useDeleteProjectAttachment, useCreateSprint, useUpdateSprint, useUsers, useTimeEntries, useTeams, useAddProjectMember, useRemoveProjectMember, useProjectTeams, useAddProjectTeam, useRemoveProjectTeam } from "@/lib/queries";
 import { apiRequest, USE_MOCK } from "@/lib/api";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
   TrendingUp, Users, Calendar, AlertTriangle, ArrowLeft, ArrowRight,
   Plus, CheckCircle2, ShieldAlert, BadgeDollarSign, Activity,
-  Milestone, Briefcase, Clock, PlayCircle, Flame, Paperclip, Download, Trash2, FileText, X, UploadCloud, Info, ChevronLeft, ChevronRight
+  Milestone, Briefcase, Clock, PlayCircle, Flame, Paperclip, Download, Trash2, FileText, X, UploadCloud, Info, ChevronLeft, ChevronRight,
+  Loader2, Zap, MessageSquare, GitBranch, UserCheck, Filter, Bell
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { downloadAuthenticatedFile } from "@/components/tfp/attachments-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from "recharts";
+
+// ─── Activity Stream Types ───────────────────────────────────────────────────
+type ActivityEventType = "task_created" | "status_changed" | "comment_added" | "phase_activated" | "member_added" | "issue_created";
+interface ActivityEvent {
+  id: string;
+  type: ActivityEventType;
+  taskId?: string;
+  taskTitle?: string;
+  taskDisplayId?: string;
+  from?: string;
+  to?: string;
+  actor?: string;
+  at: string;
+  message: string;
+}
+
+// Global in-memory activity log (per project page mount)
+const activityBus: ActivityEvent[] = [];
+export function pushActivity(event: Omit<ActivityEvent, "id">) {
+  activityBus.unshift({ ...event, id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` });
+  if (activityBus.length > 200) activityBus.length = 200;
+  window.dispatchEvent(new CustomEvent("tfp:activity"));
+}
+
+const formatDateSafely = (dateVal: any, fmtStr: string, fallback: string = "N/A") => {
+  if (!dateVal) return fallback;
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, fmtStr);
+  } catch (e) {
+    return fallback;
+  }
+};
 
 export const Route = createFileRoute("/_app/projects/$id")({
   head: () => ({ meta: [{ title: "Project Dashboard — TaskFlow Pro" }] }),
@@ -51,6 +87,91 @@ function ProjectDetail() {
   const addProjectTeamMutation = useAddProjectTeam();
   const removeProjectTeamMutation = useRemoveProjectTeam();
 
+  // ─── Activity Stream State ─────────────────────────────────────────────────
+  const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
+  const [activityFilter, setActivityFilter] = useState<ActivityEventType | "all">("all");
+
+  // Listen for new activity bus events (from pushActivity) and direct mutation events
+  useEffect(() => {
+    const busHandler = () => setActivityEvents([...activityBus]);
+    const newEventHandler = (e: Event) => {
+      const evt = (e as CustomEvent).detail as Omit<ActivityEvent, "id">;
+      if (evt) {
+        pushActivity(evt);
+      }
+    };
+    window.addEventListener("tfp:activity", busHandler);
+    window.addEventListener("tfp:activity:new", newEventHandler);
+    return () => {
+      window.removeEventListener("tfp:activity", busHandler);
+      window.removeEventListener("tfp:activity:new", newEventHandler);
+    };
+  }, []);
+
+  // Seed activity from existing data on first load
+  useEffect(() => {
+    if (tasks.length === 0 && sprints.length === 0) return;
+    if (activityBus.length > 0) return; // Already seeded
+    // Seed tasks
+    [...tasks].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).forEach(t => {
+      activityBus.push({
+        id: `seed-tc-${t.id}`,
+        type: "task_created",
+        taskId: t.id,
+        taskTitle: t.title,
+        taskDisplayId: t.displayId,
+        actor: t.assigneeIds[0] ? users.find(u => u.id === t.assigneeIds[0])?.name || "System" : "System",
+        at: t.createdAt,
+        message: `Task "${t.title}" was created`,
+      });
+    });
+    // Seed activated sprints
+    sprints.filter(s => s.status === "ACTIVE" || s.status === "COMPLETED").forEach(s => {
+      activityBus.push({
+        id: `seed-sa-${s.id}`,
+        type: "phase_activated",
+        actor: "System",
+        at: s.startDate,
+        message: `Phase "${s.name}" was activated`,
+      });
+    });
+    activityBus.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+    setActivityEvents([...activityBus]);
+  }, [tasks.length, sprints.length]);
+
+  const [preview, setPreview] = useState<{ url: string; name: string; mime: string; blobUrl?: string } | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState<string | null>(null);
+
+  const handlePreview = async (url: string, name: string, mime: string, fileId: string) => {
+    if (USE_MOCK) {
+      setPreview({ url, name, mime, blobUrl: url });
+      return;
+    }
+    setLoadingPreview(fileId);
+    try {
+      const token = localStorage.getItem("tfp.accessToken");
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error("Preview failed to load");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setPreview({ url, name, mime, blobUrl });
+    } catch (err) {
+      toast.error("Could not open preview: unauthorized or server error");
+    } finally {
+      setLoadingPreview(null);
+    }
+  };
+
+  const closePreview = () => {
+    if (preview?.blobUrl && !USE_MOCK) {
+      URL.revokeObjectURL(preview.blobUrl);
+    }
+    setPreview(null);
+  };
+
   const projectTaskIds = useMemo(() => new Set(tasks.map((t) => t.id)), [tasks]);
   const projectTimeEntries = useMemo(() => {
     return timeEntries.filter((te) => projectTaskIds.has(te.taskId));
@@ -72,8 +193,10 @@ function ProjectDetail() {
       const today = new Date();
       sprints.forEach((s) => {
         if (s.status === "PLANNED") {
+          if (!s.startDate || !s.endDate) return;
           const start = new Date(s.startDate);
           const end = new Date(s.endDate);
+          if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
           if (today >= start && today <= end) {
             updateSprintMutation.mutate({
               id: s.id,
@@ -122,17 +245,23 @@ function ProjectDetail() {
     }
   };
 
+  // Must be declared before sprintsRoadmap which depends on it
+  const completedStatusIds = useMemo(() => {
+    return new Set(statuses.filter(s => s.category === "COMPLETED").map(s => s.id));
+  }, [statuses]);
+
   const sprintsRoadmap = useMemo(() => {
     if (sprints.length > 0) {
       return sprints.map((s) => {
         const sprintTasks = tasks.filter((t) => t.sprintId === s.id);
-        const completedTasks = sprintTasks.filter((t) => t.statusId === "s-done").length;
+        // Use COMPLETED-category statuses for accurate sprint completion %
+        const completedTasks = sprintTasks.filter((t) => completedStatusIds.has(t.statusId)).length;
         const totalTasks = sprintTasks.length;
         const pct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
         return {
           id: s.id,
           name: s.name,
-          date: `${format(new Date(s.startDate), "MMM d")} - ${format(new Date(s.endDate), "MMM d, yyyy")}`,
+          date: `${formatDateSafely(s.startDate, "MMM d")} - ${formatDateSafely(s.endDate, "MMM d, yyyy")}`,
           status: s.status,
           pct,
           goal: s.goal
@@ -140,7 +269,7 @@ function ProjectDetail() {
       });
     }
     return milestones;
-  }, [sprints, tasks, milestones]);
+  }, [sprints, tasks, milestones, completedStatusIds]);
 
   const handleUploadProjDoc = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return;
@@ -180,9 +309,10 @@ function ProjectDetail() {
     return issues.filter((issue) => tasks.some((task) => task.id === issue.taskId));
   }, [issues, tasks]);
 
+
   const completed = useMemo(() => {
-    return tasks.filter((task) => task.statusId === "s-done").length;
-  }, [tasks]);
+    return tasks.filter((task) => completedStatusIds.has(task.statusId)).length;
+  }, [tasks, completedStatusIds]);
 
   const progress = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
   const estimateHours = tasks.reduce((sum, task) => sum + (task.estimatedHours ?? 0), 0);
@@ -192,14 +322,26 @@ function ProjectDetail() {
   // Deadlines and critical items
   const upcomingTasks = useMemo(() => {
     return tasks
-      .filter((task) => task.dueDate && new Date(task.dueDate) > new Date() && task.statusId !== "s-done")
-      .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
+      .filter((task) => {
+        if (!task.dueDate) return false;
+        const d = new Date(task.dueDate);
+        return !isNaN(d.getTime()) && d > new Date() && !completedStatusIds.has(task.statusId);
+      })
+      .sort((a, b) => {
+        const da = new Date(a.dueDate!);
+        const db = new Date(b.dueDate!);
+        return da.getTime() - db.getTime();
+      })
       .slice(0, 3);
   }, [tasks]);
 
   const overdueTasks = useMemo(() => {
-    return tasks.filter((task) => task.dueDate && new Date(task.dueDate) < new Date() && task.statusId !== "s-done");
-  }, [tasks]);
+    return tasks.filter((task) => {
+      if (!task.dueDate) return false;
+      const d = new Date(task.dueDate);
+      return !isNaN(d.getTime()) && d < new Date() && !completedStatusIds.has(task.statusId);
+    });
+  }, [tasks, completedStatusIds]);
 
   // Financial simulation
   const billingRate = 85; // $85 per hour
@@ -271,11 +413,11 @@ function ProjectDetail() {
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground pt-2">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4 text-primary" />
-                  Start: {format(new Date(project.startDate), "MMM d, yyyy")}
+                  Start: {formatDateSafely(project.startDate, "MMM d, yyyy")}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4 text-destructive" />
-                  Target Release: {format(new Date(project.endDate), "MMM d, yyyy")}
+                  Target Release: {formatDateSafely(project.endDate, "MMM d, yyyy")}
                 </span>
               </div>
             </div>
@@ -348,38 +490,107 @@ function ProjectDetail() {
           />
           <StatCard
             label="Active Sprint"
-            value={activeSprint ? activeSprint.name : "None"}
+            value={activeSprint ? (activeSprint.name.length > 15 ? activeSprint.name.slice(0, 15) + "..." : activeSprint.name) : "None"}
             subtext={activeSprint ? `Goal: ${activeSprint.goal ?? "N/A"}` : "No active sprint running"}
             icon={PlayCircle}
             color="violet"
+            truncateValue
           />
         </div>
 
         {/* Main Tabs Layout */}
-        <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="flex w-full items-center justify-start border-b border-border bg-transparent p-0 overflow-x-auto gap-2">
-            <TabsTrigger value="dashboard" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
-              Dashboard & Roadmap
-            </TabsTrigger>
-            <TabsTrigger value="tasks" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
-              Task Pipeline
-            </TabsTrigger>
-            <TabsTrigger value="issues" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
-              Linked Issues ({linkedIssues.length})
-            </TabsTrigger>
-            <TabsTrigger value="workload" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
-              Team Workload & Capacity
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
-              Project Documents ({projectAttachments.length})
-            </TabsTrigger>
-            <TabsTrigger value="timelogs" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
-              Project Timelogs ({projectTimeEntries.length})
-            </TabsTrigger>
-            <TabsTrigger value="teams" className="rounded-t-lg rounded-b-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-muted/10">
-              Project Teams ({projectTeams.length})
-            </TabsTrigger>
-          </TabsList>
+        <Tabs defaultValue="dashboard" className="space-y-5">
+          {/* ── Redesigned pill-style tab bar – no scrollbar ── */}
+          <div className="border-b border-border/60">
+            <TabsList className="flex flex-wrap items-center gap-1 bg-transparent p-0 pb-0 h-auto">
+              <TabsTrigger
+                value="dashboard"
+                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
+                  hover:text-foreground hover:bg-muted/40
+                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
+                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+              >
+                <Milestone className="h-3.5 w-3.5" />
+                Dashboard
+              </TabsTrigger>
+              <TabsTrigger
+                value="tasks"
+                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
+                  hover:text-foreground hover:bg-muted/40
+                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
+                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+              >
+                <Briefcase className="h-3.5 w-3.5" />
+                Tasks
+                <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-mono font-bold text-muted-foreground">{tasks.length}</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="issues"
+                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
+                  hover:text-foreground hover:bg-muted/40
+                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
+                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+              >
+                <ShieldAlert className="h-3.5 w-3.5" />
+                Issues
+                {linkedIssues.length > 0 && <span className="ml-0.5 rounded-full bg-destructive/15 px-1.5 py-0.5 text-[9px] font-mono font-bold text-destructive">{linkedIssues.length}</span>}
+              </TabsTrigger>
+              <TabsTrigger
+                value="workload"
+                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
+                  hover:text-foreground hover:bg-muted/40
+                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
+                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+              >
+                <Users className="h-3.5 w-3.5" />
+                Workload
+              </TabsTrigger>
+              <TabsTrigger
+                value="documents"
+                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
+                  hover:text-foreground hover:bg-muted/40
+                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
+                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+              >
+                <Paperclip className="h-3.5 w-3.5" />
+                Documents
+                {projectAttachments.length > 0 && <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-mono font-bold text-muted-foreground">{projectAttachments.length}</span>}
+              </TabsTrigger>
+              <TabsTrigger
+                value="timelogs"
+                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
+                  hover:text-foreground hover:bg-muted/40
+                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
+                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+              >
+                <Clock className="h-3.5 w-3.5" />
+                Timelogs
+                {projectTimeEntries.length > 0 && <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-mono font-bold text-muted-foreground">{projectTimeEntries.length}</span>}
+              </TabsTrigger>
+              <TabsTrigger
+                value="teams"
+                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
+                  hover:text-foreground hover:bg-muted/40
+                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
+                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+              >
+                <UserCheck className="h-3.5 w-3.5" />
+                Teams
+                {projectTeams.length > 0 && <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-mono font-bold text-muted-foreground">{projectTeams.length}</span>}
+              </TabsTrigger>
+              <TabsTrigger
+                value="activity"
+                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
+                  hover:text-foreground hover:bg-muted/40
+                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
+                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+              >
+                <Activity className="h-3.5 w-3.5" />
+                Activity
+                {activityEvents.length > 0 && <span className="ml-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-mono font-bold text-primary">{activityEvents.length}</span>}
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* TAB 1: DASHBOARD & ROADMAP */}
           <TabsContent value="dashboard" className="space-y-6 p-0 outline-none">
@@ -618,7 +829,7 @@ function ProjectDetail() {
                             <span className="font-mono text-muted-foreground">{t.displayId}</span>
                           </div>
                           <p className="mt-1 font-medium truncate text-foreground">{t.title}</p>
-                          <p className="mt-0.5 text-[10px] text-muted-foreground">Due: {t.dueDate ? format(new Date(t.dueDate), "MMM d, yyyy") : "N/A"}</p>
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">Due: {formatDateSafely(t.dueDate, "MMM d, yyyy")}</p>
                         </div>
                       ))}
                       {linkedIssues.filter((i) => !i.resolved).slice(0, 2).map((i) => {
@@ -659,7 +870,7 @@ function ProjectDetail() {
                           <span className="text-[10px] text-muted-foreground">{t.displayId}</span>
                         </div>
                         <Badge variant="outline" className="text-[10px] shrink-0">
-                          {t.dueDate ? format(new Date(t.dueDate), "MMM d") : "N/A"}
+                          {formatDateSafely(t.dueDate, "MMM d")}
                         </Badge>
                       </div>
                     ))}
@@ -702,7 +913,7 @@ function ProjectDetail() {
                           </Link>
                           {task.dueDate && (
                             <p className="mt-2 text-[9px] text-muted-foreground flex items-center gap-1">
-                              <Calendar className="h-3 w-3" /> Due {format(new Date(task.dueDate), "MMM d")}
+                              <Calendar className="h-3 w-3" /> Due {formatDateSafely(task.dueDate, "MMM d")}
                             </p>
                           )}
                         </Card>
@@ -745,7 +956,7 @@ function ProjectDetail() {
                       <div className="flex items-center gap-3">
                         <div className="text-right">
                           <p className="text-xs text-muted-foreground">SLA Breach Target</p>
-                          <p className="text-xs font-mono font-semibold">{format(new Date(issue.slaTargetFix), "MMM d, yyyy · h:mm a")}</p>
+                          <p className="text-xs font-mono font-semibold">{formatDateSafely(issue.slaTargetFix, "MMM d, yyyy · h:mm a")}</p>
                         </div>
                         <Badge variant={issue.slaBreached ? "destructive" : "secondary"} className="text-[10px] uppercase font-bold px-2 py-0.5">
                           {issue.slaBreached ? "SLA Breached" : "Active SLA"}
@@ -858,24 +1069,32 @@ function ProjectDetail() {
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {projectAttachments.map((doc) => {
+                    const isLoading = loadingPreview === doc.id;
                     return (
                       <Card
                         key={doc.id}
                         className="group flex flex-col justify-between p-4 border border-white/5 bg-background/50 hover:bg-muted/15 hover:border-primary/20 rounded-xl transition-all shadow-sm"
                       >
-                        <div className="flex items-start gap-3 min-w-0">
+                        <button
+                          disabled={isLoading}
+                          onClick={() => handlePreview(doc.url, doc.fileName, doc.mimeType, doc.id)}
+                          className="flex items-start gap-3 min-w-0 text-left w-full hover:bg-muted/5 rounded-lg p-1 transition-colors"
+                        >
                           <div className="p-2 bg-primary/10 rounded-lg text-primary shrink-0">
                             <FileText className="h-5 w-5" />
                           </div>
-                          <div className="min-w-0 space-y-0.5">
-                            <p className="font-bold text-xs text-foreground truncate" title={doc.fileName}>
-                              {doc.fileName}
-                            </p>
+                          <div className="min-w-0 space-y-0.5 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-bold text-xs text-foreground truncate hover:underline hover:text-primary" title={doc.fileName}>
+                                {doc.fileName}
+                              </p>
+                              {isLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />}
+                            </div>
                             <p className="text-[10px] text-muted-foreground">
-                              {humanSize(doc.sizeBytes)} · {doc.uploadedAt ? format(new Date(doc.uploadedAt), "MMM d, yyyy") : "Date unknown"}
+                              {humanSize(doc.sizeBytes)} · {formatDateSafely(doc.uploadedAt, "MMM d, yyyy", "Date unknown")}
                             </p>
                           </div>
-                        </div>
+                        </button>
 
                         <div className="mt-4 flex items-center justify-between pt-2 border-t border-border/10">
                           <span className="text-[9px] text-muted-foreground uppercase font-semibold tracking-wider font-mono">
@@ -886,11 +1105,10 @@ function ProjectDetail() {
                               size="icon"
                               variant="ghost"
                               className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/30"
-                              asChild
+                              onClick={() => downloadAuthenticatedFile(doc.url, doc.fileName)}
+                              title="Download Asset"
                             >
-                              <a href={doc.url} download={doc.fileName} title="Download Asset">
-                                <Download className="h-4 w-4" />
-                              </a>
+                              <Download className="h-4 w-4" />
                             </Button>
                             <Button
                               size="icon"
@@ -954,8 +1172,8 @@ function ProjectDetail() {
                       {projectTimeEntries.map((te) => {
                         const task = tasks.find((t) => t.id === te.taskId);
                         const userObj = users.find((u) => u.id === te.userId);
-                        const startStr = te.startTime ? format(new Date(te.startTime), "MMM d, h:mm a") : "—";
-                        const endStr = te.endTime ? format(new Date(te.endTime), "h:mm a") : "Active";
+                        const startStr = formatDateSafely(te.startTime, "MMM d, h:mm a", "—");
+                        const endStr = formatDateSafely(te.endTime, "h:mm a", "Active");
 
                         return (
                           <tr key={te.id} className="border-b border-border/30 hover:bg-muted/5 transition">
@@ -1123,6 +1341,118 @@ function ProjectDetail() {
                       </Card>
                     );
                   })}
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
+          {/* TAB 8: ACTIVITY STREAM */}
+          <TabsContent value="activity" className="p-0 outline-none animate-in fade-in-50 duration-200">
+            <Card className="p-6 border border-white/10 bg-card/65 backdrop-blur-md rounded-2xl shadow-xl shadow-indigo-500/5 space-y-5">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-border/50 pb-3">
+                <div className="space-y-1">
+                  <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-primary" /> Project Activity Stream
+                  </h3>
+                  <p className="text-xs text-muted-foreground">Real-time feed of all task events, status changes, comments and phase activations.</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block">Total Events</span>
+                  <span className="text-base font-bold text-primary font-mono">{activityEvents.length}</span>
+                </div>
+              </div>
+
+              {/* Filter Bar */}
+              <div className="flex flex-wrap gap-1.5">
+                {([
+                  { label: "All", value: "all" },
+                  { label: "Tasks Created", value: "task_created" },
+                  { label: "Status Changed", value: "status_changed" },
+                  { label: "Issues", value: "issue_created" },
+                  { label: "Phases", value: "phase_activated" },
+                ] as Array<{ label: string; value: ActivityEventType | "all" }>).map(f => (
+                  <button
+                    key={f.value}
+                    onClick={() => setActivityFilter(f.value)}
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all border ${
+                      activityFilter === f.value
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        : "border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/30"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Event Feed */}
+              {activityEvents.filter(e => activityFilter === "all" || e.type === activityFilter).length === 0 ? (
+                <div className="text-center py-16 border-2 border-dashed border-border/40 rounded-2xl bg-muted/15 flex flex-col items-center justify-center space-y-3">
+                  <Activity className="h-8 w-8 text-muted-foreground" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">No activity yet</p>
+                    <p className="text-xs text-muted-foreground">Events will appear here as tasks are created, updated, or commented on.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1 relative">
+                  <div className="absolute left-[23px] top-4 bottom-4 w-px bg-border/40 pointer-events-none" />
+                  {activityEvents
+                    .filter(e => activityFilter === "all" || e.type === activityFilter)
+                    .slice(0, 50)
+                    .map(evt => {
+                      const typeConfig: Record<ActivityEventType, { icon: any; color: string; bgColor: string }> = {
+                        task_created: { icon: Plus, color: "text-emerald-600", bgColor: "bg-emerald-500/10 border-emerald-500/20" },
+                        status_changed: { icon: GitBranch, color: "text-blue-500", bgColor: "bg-blue-500/10 border-blue-500/20" },
+                        comment_added: { icon: MessageSquare, color: "text-amber-500", bgColor: "bg-amber-500/10 border-amber-500/20" },
+                        phase_activated: { icon: Zap, color: "text-violet-500", bgColor: "bg-violet-500/10 border-violet-500/20" },
+                        member_added: { icon: Users, color: "text-teal-500", bgColor: "bg-teal-500/10 border-teal-500/20" },
+                        issue_created: { icon: ShieldAlert, color: "text-red-500", bgColor: "bg-red-500/10 border-red-500/20" },
+                      };
+                      const cfg = typeConfig[evt.type] || typeConfig.task_created;
+                      const IconComp = cfg.icon;
+                      let safeAt = "";
+                      try {
+                        const d = new Date(evt.at);
+                        safeAt = isNaN(d.getTime()) ? "" : formatDistanceToNow(d, { addSuffix: true });
+                      } catch {}
+
+                      return (
+                        <div key={evt.id} className="flex items-start gap-3 group hover:bg-muted/10 rounded-xl p-2.5 transition-colors relative">
+                          <div className={`shrink-0 h-9 w-9 rounded-full border flex items-center justify-center z-10 bg-background ${cfg.bgColor}`}>
+                            <IconComp className={`h-4 w-4 ${cfg.color}`} />
+                          </div>
+                          <div className="flex-1 min-w-0 pt-0.5">
+                            <p className="text-xs text-foreground leading-snug">
+                              {evt.actor && <span className="font-semibold text-foreground">{evt.actor} </span>}
+                              <span className="text-muted-foreground">{evt.message}</span>
+                            </p>
+                            {(evt.from || evt.to) && (
+                              <div className="flex items-center gap-1 mt-1">
+                                {evt.from && <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono">{evt.from}</span>}
+                                {evt.from && evt.to && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
+                                {evt.to && <span className="text-[10px] text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded font-mono">{evt.to}</span>}
+                              </div>
+                            )}
+                            {evt.taskDisplayId && (
+                              <Link
+                                to="/tasks/$id"
+                                params={{ id: evt.taskId! }}
+                                className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-primary mt-0.5 transition-colors"
+                              >
+                                #{evt.taskDisplayId}
+                              </Link>
+                            )}
+                          </div>
+                          {safeAt && (
+                            <span className="text-[10px] text-muted-foreground shrink-0 pt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {safeAt}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
               )}
             </Card>
@@ -1420,7 +1750,7 @@ function ProjectDetail() {
                                       </Badge>
                                     </td>
                                     <td className="px-4 py-2.5 capitalize">{t.priority?.toLowerCase() || "medium"}</td>
-                                    <td className="px-4 py-2.5 font-mono text-[10.5px]">{t.dueDate ? format(new Date(t.dueDate), "yyyy-MM-dd") : "—"}</td>
+                                    <td className="px-4 py-2.5 font-mono text-[10.5px]">{formatDateSafely(t.dueDate, "yyyy-MM-dd", "—")}</td>
                                   </tr>
                                 );
                               })}
@@ -1508,11 +1838,11 @@ function ProjectDetail() {
                         <div className="grid gap-3 sm:grid-cols-2 text-xs">
                           <div className="p-3 bg-muted/10 border border-border/45 rounded-xl flex items-center justify-between">
                             <span className="text-muted-foreground font-medium">Start Date</span>
-                            <span className="font-mono font-semibold">{sprint ? format(new Date(sprint.startDate), "yyyy-MM-dd HH:mm") : "—"}</span>
+                            <span className="font-mono font-semibold">{sprint ? formatDateSafely(sprint.startDate, "yyyy-MM-dd HH:mm", "—") : "—"}</span>
                           </div>
                           <div className="p-3 bg-muted/10 border border-border/45 rounded-xl flex items-center justify-between">
                             <span className="text-muted-foreground font-medium">End Date</span>
-                            <span className="font-mono font-semibold">{sprint ? format(new Date(sprint.endDate), "yyyy-MM-dd HH:mm") : "—"}</span>
+                            <span className="font-mono font-semibold">{sprint ? formatDateSafely(sprint.endDate, "yyyy-MM-dd HH:mm", "—") : "—"}</span>
                           </div>
                           <div className="p-3 bg-muted/10 border border-border/45 rounded-xl flex items-center justify-between">
                             <span className="text-muted-foreground font-medium">Total Tasks</span>
@@ -1533,18 +1863,51 @@ function ProjectDetail() {
           })()}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!preview} onOpenChange={(o) => !o && closePreview()}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader className="flex flex-row items-center justify-between border-b pb-2">
+            <DialogTitle className="truncate text-sm">{preview?.name}</DialogTitle>
+          </DialogHeader>
+          {preview && preview.blobUrl &&
+            (preview.mime.startsWith("image/") ? (
+              <img
+                src={preview.blobUrl}
+                alt={preview.name}
+                className="max-h-[70vh] w-full rounded object-contain"
+              />
+            ) : preview.mime === "application/pdf" ? (
+              <iframe
+                src={preview.blobUrl}
+                className="h-[70vh] w-full rounded border border-border"
+                title={preview.name}
+              />
+            ) : (
+              <div className="rounded border border-border bg-muted/30 p-8 text-center text-sm text-muted-foreground">
+                Preview not available for this file type.{" "}
+                <button 
+                  className="text-primary underline font-semibold" 
+                  onClick={() => downloadAuthenticatedFile(preview.url, preview.name)}
+                >
+                  Download File
+                </button>
+              </div>
+            ))}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
 
 function StatCard({
-  label, value, subtext, icon: Icon, color
+  label, value, subtext, icon: Icon, color, truncateValue
 }: {
   label: string;
   value: string;
   subtext: string;
   icon: any;
   color: "indigo" | "red" | "amber" | "emerald" | "violet";
+  truncateValue?: boolean;
 }) {
   const colorMap = {
     indigo: "text-indigo-600 bg-indigo-50 border-indigo-100",
@@ -1557,11 +1920,16 @@ function StatCard({
   return (
     <Card className="p-5 border border-border/80 shadow-sm bg-card hover:shadow-md transition">
       <div className="flex items-start justify-between">
-        <div>
-          <p className="text-[10px] overflow-hidden  uppercase font-semibold text-muted-foreground tracking-wide">{label}</p>
-          <p className="mt-2 text-2xl font-bold tracking-tight text-foreground font-mono">{value}</p>
+        <div className="flex-1 min-w-0 mr-2">
+          <p className="text-[10px] overflow-hidden uppercase font-semibold text-muted-foreground tracking-wide">{label}</p>
+          <p
+            className={`mt-2 text-2xl font-bold tracking-tight text-foreground font-mono ${truncateValue ? "truncate" : ""}`}
+            title={truncateValue ? value : undefined}
+          >
+            {value}
+          </p>
         </div>
-        <div className={`rounded-xl border p-2.5 ${colorMap[color]}`}>
+        <div className={`rounded-xl border p-2.5 shrink-0 ${colorMap[color]}`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>

@@ -26,6 +26,7 @@ import {
   useToggleAutomation,
   useDeleteAutomation,
   useAutomationRuleTypes,
+  useTeams,
 } from "@/lib/queries";
 import { Workflow, Route as RouteIcon, Zap, Plus, Trash2, AlertTriangle, ShieldAlert, CheckCircle2, User, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -54,6 +55,7 @@ function AutomationsPage() {
   const { data: issues = [] } = useIssues();
   const { data: statuses = [] } = useStatuses();
   const { data: ruleTypes = [] } = useAutomationRuleTypes();
+  const { data: teams = [] } = useTeams();
 
   // Group rule types by category for the trigger dropdown
   const ruleTypesByCategory = useMemo(() => {
@@ -79,6 +81,8 @@ function AutomationsPage() {
   const [autoDesc, setAutoDesc] = useState("");
   const [autoTrigger, setAutoTrigger] = useState("TASK_CREATED");
   const [autoProject, setAutoProject] = useState("");
+  const [scopeType, setScopeType] = useState<"global" | "project" | "team">("global");
+  const [autoTeam, setAutoTeam] = useState("");
   
   // Single Condition
   const [autoCondField, setAutoCondField] = useState("statusId");
@@ -97,6 +101,8 @@ function AutomationsPage() {
     setAutoDesc("");
     setAutoTrigger("TASK_CREATED");
     setAutoProject(projects[0]?.id || "");
+    setScopeType("global");
+    setAutoTeam(teams[0]?.id || "");
     setAutoCondField("statusId");
     setAutoCondOp("EQUALS");
     setAutoCondVal(statuses[0]?.id || "");
@@ -112,7 +118,20 @@ function AutomationsPage() {
     setAutoName(w.name || "");
     setAutoDesc(w.description || "");
     setAutoTrigger(w.triggerType || "TASK_CREATED");
-    setAutoProject(w.projectId || "");
+    
+    if (w.teamId) {
+      setScopeType("team");
+      setAutoTeam(w.teamId);
+      setAutoProject("");
+    } else if (w.projectId && w.projectId !== "_global") {
+      setScopeType("project");
+      setAutoProject(w.projectId);
+      setAutoTeam("");
+    } else {
+      setScopeType("global");
+      setAutoProject("_global");
+      setAutoTeam("");
+    }
     
     // Parse condition
     if (w.conditions && w.conditions.length > 0) {
@@ -159,11 +178,15 @@ function AutomationsPage() {
 
     const actions = [{ actionType: autoActType, actionConfig: actConfig }];
 
+    const projectId = scopeType === "project" ? autoProject : undefined;
+    const teamId = scopeType === "team" ? autoTeam : undefined;
+
     try {
       if (editingAutomation) {
         await updateAutomation.mutateAsync({
           id: editingAutomation.id,
-          projectId: autoProject || undefined,
+          projectId,
+          teamId,
           name: autoName,
           description: autoDesc,
           triggerType: autoTrigger,
@@ -173,7 +196,8 @@ function AutomationsPage() {
         toast.success("Automation updated successfully");
       } else {
         await createAutomation.mutateAsync({
-          projectId: autoProject || undefined,
+          projectId,
+          teamId,
           name: autoName,
           description: autoDesc,
           triggerType: autoTrigger,
@@ -420,6 +444,19 @@ function AutomationsPage() {
                       <div className="flex items-center gap-1 text-[9px] font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/10 w-fit">
                         <Sparkles className="h-3 w-3" /> Trigger: {w.triggerType}
                       </div>
+                      {w.teamId ? (
+                        <div className="flex items-center gap-1 text-[9px] font-mono text-amber-600 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10 w-fit">
+                          Team: {teams.find(t => t.id === w.teamId)?.name || "Unknown"}
+                        </div>
+                      ) : w.projectId && w.projectId !== "_global" ? (
+                        <div className="flex items-center gap-1 text-[9px] font-mono text-blue-600 bg-blue-500/5 px-2 py-0.5 rounded border border-blue-500/10 w-fit">
+                          Project: {projects.find(p => p.id === w.projectId)?.name || "Unknown"}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-[9px] font-mono text-emerald-600 bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10 w-fit">
+                          Scope: Global
+                        </div>
+                      )}
                       <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-primary" onClick={() => handleOpenEditAutomation(w)}>
                         Edit
                       </Button>
@@ -552,16 +589,23 @@ function AutomationsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Project Scope</Label>
-                  <Select value={autoProject} onValueChange={setAutoProject}>
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Scope Type</Label>
+                  <Select value={scopeType} onValueChange={(v: "global" | "project" | "team") => {
+                    setScopeType(v);
+                    if (v === "project" && !autoProject && projects.length > 0) {
+                      setAutoProject(projects[0].id);
+                    }
+                    if (v === "team" && !autoTeam && teams.length > 0) {
+                      setAutoTeam(teams[0].id);
+                    }
+                  }}>
                     <SelectTrigger className="h-9 text-xs">
-                      <SelectValue placeholder="Global Rule" />
+                      <SelectValue placeholder="Select Scope" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="_global">Global (All Projects)</SelectItem>
-                      {projects.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                      ))}
+                      <SelectItem value="global">Global (All Projects & Teams)</SelectItem>
+                      <SelectItem value="project">Project-specific</SelectItem>
+                      <SelectItem value="team">Team-specific</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -596,6 +640,38 @@ function AutomationsPage() {
                   </Select>
                 </div>
               </div>
+
+              {scopeType === "project" && (
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Project</Label>
+                  <Select value={autoProject} onValueChange={setAutoProject}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Select Project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {scopeType === "team" && (
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Team</Label>
+                  <Select value={autoTeam} onValueChange={setAutoTeam}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Select Team" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teams.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Condition Section */}
               <div className="space-y-2 border border-border/60 bg-muted/10 p-3 rounded-xl">

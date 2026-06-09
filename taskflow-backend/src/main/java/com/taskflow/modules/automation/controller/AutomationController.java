@@ -37,11 +37,8 @@ public class AutomationController {
 
     @PostMapping
     public ResponseEntity<AutomationRule> createRule(@RequestBody Map<String, Object> body) {
-        String projectIdStr = (String) body.get("projectId");
-        UUID projectId = (projectIdStr != null && !projectIdStr.trim().isEmpty()) ? UUID.fromString(projectIdStr) : null;
-
-        String teamIdStr = (String) body.get("teamId");
-        UUID teamId = (teamIdStr != null && !teamIdStr.trim().isEmpty()) ? UUID.fromString(teamIdStr) : null;
+        UUID projectId = parseUuidSafe((String) body.get("projectId"));
+        UUID teamId = parseUuidSafe((String) body.get("teamId"));
 
         String name = (String) body.get("name");
         String description = (String) body.get("description");
@@ -58,11 +55,8 @@ public class AutomationController {
 
     @PutMapping("/{id}")
     public ResponseEntity<AutomationRule> updateRule(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
-        String projectIdStr = (String) body.get("projectId");
-        UUID projectId = (projectIdStr != null && !projectIdStr.trim().isEmpty()) ? UUID.fromString(projectIdStr) : null;
-
-        String teamIdStr = (String) body.get("teamId");
-        UUID teamId = (teamIdStr != null && !teamIdStr.trim().isEmpty()) ? UUID.fromString(teamIdStr) : null;
+        UUID projectId = parseUuidSafe((String) body.get("projectId"));
+        UUID teamId = parseUuidSafe((String) body.get("teamId"));
 
         String name = (String) body.get("name");
         String description = (String) body.get("description");
@@ -101,5 +95,25 @@ public class AutomationController {
     @GetMapping("/rule-types")
     public ResponseEntity<List<AutomationRuleType>> listRuleTypes() {
         return ResponseEntity.ok(ruleTypeRepository.findAll());
+    }
+
+    private UUID parseUuidSafe(String str) {
+        if (str == null) {
+            return null;
+        }
+        String trimmed = str.trim();
+        if (trimmed.isEmpty() || 
+            "_global".equalsIgnoreCase(trimmed) || 
+            "_none".equalsIgnoreCase(trimmed) || 
+            "default".equalsIgnoreCase(trimmed) || 
+            "undefined".equalsIgnoreCase(trimmed) || 
+            "null".equalsIgnoreCase(trimmed)) {
+            return null;
+        }
+        try {
+            return UUID.fromString(trimmed);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 }

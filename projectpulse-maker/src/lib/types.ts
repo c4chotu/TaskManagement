@@ -169,6 +169,7 @@ export interface RoutingRule {
 export interface AutomationRule {
   id: string;
   projectId: string;
+  teamId?: string;
   name: string;
   description?: string;
   triggerType: string;

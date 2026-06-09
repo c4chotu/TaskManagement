@@ -323,6 +323,35 @@ public class BulkUploadService {
         return orgId;
     }
 
+    private List<String> splitCsvLine(String line) {
+        List<String> result = new ArrayList<>();
+        if (line == null) {
+            return result;
+        }
+        boolean inQuotes = false;
+        StringBuilder sb = new StringBuilder();
+        int len = line.length();
+        for (int i = 0; i < len; i++) {
+            char c = line.charAt(i);
+            if (c == '"') {
+                if (inQuotes && i + 1 < len && line.charAt(i + 1) == '"') {
+                    sb.append('"');
+                    i++;
+                } else {
+                    inQuotes = !inQuotes;
+                    sb.append('"');
+                }
+            } else if (c == ',' && !inQuotes) {
+                result.add(sb.toString());
+                sb.setLength(0);
+            } else {
+                sb.append(c);
+            }
+        }
+        result.add(sb.toString());
+        return result;
+    }
+
     private List<String[]> parseCsv(MultipartFile file) {
         List<String[]> rows = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(
@@ -333,7 +362,8 @@ public class BulkUploadService {
             String line;
             while ((line = br.readLine()) != null) {
                 if (line.isBlank()) continue;
-                rows.add(line.split(",", -1));
+                List<String> splitList = splitCsvLine(line);
+                rows.add(splitList.toArray(new String[0]));
             }
         } catch (Exception e) {
             throw new IllegalArgumentException("Failed to parse CSV: " + e.getMessage());
@@ -348,19 +378,21 @@ public class BulkUploadService {
             String headerLine = br.readLine();
             if (headerLine == null) return rows;
             
-            String[] headers = headerLine.split(",", -1);
+            List<String> headerList = splitCsvLine(headerLine);
+            String[] headers = headerList.toArray(new String[0]);
             for (int i = 0; i < headers.length; i++) {
-                headers[i] = headers[i].trim().toLowerCase().replace("\"", "");
+                headers[i] = trim(headers[i]).toLowerCase();
             }
             
             String line;
             while ((line = br.readLine()) != null) {
                 if (line.isBlank()) continue;
-                String[] values = line.split(",", -1);
+                List<String> valuesList = splitCsvLine(line);
+                String[] values = valuesList.toArray(new String[0]);
                 Map<String, String> rowMap = new HashMap<>();
                 for (int i = 0; i < headers.length; i++) {
                     if (i < values.length) {
-                        rowMap.put(headers[i], values[i].trim().replace("\"", ""));
+                        rowMap.put(headers[i], trim(values[i]));
                     } else {
                         rowMap.put(headers[i], "");
                     }
@@ -373,8 +405,17 @@ public class BulkUploadService {
         return rows;
     }
 
+    private String trim(String val) {
+        if (val == null) return "";
+        val = val.trim();
+        if (val.startsWith("\"") && val.endsWith("\"") && val.length() >= 2) {
+            val = val.substring(1, val.length() - 1);
+        }
+        return val.trim();
+    }
+
     private String trim(String[] row, int idx) {
-        return idx < row.length ? row[idx].trim().replace("\"", "") : "";
+        return idx < row.length ? trim(row[idx]) : "";
     }
 
     private int roleLevelFor(String roleName) {

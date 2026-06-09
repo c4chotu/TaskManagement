@@ -152,7 +152,7 @@ function SettingsPage() {
   const handleThemeChange = (themeId: string) => {
     setActiveTheme(themeId);
     localStorage.setItem("tfp.theme", themeId);
-    document.documentElement.className = `dark ${themeId === "default" ? "" : `theme-${themeId}`}`;
+    document.documentElement.className = themeId === "default" ? "" : `theme-${themeId}`;
     const selectedTheme = THEMES.find((t) => t.id === themeId);
     toast.success(`Theme updated to ${selectedTheme?.name}`);
   };

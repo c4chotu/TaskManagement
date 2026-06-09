@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useParams, useRouter } from "@tanstack/react-router";
 import { Topbar } from "@/components/tfp/topbar";
-import { useSuperAdminOrganizationDetails, useUpdateOrganization } from "@/lib/queries";
+import { useSuperAdminOrganizationDetails, useUpdateOrganization, useSuperAdminPlans } from "@/lib/queries";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ export const Route = createFileRoute("/_app/superadmin/organizations/$id")({
 function OrganizationDetailsPage() {
   const { id } = Route.useParams();
   const { data: details, isLoading } = useSuperAdminOrganizationDetails(id);
+  const { data: plans = [] } = useSuperAdminPlans();
   const updateOrg = useUpdateOrganization();
   const router = useRouter();
 
@@ -179,9 +180,9 @@ function OrganizationDetailsPage() {
                   <Select value={formData.pricingTier} onValueChange={(v) => setFormData({ ...formData, pricingTier: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="FREE">Free</SelectItem>
-                      <SelectItem value="PRO">Pro</SelectItem>
-                      <SelectItem value="ENTERPRISE">Enterprise</SelectItem>
+                      {plans.map((p: any) => (
+                        <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

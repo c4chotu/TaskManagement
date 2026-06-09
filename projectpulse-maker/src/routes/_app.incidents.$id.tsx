@@ -24,6 +24,7 @@ import { useState, useEffect } from "react";
 import { SeverityBadge } from "@/components/tfp/badges";
 import { AttachmentsPanel } from "@/components/tfp/attachments-panel";
 import { TaskStatusSelect, TaskAssignPopover } from "@/components/tfp/task-quick-edit";
+import { renderContentWithImagesAndLinks } from "./_app.tasks.$id";
 
 export const Route = createFileRoute("/_app/incidents/$id")({
   component: IssueDetail,
@@ -95,7 +96,7 @@ function IssueDetail() {
               {issue.environment && <Badge variant="outline" className="text-[9px] uppercase tracking-wider">{issue.environment}</Badge>}
             </div>
             <h1 className="text-xl font-bold tracking-tight">{task.title}</h1>
-            {task.description && <p className="text-xs text-muted-foreground leading-relaxed">{task.description}</p>}
+            {task.description && <div className="text-xs text-muted-foreground leading-relaxed">{renderContentWithImagesAndLinks(task.description)}</div>}
           </div>
           
           <div className="flex items-center gap-2.5 shrink-0 mt-4 md:mt-0">
@@ -201,7 +202,7 @@ function IssueDetail() {
                               <span className="text-[9px] text-muted-foreground">{formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}</span>
                             </div>
                             <div className="rounded-2xl bg-muted/50 border border-border/40 px-3.5 py-2 text-xs text-foreground/90 max-w-[85%] leading-relaxed shadow-sm">
-                              {c.content}
+                              {renderContentWithImagesAndLinks(c.content)}
                             </div>
                           </div>
                         </div>

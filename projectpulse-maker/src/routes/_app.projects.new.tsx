@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { useCreateProject, useCreateSprint, useCreateTask, useUsers, useAddProjectMember, useTeams, useUploadProjectAttachment } from "@/lib/queries";
+import { useCreateProject, useCreateSprint, useCreateTask, useUsers, useAddProjectMember, useTeams, useUploadProjectAttachment, useAddProjectTeam } from "@/lib/queries";
 import { tokenStore, apiRequest } from "@/lib/api";
 import { Plus, Trash2, Calendar, ArrowLeft, Layers, CheckSquare, Save, User, Clock, AlertCircle, Settings, Check, UploadCloud, X, FileText, Paperclip } from "lucide-react";
 import { useState, useRef } from "react";
@@ -57,6 +57,7 @@ function CreateProjectPage() {
   const createTask = useCreateTask();
   const addProjectMember = useAddProjectMember();
   const uploadProjectAttachment = useUploadProjectAttachment();
+  const addProjectTeam = useAddProjectTeam();
 
   // Project Owner and Teams State
   const [ownerId, setOwnerId] = useState("");
@@ -228,9 +229,10 @@ function CreateProjectPage() {
         });
       }
 
-      // Add Team Members of selected teams
+      // Add Associated Teams and Team Members of selected teams
       for (const teamId of selectedTeamIds) {
         try {
+          await addProjectTeam.mutateAsync({ projectId: proj.id, teamId });
           const teamMembers = await apiRequest<any[]>(`/teams/${teamId}/members`);
           for (const tm of teamMembers) {
             if (tm.userId && tm.userId !== ownerId && tm.userId !== currentUserId) {
@@ -238,7 +240,7 @@ function CreateProjectPage() {
             }
           }
         } catch (teamErr) {
-          console.error("Failed to add members for team", teamId, teamErr);
+          console.error("Failed to associate team or add members", teamId, teamErr);
         }
       }
 

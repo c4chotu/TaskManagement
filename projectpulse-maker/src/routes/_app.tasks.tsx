@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+﻿import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Topbar } from "@/components/tfp/topbar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -517,7 +517,7 @@ function TasksPage() {
                         <h1 className="text-xl font-bold tracking-tight text-foreground">Task Overview</h1>
                         <p className="text-xs text-muted-foreground mt-0.5">Track and manage your tasks efficiently</p>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-4 shrink-0">
                         <ZViewSwitcher value={view} onChange={setView} />
                         <Button size="sm" onClick={() => nav({ to: "/tasks/new" })} className="h-8 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white font-semibold shadow-[0_4px_12px_-2px_rgba(16,185,129,0.5)] border-0 text-xs">
                           <Plus className="mr-1 h-3.5 w-3.5" /> New Task

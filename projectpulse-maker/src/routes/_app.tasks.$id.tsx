@@ -57,13 +57,14 @@ import { SeverityBadge } from "@/components/tfp/badges";
 import { DatePicker } from "@/components/ui/date-picker";
 import { AttachmentsPanel } from "@/components/tfp/attachments-panel";
 import { TaskStatusSelect } from "@/components/tfp/task-quick-edit";
+import { AuthenticatedImage } from "@/components/tfp/authenticated-image";
 
 export const Route = createFileRoute("/_app/tasks/$id")({
   head: () => ({ meta: [{ title: "Task Details — TaskFlow Pro" }] }),
   component: TaskDetail,
 });
 
-function renderContentWithImagesAndLinks(text: string) {
+export function renderContentWithImagesAndLinks(text: string) {
   if (!text) return null;
   const unionRegex = /(!\[([^\]]*)\]\(([^)]+)\))|(\[([^\]]+)\]\(([^)]+)\))/g;
   const parts = [];
@@ -80,7 +81,7 @@ function renderContentWithImagesAndLinks(text: string) {
       const url = match[3];
       parts.push(
         <div key={matchIndex} className="my-2 max-w-full overflow-hidden rounded-lg border border-border bg-black/5">
-          <img src={url} alt={alt || "image"} className="max-h-[300px] object-contain hover:scale-[1.01] transition-transform duration-200" />
+          <AuthenticatedImage src={url} alt={alt || "image"} className="max-h-[300px] object-contain hover:scale-[1.01] transition-transform duration-200" />
         </div>
       );
     } else if (match[4]) {
@@ -270,6 +271,10 @@ function TaskDetail() {
     );
 
   const status = statuses.find((s) => s.id === task.statusId);
+  // Lock task if its status is in the COMPLETED category
+  const isClosed = status?.category === "COMPLETED";
+  const initialAssignee = task.assigneeIds[0] ? users.find(u => u.id === task.assigneeIds[0]) : null;
+
   const taskEntries = timeEntries.filter((e) => e.taskId === id);
   const totalLogged = taskEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
 
@@ -667,6 +672,33 @@ function TaskDetail() {
                   </div>
                 </div>
 
+                {/* ── Closed Task Banner ── */}
+                {isClosed && (
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/8 px-4 py-3 animate-in fade-in duration-300">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-emerald-600">Task Closed — Read Only</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          This task is marked as <span className="font-semibold text-emerald-600">{status?.name}</span>. Editing is locked.
+                          {initialAssignee && (
+                            <> Assigned to <span className="font-semibold text-foreground">{initialAssignee.name}</span>.</>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0 h-7 text-[10px] font-bold border-amber-500/30 text-amber-600 hover:bg-amber-500/10 gap-1.5"
+                      onClick={() => setIsCreateIssueOpen(true)}
+                    >
+                      <ShieldAlert className="h-3 w-3" />
+                      Create Issue
+                    </Button>
+                  </div>
+                )}
+
                 {/* Description Accordion (collapsible) */}
                 <div className="border border-border/50 rounded-xl overflow-hidden bg-card/40 backdrop-blur-sm">
                   <div className="w-full flex items-center justify-between px-4 py-3 bg-muted/10 border-b border-border/30">
@@ -740,10 +772,12 @@ function TaskDetail() {
                           {task.description ? renderContentWithImagesAndLinks(task.description) : (
                             <span className="text-muted-foreground italic">No description. Click edit button to add one.</span>
                           )}
-                          <Button variant="ghost" size="icon" className="h-6 w-6 absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground"
-                            onClick={() => { setEditDescVal(task.description || ""); setIsEditingDesc(true); }}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
+                          {!isClosed && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6 absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground"
+                              onClick={() => { setEditDescVal(task.description || ""); setIsEditingDesc(true); }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1263,10 +1297,11 @@ function TaskDetail() {
                         <div className="grid grid-cols-[100px_1fr] items-center">
                           <span className="font-medium text-muted-foreground uppercase text-[9px] tracking-wider">Priority</span>
                           <Select value={task.priority || "MEDIUM"} onValueChange={async (prio) => {
+                            if (isClosed) return;
                             await updateTask.mutateAsync({ id, patch: { priority: prio === "NONE" ? undefined : (prio as any) } });
                             toast.success("Priority updated");
-                          }}>
-                            <SelectTrigger className="h-7 text-xs bg-transparent border-transparent hover:bg-muted/40 py-0 px-2 rounded-md font-semibold"><SelectValue /></SelectTrigger>
+                          }} disabled={isClosed}>
+                            <SelectTrigger className={`h-7 text-xs py-0 px-2 rounded-md font-semibold ${isClosed ? "opacity-60 cursor-not-allowed bg-muted/20 border-muted" : "bg-transparent border-transparent hover:bg-muted/40"}`}><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="CRITICAL" className="text-red-500 font-bold">Critical</SelectItem>
                               <SelectItem value="HIGH" className="text-orange-500 font-bold">High</SelectItem>
@@ -1281,10 +1316,11 @@ function TaskDetail() {
                         <div className="grid grid-cols-[100px_1fr] items-center">
                           <span className="font-medium text-muted-foreground uppercase text-[9px] tracking-wider">Owner</span>
                           <Select value={currentAssigneeId} onValueChange={async (userId) => {
+                            if (isClosed) return;
                             await reassign.mutateAsync({ taskId: id, userId: userId === "_none" ? "" : userId });
                             toast.success("Owner updated");
-                          }}>
-                            <SelectTrigger className="h-7 text-xs bg-transparent border-transparent hover:bg-muted/40 py-0 px-2 rounded-md font-semibold"><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                          }} disabled={isClosed}>
+                            <SelectTrigger className={`h-7 text-xs py-0 px-2 rounded-md font-semibold ${isClosed ? "opacity-60 cursor-not-allowed bg-muted/20 border-muted" : "bg-transparent border-transparent hover:bg-muted/40"}`}><SelectValue placeholder="Unassigned" /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="_none">Unassigned</SelectItem>
                               {filteredUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
@@ -1296,10 +1332,11 @@ function TaskDetail() {
                         <div className="grid grid-cols-[100px_1fr] items-center">
                           <span className="font-medium text-muted-foreground uppercase text-[9px] tracking-wider">Team</span>
                           <Select value={task.teamId || "_none"} onValueChange={async (tId) => {
+                            if (isClosed) return;
                             await updateTask.mutateAsync({ id, patch: { teamId: tId === "_none" ? undefined : tId } });
                             toast.success("Team updated");
-                          }}>
-                            <SelectTrigger className="h-7 text-xs bg-transparent border-transparent hover:bg-muted/40 py-0 px-2 rounded-md font-semibold"><SelectValue placeholder="No team" /></SelectTrigger>
+                          }} disabled={isClosed}>
+                            <SelectTrigger className={`h-7 text-xs py-0 px-2 rounded-md font-semibold ${isClosed ? "opacity-60 cursor-not-allowed bg-muted/20 border-muted" : "bg-transparent border-transparent hover:bg-muted/40"}`}><SelectValue placeholder="No team" /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="_none">No Team</SelectItem>
                               {teams.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}

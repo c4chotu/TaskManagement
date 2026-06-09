@@ -18,6 +18,7 @@ import {
   ChevronDown, ChevronRight, ListPlus, FolderKanban, SlidersHorizontal, X
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { tokenStore } from "@/lib/api";
 
 export const Route = createFileRoute("/_app/reports")({
   head: () => ({ meta: [{ title: "Reports & Data Grid — TaskFlow Pro" }] }),
@@ -255,11 +256,12 @@ function ReportsPage() {
     setIsExporting(true);
     setDownloadJobId(null);
     try {
+      const token = tokenStore.get();
       const res = await fetch("/api/v1/reports/export-async", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("tfp_token")}`
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           projectId: selectedProject === "all" ? null : selectedProject,
@@ -289,8 +291,9 @@ function ReportsPage() {
     
     const interval = setInterval(async () => {
       try {
+        const token = tokenStore.get();
         const res = await fetch(`/api/v1/reports/export-async/${downloadJobId}`, {
-          headers: { "Authorization": `Bearer ${localStorage.getItem("tfp_token")}` }
+          headers: token ? { "Authorization": `Bearer ${token}` } : {}
         });
         if (res.ok) {
           const data = await res.json();
