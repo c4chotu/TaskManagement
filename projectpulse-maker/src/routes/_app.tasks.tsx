@@ -1,4 +1,4 @@
-﻿import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Topbar } from "@/components/tfp/topbar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useMemo, useState } from "react";
-import { useProjects, useStatuses, useTasks, useUpdateTaskStatus, useSprints, useUsers, useUpdateTask, useProjectMembers, useTeams } from "@/lib/queries";
+import { useProjects, useStatuses, useTasks, useUpdateTaskStatus, useSprints, useUsers, useUpdateTask, useProjectMembers, useTeams, usePhases } from "@/lib/queries";
 import { format, isAfter } from "date-fns";
 import {
   Search, Plus, Filter, Layers, Settings2, Tag,
@@ -233,10 +233,41 @@ function TasksPage() {
   const { data: tasks = [] } = useTasks(filterParams);
   const { data: statuses = [] } = useStatuses();
   const { data: projects = [] } = useProjects();
-  const { data: phases = [] } = useSprints(); // Used as phases/sprints for filter
+  const { data: sprints = [] } = useSprints();
+  const { data: phasesList = [] } = usePhases();
+  const allPhasesAndSprints = useMemo(() => [...sprints, ...phasesList], [sprints, phasesList]);
+  const phases = allPhasesAndSprints; // Alias to keep compatibility
   const { data: users = [] } = useUsers();
   const { data: teams = [] } = useTeams();
   const updateStatus = useUpdateTaskStatus();
+
+  const statusGroups = useMemo(() => {
+    const todoIds: string[] = [];
+    const progressIds: string[] = [];
+    const reviewIds: string[] = [];
+    const doneIds: string[] = [];
+
+    statuses.forEach(s => {
+      const nameLower = s.name.toLowerCase();
+      const cat = (s.category || "").toUpperCase();
+
+      if (cat === "COMPLETED" || nameLower.includes("closed") || nameLower === "done") {
+        doneIds.push(s.id);
+      } else if (nameLower.includes("review") || nameLower.includes("qa") || nameLower.includes("deploy") || cat === "BLOCKED" || nameLower.includes("blocked")) {
+        reviewIds.push(s.id);
+      } else if (cat === "PLANNING" || nameLower.includes("backlog") || nameLower.includes("to do") || nameLower === "todo" || nameLower === "open" || nameLower === "reopened") {
+        todoIds.push(s.id);
+      } else {
+        progressIds.push(s.id);
+      }
+    });
+
+    return { todoIds, progressIds, reviewIds, doneIds };
+  }, [statuses]);
+
+  const isDoneStatus = (statusId: string) => {
+    return statusGroups.doneIds.includes(statusId) || statusId === "s-done";
+  };
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -385,9 +416,9 @@ function TasksPage() {
       });
 
       // filter quick filter mode (all, open, closed, overdue)
-      if (filter === "open" && t.statusId === "s-done") return false;
-      if (filter === "closed" && t.statusId !== "s-done") return false;
-      if (filter === "overdue" && (!t.dueDate || isAfter(new Date(t.dueDate), today) || t.statusId === "s-done")) return false;
+      if (filter === "open" && isDoneStatus(t.statusId)) return false;
+      if (filter === "closed" && !isDoneStatus(t.statusId)) return false;
+      if (filter === "overdue" && (!t.dueDate || isAfter(new Date(t.dueDate), today) || isDoneStatus(t.statusId))) return false;
 
       // evaluate active checks based on matchMode
       const activeChecks = checks.filter(c => c.active);
@@ -399,12 +430,12 @@ function TasksPage() {
         return activeChecks.some(c => c.matches);
       }
     });
-  }, [tasks, q, filter, filterTaskName, filterProjects, filterProjectGroups, filterProjectStatuses, filterStatuses, filterCompletionPercentage, filterCompletionOperator, filterAssignees, filterTeams, filterPriorities, filterPriorityOperator, filterStartDateOperator, filterDueDateStart, filterDueDateEnd, filterTimeSpanOperator, filterTimeSpanVal, filterRecurrences, matchMode, projects]);
+  }, [tasks, q, filter, filterTaskName, filterProjects, filterProjectGroups, filterProjectStatuses, filterStatuses, filterCompletionPercentage, filterCompletionOperator, filterAssignees, filterTeams, filterPriorities, filterPriorityOperator, filterStartDateOperator, filterDueDateStart, filterDueDateEnd, filterTimeSpanOperator, filterTimeSpanVal, filterRecurrences, matchMode, projects, statusGroups]);
 
   // Quick stats for hero
-  const totalActive = filtered.filter(t => t.statusId !== "s-done").length;
-  const totalCompleted = tasks.filter(t => t.taskType === "TASK" && t.statusId === "s-done").length;
-  const overdueCount = tasks.filter(t => t.taskType === "TASK" && t.dueDate && isAfter(new Date(), new Date(t.dueDate)) && t.statusId !== "s-done").length;
+  const totalActive = filtered.filter(t => !isDoneStatus(t.statusId)).length;
+  const totalCompleted = tasks.filter(t => t.taskType === "TASK" && isDoneStatus(t.statusId)).length;
+  const overdueCount = tasks.filter(t => t.taskType === "TASK" && t.dueDate && isAfter(new Date(), new Date(t.dueDate)) && !isDoneStatus(t.statusId)).length;
 
   // Grouped (for list view)
   const groups = useMemo(() => {
@@ -424,14 +455,36 @@ function TasksPage() {
       return buckets.map((b) => ({ ...b, items: filtered.filter((t) => (t.priority ?? "MEDIUM") === b.key) })).filter((g) => g.items.length);
     }
     if (groupBy === "category") {
-      const cats = Array.from(new Set(filtered.map((t) => t.category ?? "UNCATEGORIZED")));
-      return cats.map((cat) => ({ key: cat, label: cat, color: "#8b5cf6", items: filtered.filter((t) => (t.category ?? "UNCATEGORIZED") === cat) })).filter((g) => g.items.length);
+      const getTaskListGroup = (t: any) => {
+        if (t.category && t.category !== "none") return t.category;
+        if (t.phaseId && t.phaseId !== "none") {
+          const ph = allPhasesAndSprints.find(p => p.id.toLowerCase() === t.phaseId.toLowerCase());
+          return ph ? ph.name : t.phaseId;
+        }
+        if (t.sprintId && t.sprintId !== "none") {
+          const sp = allPhasesAndSprints.find(p => p.id.toLowerCase() === t.sprintId.toLowerCase());
+          return sp ? sp.name : t.sprintId;
+        }
+        return "No TaskList";
+      };
+
+      const cats = Array.from(new Set(filtered.map(getTaskListGroup)));
+      return cats.map((cat) => ({
+        key: cat,
+        label: cat,
+        color: "#8b5cf6",
+        items: filtered.filter((t) => getTaskListGroup(t) === cat)
+      })).filter((g) => g.items.length);
     }
     if (groupBy === "phase") {
-      const phaseIds = Array.from(new Set(filtered.map((t) => t.sprintId ?? "_no_phase")));
+      const getPhaseId = (t: any) => {
+        const id = t.phaseId || t.sprintId;
+        return (id && id !== "none") ? id.toLowerCase() : "_no_phase";
+      };
+      const phaseIds = Array.from(new Set(filtered.map(getPhaseId)));
       return phaseIds.map((pid) => {
-        const ph = phases.find((p) => p.id === pid);
-        return { key: pid, label: ph?.name ?? (pid === "_no_phase" ? "No Phase" : pid), color: "#06b6d4", items: filtered.filter((t) => (t.sprintId ?? "_no_phase") === pid) };
+        const ph = phases.find((p) => p.id.toLowerCase() === pid);
+        return { key: pid, label: ph?.name ?? (pid === "_no_phase" ? "No Phase" : pid), color: "#06b6d4", items: filtered.filter((t) => getPhaseId(t) === pid) };
       }).filter((g) => g.items.length);
     }
     if (groupBy === "assignee") {
@@ -463,7 +516,7 @@ function TasksPage() {
   // Task icon color per status category
   const getTaskIcon = (t: typeof filtered[0]) => {
     const s = statuses.find((x) => x.id === t.statusId);
-    const isDone = t.statusId === "s-done" || s?.name?.toLowerCase().includes("done");
+    const isDone = isDoneStatus(t.statusId) || s?.name?.toLowerCase().includes("done");
     return isDone ? (
       <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-emerald-500/15 border border-emerald-500/20 shrink-0">
         <Check className="h-4 w-4 text-emerald-500" />
@@ -497,18 +550,138 @@ function TasksPage() {
               {/* Task Overview Strip */}
               <div className="px-6 pt-5 pb-3 flex-shrink-0">
                 <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/30 dark:from-card dark:via-card dark:to-emerald-950/20 p-5 shadow-sm">
-                  {/* Decorative clipboard illustration */}
-                  <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none opacity-70 hidden md:block">
-                    <svg width="120" height="100" viewBox="0 0 160 130" fill="none">
-                      <rect x="30" y="20" width="90" height="100" rx="8" fill="white" stroke="#10b981" strokeWidth="2"/>
-                      <rect x="55" y="10" width="40" height="18" rx="4" fill="#10b981"/>
-                      <line x1="45" y1="50" x2="105" y2="50" stroke="#10b981" strokeWidth="2" strokeLinecap="round" opacity="0.4"/>
-                      <line x1="45" y1="65" x2="95" y2="65" stroke="#10b981" strokeWidth="2" strokeLinecap="round" opacity="0.4"/>
-                      <line x1="45" y1="80" x2="100" y2="80" stroke="#10b981" strokeWidth="2" strokeLinecap="round" opacity="0.4"/>
-                      <circle cx="135" cy="35" r="4" fill="#fbbf24"/>
-                      <circle cx="145" cy="55" r="3" fill="#34d399"/>
-                      <circle cx="20" cy="100" r="5" fill="#a78bfa" opacity="0.5"/>
-                    </svg>
+                  {/* Decorative clipboard illustration with interactive + button */}
+                  <div className="absolute right-6 top-[7.5rem] -translate-y-1/2 opacity-95 hidden md:block z-10 anim-hover-wrapper">
+                    <style>{`
+                      @import url('https://fonts.googleapis.com/css2?family=Yatra+One&family=Caveat:wght@700&display=swap');
+                      .font-namaste { font-family: 'Yatra One', 'Caveat', cursive; }
+
+                      /* ── ruled lines: visible by default, fade out on hover ── */
+                      .cb-line {
+                        transition: opacity 0.3s ease;
+                        opacity: 1;
+                      }
+                      .anim-hover-wrapper:hover .cb-line { opacity: 0; }
+
+                      /* ── dot pulses ── */
+                      @keyframes dotPulse1 { 0%,100%{r:4;opacity:1} 50%{r:6;opacity:.7} }
+                      @keyframes dotPulse2 { 0%,100%{r:3;opacity:1} 50%{r:5;opacity:.7} }
+                      @keyframes dotPulse3 { 0%,100%{r:5;opacity:.5} 50%{r:7.5;opacity:.3} }
+                      .dot-y { animation: dotPulse1 2s ease-in-out infinite; }
+                      .dot-g { animation: dotPulse2 2s ease-in-out 0.6s infinite; }
+                      .dot-p { animation: dotPulse3 2s ease-in-out 1.2s infinite; }
+
+                      /* ── typewriter widths ── */
+                      @keyframes typeLine1 { from{width:0} to{width:52px} }
+                      @keyframes typeLine2 { from{width:0} to{width:36px} }
+
+                      /* ── fade out after written ── */
+                      @keyframes fadeOut {
+                        0%,75%{opacity:1} 100%{opacity:0}
+                      }
+
+                      /* ── single pencil journey: line1 → snap down → line2 → fade ──
+                         Total duration: 1.6s
+                         0%–47%  : slide right on line 1  (0s → 0.75s)
+                         47%–53% : jump down to line 2    (invisible snap)
+                         53%–87% : slide right on line 2  (0.85s → 1.4s)
+                         87%–100%: fade out               (1.4s → 1.6s)
+                      */
+                      @keyframes pencilJourney {
+                        0%   { left: 28px; top: 38px; opacity: 0; }
+                        3%   { opacity: 1; }
+                        47%  { left: 82px; top: 38px; opacity: 1; }
+                        48%  { left: 82px; top: 38px; opacity: 0; }
+                        52%  { left: 28px; top: 54px; opacity: 0; }
+                        53%  { left: 28px; top: 54px; opacity: 1; }
+                        87%  { left: 66px; top: 54px; opacity: 1; }
+                        100% { left: 70px; top: 54px; opacity: 0; }
+                      }
+
+                      /* ── caret blink ── */
+                      @keyframes blinkCaret {
+                        from,to{border-color:transparent} 50%{border-color:#10b981}
+                      }
+
+                      /* text base */
+                      .type-l1, .type-l2 {
+                        display: inline-block;
+                        overflow: hidden;
+                        white-space: nowrap;
+                        width: 0;
+                        font-size: 11px;
+                        line-height: 1.5;
+                        border-right: 2px solid transparent;
+                      }
+
+                      /* pencil base — single element */
+                      .pencil-one {
+                        position: absolute;
+                        font-size: 13px;
+                        opacity: 0;
+                        pointer-events: none;
+                        filter: drop-shadow(0 1px 2px rgba(0,0,0,.15));
+                        transform: rotate(40deg);
+                        line-height: 1;
+                      }
+
+                      /* ── on hover ── */
+                      .anim-hover-wrapper:hover .type-l1 {
+                        animation:
+                          typeLine1 0.75s steps(6) 0.3s forwards,
+                          blinkCaret 0.45s step-end 0.3s 2,
+                          fadeOut 3s ease 1.05s forwards;
+                      }
+                      .anim-hover-wrapper:hover .type-l2 {
+                        animation:
+                          typeLine2 0.55s steps(4) 1.15s forwards,
+                          blinkCaret 0.45s step-end 1.15s 3,
+                          fadeOut 3s ease 1.7s forwards;
+                      }
+                      /* single pencil over full journey */
+                      .anim-hover-wrapper:hover .pencil-one {
+                        animation: pencilJourney 1.6s linear 0.3s forwards;
+                      }
+                    `}</style>
+
+                    <div className="relative w-[120px] h-[100px]">
+                      {/* SVG clipboard — lines fade on hover */}
+                      <svg width="120" height="100" viewBox="0 0 160 130" fill="none" className="pointer-events-none absolute inset-0">
+                        <rect x="30" y="20" width="90" height="100" rx="8" fill="white" stroke="#10b981" strokeWidth="2" className="dark:fill-slate-900" />
+                        <rect x="55" y="10" width="40" height="18" rx="4" fill="#10b981" />
+                        {/* ruled lines — visible initially, hide on hover */}
+                        <line className="cb-line" x1="45" y1="52" x2="105" y2="52" stroke="#10b981" strokeWidth="1.8" strokeLinecap="round" opacity="0.35" />
+                        <line className="cb-line" x1="45" y1="67" x2="98"  y2="67" stroke="#10b981" strokeWidth="1.8" strokeLinecap="round" opacity="0.35" />
+                        <line className="cb-line" x1="45" y1="82" x2="102" y2="82" stroke="#10b981" strokeWidth="1.8" strokeLinecap="round" opacity="0.35" />
+                        {/* pulsing dots */}
+                        <circle cx="135" cy="35" r="4" fill="#fbbf24" className="dot-y" />
+                        <circle cx="145" cy="55" r="3" fill="#34d399" className="dot-g" />
+                        <circle cx="20"  cy="100" r="5" fill="#a78bfa" className="dot-p" />
+                      </svg>
+
+                      {/* Single pencil — travels across both lines */}
+                      <span className="pencil-one">✏️</span>
+
+                      {/* Two-line typewriter text inside clipboard body */}
+                      <div className="absolute left-[28px] top-[33px] pointer-events-none flex flex-col gap-[5px]">
+                        <span className="type-l1 font-namaste font-bold text-emerald-600 dark:text-emerald-400 tracking-wide">
+                          Create
+                        </span>
+                        <span className="type-l2 font-namaste font-bold text-emerald-700 dark:text-emerald-300 tracking-wide">
+                          Task
+                        </span>
+                      </div>
+
+                      {/* + button at the clipboard clip */}
+                      <button
+                        onClick={() => nav({ to: "/tasks/new" })}
+                        className="absolute left-[40px] top-[0px] h-8 w-8 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg border border-white/20 flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 group/btn cursor-pointer"
+                        title="New Task"
+                      >
+                        <Plus className="h-4.5 w-4.5 transition-transform group-hover/btn:rotate-90 duration-300" />
+                        <span className="absolute -inset-1 rounded-full border border-primary/50 animate-ping opacity-60 pointer-events-none"></span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="relative flex flex-col gap-4">
@@ -519,7 +692,7 @@ function TasksPage() {
                       </div>
                       <div className="flex items-center gap-4 shrink-0">
                         <ZViewSwitcher value={view} onChange={setView} />
-                        <Button size="sm" onClick={() => nav({ to: "/tasks/new" })} className="h-8 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white font-semibold shadow-[0_4px_12px_-2px_rgba(16,185,129,0.5)] border-0 text-xs">
+                        <Button size="sm" onClick={() => nav({ to: "/tasks/new" })} className="h-8 rounded-lg bg-gradient-to-r from-primary to-primary/90 hover:from-primary hover:to-primary/80 text-primary-foreground font-semibold shadow-[0_4px_12px_-2px_hsl(var(--primary)/0.5)] border-0 text-xs md:hidden">
                           <Plus className="mr-1 h-3.5 w-3.5" /> New Task
                         </Button>
                       </div>
@@ -529,10 +702,10 @@ function TasksPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 max-w-3xl">
                       {[
                         { key: "all", label: "All Tasks", value: tasks.filter(t => t.taskType === "TASK").length, color: "emerald", filterFn: () => { setFilter("all"); setFilterStatuses([]); } },
-                        { key: "todo", label: "To Do", value: tasks.filter(t => t.taskType === "TASK" && (t.statusId === "s-todo" || t.statusId === "s-open")).length, color: "amber", filterFn: () => { setFilter("open"); setFilterStatuses(["s-todo", "s-open"]); } },
-                        { key: "progress", label: "In Progress", value: tasks.filter(t => t.taskType === "TASK" && (t.statusId === "s-progress" || t.statusId === "s-in-progress")).length, color: "orange", filterFn: () => { setFilter("open"); setFilterStatuses(["s-progress", "s-in-progress"]); } },
-                        { key: "review", label: "In Review", value: tasks.filter(t => t.taskType === "TASK" && t.statusId === "s-review").length, color: "violet", filterFn: () => { setFilter("open"); setFilterStatuses(["s-review"]); } },
-                        { key: "done", label: "Done", value: tasks.filter(t => t.taskType === "TASK" && t.statusId === "s-done").length, color: "blue", filterFn: () => { setFilter("closed"); setFilterStatuses(["s-done"]); } },
+                        { key: "todo", label: "To Do", value: tasks.filter(t => t.taskType === "TASK" && (statusGroups.todoIds.includes(t.statusId) || t.statusId === "s-todo" || t.statusId === "s-open")).length, color: "amber", filterFn: () => { setFilter("open"); setFilterStatuses(statusGroups.todoIds); } },
+                        { key: "progress", label: "In Progress", value: tasks.filter(t => t.taskType === "TASK" && (statusGroups.progressIds.includes(t.statusId) || t.statusId === "s-progress" || t.statusId === "s-in-progress")).length, color: "orange", filterFn: () => { setFilter("open"); setFilterStatuses(statusGroups.progressIds); } },
+                        { key: "review", label: "In Review", value: tasks.filter(t => t.taskType === "TASK" && (statusGroups.reviewIds.includes(t.statusId) || t.statusId === "s-review")).length, color: "violet", filterFn: () => { setFilter("open"); setFilterStatuses(statusGroups.reviewIds); } },
+                        { key: "done", label: "Done", value: tasks.filter(t => t.taskType === "TASK" && isDoneStatus(t.statusId)).length, color: "blue", filterFn: () => { setFilter("closed"); setFilterStatuses(statusGroups.doneIds); } },
                       ].map((s) => {
                         const palettes: Record<string, string> = {
                           emerald: "from-emerald-50 to-emerald-100/50 dark:from-emerald-950/40 dark:to-emerald-900/20 border-emerald-200/60 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400",
@@ -603,7 +776,7 @@ function TasksPage() {
                       <DropdownMenuTrigger asChild>
                         <button className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground bg-background/50 transition-all hover-lift">
                           <Layers className="h-3.5 w-3.5" />
-                          Group: <span className="text-foreground font-semibold capitalize">{groupBy === "none" ? "None" : groupBy}</span>
+                          Group: <span className="text-foreground font-semibold capitalize">{groupBy === "none" ? "None" : groupBy === "category" ? "TaskList" : groupBy}</span>
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
@@ -612,7 +785,7 @@ function TasksPage() {
                         {(["status", "project", "priority", "assignee", "category", "phase", "none"] as GroupBy[]).map(g => (
                           <DropdownMenuItem key={g} onClick={() => setGroupBy(g)} className="text-xs capitalize cursor-pointer">
                             {groupBy === g && <Check className="h-3 w-3 mr-2" />}
-                            {g === "none" ? "No Grouping" : g}
+                            {g === "none" ? "No Grouping" : g === "category" ? "TaskList" : g}
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -640,7 +813,7 @@ function TasksPage() {
                               });
                             }}
                           >
-                            <span className="capitalize">{col.replace(/([A-Z])/g, " $1")}</span>
+                            <span className="capitalize">{col === "category" ? "TaskList" : col.replace(/([A-Z])/g, " $1")}</span>
                             {visibleColumns[col] && <Check className="h-3.5 w-3.5 text-primary" />}
                           </DropdownMenuItem>
                         ))}
@@ -781,7 +954,7 @@ function TasksPage() {
                                         </button>
                                       </div>
                                     )}
-                                    {visibleColumns.category && <div>Category</div>}
+                                    {visibleColumns.category && <div>TaskList</div>}
                                     {visibleColumns.storyPoints && <div>Story Points</div>}
                                     {visibleColumns.taskType && <div>Task Type</div>}
                                     <div className="pr-4" />
@@ -793,7 +966,7 @@ function TasksPage() {
                                     const s = statuses.find((x) => x.id === t.statusId);
                                     const pct = t.estimatedHours && t.estimatedHours > 0
                                       ? Math.min(100, Math.round(((t.loggedHours ?? 0) / t.estimatedHours) * 100)) : 0;
-                                    const isDone = s?.name?.toLowerCase().includes("done") || t.statusId === "s-done";
+                                    const isDone = isDoneStatus(t.statusId) || s?.name?.toLowerCase().includes("done");
 
                                     return (
                                       <div key={t.id}
@@ -988,15 +1161,36 @@ function TasksPage() {
                                             <DropdownMenu>
                                               <DropdownMenuTrigger asChild>
                                                 <button className="focus:outline-none transition-transform active:scale-95 text-[11px] hover:bg-muted/40 px-2 py-0.5 rounded border border-transparent hover:border-border/40">
-                                                  {t.category ? (
-                                                    <span className="font-semibold text-primary truncate max-w-[80px] block">
-                                                      {t.category}
-                                                    </span>
-                                                  ) : <span className="text-muted-foreground">—</span>}
+                                                  {(() => {
+                                                    if (t.category) {
+                                                      return (
+                                                        <span className="font-semibold text-primary truncate max-w-[80px] block">
+                                                          {t.category}
+                                                        </span>
+                                                      );
+                                                    }
+                                                    if (t.phaseId && t.phaseId !== "none") {
+                                                      const ph = allPhasesAndSprints.find(p => p.id.toLowerCase() === t.phaseId?.toLowerCase());
+                                                      return (
+                                                        <span className="font-semibold text-cyan-600 truncate max-w-[80px] block">
+                                                          {ph ? ph.name : t.phaseId}
+                                                        </span>
+                                                      );
+                                                    }
+                                                    if (t.sprintId && t.sprintId !== "none") {
+                                                      const sp = allPhasesAndSprints.find(p => p.id.toLowerCase() === t.sprintId?.toLowerCase());
+                                                      return (
+                                                        <span className="font-semibold text-indigo-600 truncate max-w-[80px] block">
+                                                          {sp ? sp.name : t.sprintId}
+                                                        </span>
+                                                      );
+                                                    }
+                                                    return <span className="text-muted-foreground">—</span>;
+                                                  })()}
                                                 </button>
                                               </DropdownMenuTrigger>
                                               <DropdownMenuContent align="start">
-                                                <DropdownMenuLabel className="text-[10px] uppercase">Set Category</DropdownMenuLabel>
+                                                <DropdownMenuLabel className="text-[10px] uppercase">Set TaskList</DropdownMenuLabel>
                                                 <DropdownMenuSeparator />
                                                 {ALL_CATEGORIES.map(cat => (
                                                   <DropdownMenuItem
@@ -1147,9 +1341,23 @@ function TasksPage() {
                           {filtered.filter((t) => t.statusId === col.id).map((t) => (
                             <div key={t.id} onClick={() => nav({ to: "/tasks/$id", params: { id: t.id } })}
                               className="rounded-xl border border-border bg-background p-2.5 text-xs shadow-sm hover:border-primary/30 hover:shadow-md transition-all cursor-pointer">
-                              {t.category && (
-                                <span className="inline-block mb-1 text-[8px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">{t.category}</span>
-                              )}
+                              {(() => {
+                                const taskListName = t.category
+                                  ? t.category
+                                  : (t.phaseId && t.phaseId !== "none"
+                                    ? (allPhasesAndSprints.find(p => p.id.toLowerCase() === t.phaseId?.toLowerCase())?.name || t.phaseId)
+                                    : (t.sprintId && t.sprintId !== "none"
+                                      ? (allPhasesAndSprints.find(p => p.id.toLowerCase() === t.sprintId?.toLowerCase())?.name || t.sprintId)
+                                      : null
+                                    )
+                                  );
+                                if (!taskListName) return null;
+                                return (
+                                  <span className="inline-block mb-1 text-[8px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+                                    {taskListName}
+                                  </span>
+                                );
+                              })()}
                               <p className="font-medium leading-snug">{t.title}</p>
                               <div className="mt-2 flex items-center justify-between">
                                 <ZPriorityPill p={t.priority} />

@@ -37,6 +37,12 @@ public class User {
     @Column(name = "organization_id", nullable = false)
     private UUID organizationId;
 
+    @Column(name = "reset_token")
+    private String resetToken;
+
+    @Column(name = "reset_token_expires_at")
+    private java.time.Instant resetTokenExpiresAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

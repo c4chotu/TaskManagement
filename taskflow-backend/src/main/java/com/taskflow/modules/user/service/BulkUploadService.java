@@ -235,7 +235,15 @@ public class BulkUploadService {
 
                 String phaseIdStr = row.getOrDefault("phaseid", "");
                 if (!phaseIdStr.isEmpty()) {
-                    try { req.setSprintId(UUID.fromString(phaseIdStr)); } catch (Exception ignored) {}
+                    try {
+                        UUID uuid = UUID.fromString(phaseIdStr);
+                        String pType = project.getType();
+                        if ("WATERFALL".equalsIgnoreCase(pType) || "SOFTWARE".equalsIgnoreCase(pType)) {
+                            req.setPhaseId(uuid);
+                        } else {
+                            req.setSprintId(uuid);
+                        }
+                    } catch (Exception ignored) {}
                 }
 
                 String statusIdStr = row.getOrDefault("statusid", "");

@@ -1,5 +1,7 @@
 package com.taskflow.modules.auth.controller;
 
+import com.taskflow.modules.auth.dto.ForgotPasswordRequest;
+import com.taskflow.modules.auth.dto.ResetPasswordRequest;
 import com.taskflow.modules.auth.dto.LoginRequest;
 import com.taskflow.modules.auth.dto.LoginResponse;
 import com.taskflow.modules.auth.dto.RefreshRequest;
@@ -35,5 +37,15 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<LoginResponse> refresh(@Valid @RequestBody RefreshRequest request) {
         return ResponseEntity.ok(authService.refresh(request.getRefreshToken()));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<java.util.Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        return ResponseEntity.ok(authService.forgotPassword(request));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<java.util.Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        return ResponseEntity.ok(authService.resetPassword(request));
     }
 }

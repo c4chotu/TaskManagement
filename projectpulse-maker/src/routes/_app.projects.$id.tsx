@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import { useIssues, useProject, useProjectMembers, useSprints, useStatuses, useTasks, useProjectAttachments, useUploadProjectAttachment, useDeleteProjectAttachment, useCreateSprint, useUpdateSprint, useUsers, useTimeEntries, useTeams, useAddProjectMember, useRemoveProjectMember, useProjectTeams, useAddProjectTeam, useRemoveProjectTeam } from "@/lib/queries";
-import { apiRequest, USE_MOCK } from "@/lib/api";
+import { useIssues, useProject, useProjectActivities, useProjectMembers, useSprints, useStatuses, useTasks, useProjectAttachments, useUploadProjectAttachment, useDeleteProjectAttachment, useCreateSprint, useUpdateSprint, useUsers, useTimeEntries, useTeams, useAddProjectMember, useRemoveProjectMember, useProjectTeams, useAddProjectTeam, useRemoveProjectTeam } from "@/lib/queries";
+import { apiRequest, USE_MOCK, showApiError } from "@/lib/api";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -18,11 +18,15 @@ import {
   Loader2, Zap, MessageSquare, GitBranch, UserCheck, Filter, Bell
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { TagAutocomplete } from "@/components/ui/tag-autocomplete";
 import { downloadAuthenticatedFile } from "@/components/tfp/attachments-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from "recharts";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 // ─── Activity Stream Types ───────────────────────────────────────────────────
 type ActivityEventType = "task_created" | "status_changed" | "comment_added" | "phase_activated" | "member_added" | "issue_created";
@@ -74,6 +78,7 @@ const milestones = [
 function ProjectDetail() {
   const { id } = Route.useParams();
   const { data: project } = useProject(id);
+  const { data: serverActivities = [] } = useProjectActivities(id);
   const { data: tasks = [] } = useTasks({ projectId: id });
   const { data: issues = [] } = useIssues();
   const { data: statuses = [] } = useStatuses(id);
@@ -108,39 +113,50 @@ function ProjectDetail() {
     };
   }, []);
 
-  // Seed activity from existing data on first load
+  // Synchronize with backend activity events when not in mock mode
   useEffect(() => {
-    if (tasks.length === 0 && sprints.length === 0) return;
-    if (activityBus.length > 0) return; // Already seeded
-    // Seed tasks
-    [...tasks].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).forEach(t => {
-      activityBus.push({
-        id: `seed-tc-${t.id}`,
-        type: "task_created",
-        taskId: t.id,
-        taskTitle: t.title,
-        taskDisplayId: t.displayId,
-        actor: t.assigneeIds[0] ? users.find(u => u.id === t.assigneeIds[0])?.name || "System" : "System",
-        at: t.createdAt,
-        message: `Task "${t.title}" was created`,
+    if (!USE_MOCK && serverActivities && serverActivities.length > 0) {
+      setActivityEvents(serverActivities);
+    }
+  }, [serverActivities]);
+
+  // Seed activity from existing data on first load (only in mock mode)
+  useEffect(() => {
+    if (USE_MOCK) {
+      if (tasks.length === 0 && sprints.length === 0) return;
+      if (activityBus.length > 0) return; // Already seeded
+      // Seed tasks
+      [...tasks].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).forEach(t => {
+        activityBus.push({
+          id: `seed-tc-${t.id}`,
+          type: "task_created",
+          taskId: t.id,
+          taskTitle: t.title,
+          taskDisplayId: t.displayId,
+          actor: t.assigneeIds[0] ? users.find(u => u.id === t.assigneeIds[0])?.name || "System" : "System",
+          at: t.createdAt,
+          message: `Task "${t.title}" was created`,
+        });
       });
-    });
-    // Seed activated sprints
-    sprints.filter(s => s.status === "ACTIVE" || s.status === "COMPLETED").forEach(s => {
-      activityBus.push({
-        id: `seed-sa-${s.id}`,
-        type: "phase_activated",
-        actor: "System",
-        at: s.startDate,
-        message: `Phase "${s.name}" was activated`,
+      // Seed activated sprints
+      sprints.filter(s => s.status === "ACTIVE" || s.status === "COMPLETED").forEach(s => {
+        activityBus.push({
+          id: `seed-sa-${s.id}`,
+          type: "phase_activated",
+          actor: "System",
+          at: s.startDate,
+          message: `Phase "${s.name}" was activated`,
+        });
       });
-    });
-    activityBus.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
-    setActivityEvents([...activityBus]);
+      activityBus.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+      setActivityEvents([...activityBus]);
+    }
   }, [tasks.length, sprints.length]);
 
   const [preview, setPreview] = useState<{ url: string; name: string; mime: string; blobUrl?: string } | null>(null);
   const [loadingPreview, setLoadingPreview] = useState<string | null>(null);
+  const [showOverviewAccordion, setShowOverviewAccordion] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const handlePreview = async (url: string, name: string, mime: string, fileId: string) => {
     if (USE_MOCK) {
@@ -152,7 +168,7 @@ function ProjectDetail() {
       const token = localStorage.getItem("tfp.accessToken");
       const headers: Record<string, string> = {};
       if (token) headers.Authorization = `Bearer ${token}`;
-      
+
       const res = await fetch(url, { headers });
       if (!res.ok) throw new Error("Preview failed to load");
       const blob = await res.blob();
@@ -244,6 +260,39 @@ function ProjectDetail() {
       toast.error("Failed to add phase.");
     }
   };
+
+  // Edit Project dialog state
+  const [editSpec, setEditSpec] = useState<string>("");
+  const [editFeatures, setEditFeatures] = useState<string[]>([]);
+  const [editTech, setEditTech] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (project) {
+      setEditSpec(project.specification || project.description || "");
+      setEditFeatures(Array.isArray(project.features) ? project.features : []);
+      setEditTech(Array.isArray(project.techStack) ? project.techStack : []);
+    }
+  }, [project]);
+
+  const handleSaveEdit = async () => {
+    if (!project) {
+      toast.error('Project not loaded');
+      return;
+    }
+    try {
+      await apiRequest(`/projects/${project.id}`, {
+        method: 'PATCH',
+        body: { specification: editSpec, features: editFeatures, techStack: editTech },
+      });
+      toast.success('Project updated');
+      setEditOpen(false);
+      // reload page
+      window.location.reload();
+    } catch (err) {
+      console.error('Project update failed', err);
+      showApiError(err, 'Failed to update project');
+    }
+  }
 
   // Must be declared before sprintsRoadmap which depends on it
   const completedStatusIds = useMemo(() => {
@@ -387,7 +436,7 @@ function ProjectDetail() {
   return (
     <>
       <Topbar title={project.name} />
-      <main className="flex-1 space-y-6 p-6">
+      <main className="flex-1 space-y-6 p-6 h-[calc(100vh-56px)] overflow-y-auto scrollbar-thin">
         {/* Back Link */}
         <div>
           <Link to="/projects" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
@@ -396,7 +445,7 @@ function ProjectDetail() {
         </div>
 
         {/* Hero Banner Card with glassmorphism styling */}
-        <Card className="relative overflow-hidden border border-border/80 bg-gradient-to-tr from-violet-600/10 via-indigo-600/5 to-transparent p-6 shadow-md backdrop-blur-md">
+        <Card className="relative overflow-hidden border border-primary/25 bg-gradient-to-tr from-primary/12 via-primary/5 to-transparent p-6 shadow-primary-sm backdrop-blur-md">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
@@ -407,8 +456,135 @@ function ProjectDetail() {
                   {project.status.replace("_", " ")}
                 </Badge>
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{project.name}</h1>
-              <p className="max-w-3xl text-sm text-muted-foreground leading-relaxed">{project.description}</p>
+              <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+                <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">{project.name}</h1>
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full border border-primary/25 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground transition-all shrink-0 cursor-pointer"
+                      title="Project Information"
+                    >
+                      <Info className="h-4.5 w-4.5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent className="w-full sm:max-w-md md:max-w-lg border-l border-border/80 bg-background/95 backdrop-blur-lg p-6 shadow-2xl overflow-y-auto flex flex-col">
+                    <SheetHeader className="pb-4 border-b border-border/60">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="outline" className="border-primary/30 bg-primary/10 text-[10px] font-semibold uppercase tracking-wider text-primary">
+                          {project.type}
+                        </Badge>
+                        <Badge variant={project.status === "ACTIVE" ? "default" : "secondary"} className="text-[10px] uppercase">
+                          {project.status.replace("_", " ")}
+                        </Badge>
+                      </div>
+                      <SheetTitle className="text-xl font-bold text-foreground">{project.name}</SheetTitle>
+                      <SheetDescription className="text-xs text-muted-foreground">
+                        Detailed project blueprint, requirements, and technical layout.
+                      </SheetDescription>
+                    </SheetHeader>
+
+                    <div className="flex-1 mt-6 space-y-6">
+                      {/* About / Description */}
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                          <Info className="h-3.5 w-3.5 text-primary" /> About Project
+                        </h4>
+                        <div className="text-sm text-foreground/90 leading-relaxed bg-muted/20 p-4 rounded-xl border border-border/40">
+                          {project.description || "No description provided."}
+                        </div>
+                      </div>
+
+                      {/* Specification */}
+                      {project.specification && (
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                            <FileText className="h-3.5 w-3.5 text-primary" /> Specification
+                          </h4>
+                          <div className="text-sm text-foreground/90 leading-relaxed bg-muted/20 p-4 rounded-xl border border-border/40 whitespace-pre-wrap">
+                            {project.specification}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Key Features */}
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                          <Zap className="h-3.5 w-3.5 text-amber-500" /> Key Features
+                        </h4>
+                        <div className="bg-muted/20 p-4 rounded-xl border border-border/40">
+                          {Array.isArray(project.features) && project.features.length > 0 ? (
+                            <ul className="space-y-2 text-sm text-foreground/90">
+                              {project.features.map((f: string, i: number) => (
+                                <li key={i} className="flex items-start gap-2">
+                                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                                  <span>{f}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs italic text-muted-foreground">No features listed.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Tech Stack */}
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                          <GitBranch className="h-3.5 w-3.5 text-violet-500" /> Tech Stack
+                        </h4>
+                        <div className="bg-muted/20 p-4 rounded-xl border border-border/40">
+                          {Array.isArray(project.techStack) && project.techStack.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {project.techStack.map((t: string, i: number) => (
+                                <Badge key={i} className="text-xs px-2.5 py-1 bg-background border border-border text-foreground hover:bg-muted/50 transition-colors" variant="outline">
+                                  {t}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs italic text-muted-foreground">Not specified</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Timeline Dates */}
+                      <div className="grid grid-cols-2 gap-4 bg-primary/5 p-4 rounded-xl border border-primary/10 text-xs">
+                        <div>
+                          <p className="text-muted-foreground font-semibold mb-1 uppercase tracking-wider text-[10px]">Start Date</p>
+                          <p className="font-bold flex items-center gap-1.5 text-foreground">
+                            <Calendar className="h-3.5 w-3.5 text-primary" />
+                            {formatDateSafely(project.startDate, "MMM d, yyyy")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground font-semibold mb-1 uppercase tracking-wider text-[10px]">Target End Date</p>
+                          <p className="font-bold flex items-center gap-1.5 text-foreground">
+                            <Calendar className="h-3.5 w-3.5 text-destructive" />
+                            {formatDateSafely(project.endDate, "MMM d, yyyy")}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Quick Edit Action */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEditOpen(true)}
+                        className="w-full h-10 text-xs border border-primary/20 hover:border-primary text-primary hover:bg-primary/5 rounded-xl font-semibold gap-1.5 cursor-pointer"
+                      >
+                        <FileText className="h-3.5 w-3.5" /> Edit Project Details
+                      </Button>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              </div>
+              {(() => {
+                const words = (project.description || "").split(/\s+/).filter(Boolean);
+                const short = words.slice(0, 20).join(" ");
+                return <p className="max-w-3xl text-sm text-muted-foreground leading-relaxed">{short}{words.length > 20 ? '...' : ''}</p>;
+              })()}
 
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground pt-2">
                 <span className="flex items-center gap-1.5">
@@ -465,6 +641,55 @@ function ProjectDetail() {
           </div>
         </Card>
 
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="glass-card p-6 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Project Details</DialogTitle>
+              <DialogDescription>Update specification, features, and tech stack.</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-4">
+              <div>
+                <Label className="text-[10px] uppercase">Specification / About</Label>
+                <Textarea value={editSpec} onChange={(e) => setEditSpec(e.target.value)} className="h-28 text-sm" />
+              </div>
+
+              <div>
+                <Label className="text-[10px] uppercase">Features</Label>
+                <TagAutocomplete
+                  value={editFeatures}
+                  onChange={setEditFeatures}
+                  placeholder="Type a feature and press Enter"
+                  suggestions={[
+                    'User Authentication','Role-based Access Control','Dashboard','Notifications',
+                    'Real-time Updates','File Upload','Search','Reporting','Export to CSV',
+                    'API Integration','Multi-language Support','Dark Mode','Email Notifications',
+                    'Audit Logs','Bulk Import','Two-factor Authentication','SSO','Webhooks',
+                    'Data Visualization','Mobile Responsive','Offline Support','Workflow Automation'
+                  ]}
+                />
+              </div>
+
+              <div>
+                <Label className="text-[10px] uppercase">Tech Stack</Label>
+                <TagAutocomplete
+                  value={editTech}
+                  onChange={setEditTech}
+                  placeholder="Type a technology and press Enter"
+                  fetchTech
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
+              <Button onClick={handleSaveEdit} className="bg-gradient-primary text-primary-foreground">Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+
+
         {/* Dashboard Stat Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -499,390 +724,423 @@ function ProjectDetail() {
         </div>
 
         {/* Main Tabs Layout */}
-        <Tabs defaultValue="dashboard" className="space-y-5">
-          {/* ── Redesigned pill-style tab bar – no scrollbar ── */}
-          <div className="border-b border-border/60">
-            <TabsList className="flex flex-wrap items-center gap-1 bg-transparent p-0 pb-0 h-auto">
+        <Tabs defaultValue="dashboard" className="space-y-0">
+          {/* ── Chrome-style tab bar ── */}
+          <div className="overflow-x-auto scrollbar-none">
+            <TabsList className="chrome-tabs-list flex items-end gap-0 bg-transparent p-0 h-auto w-fit border-none rounded-none">
               <TabsTrigger
                 value="dashboard"
-                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
-                  hover:text-foreground hover:bg-muted/40
-                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
-                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+                className="chrome-tab group flex items-center gap-1.5 px-5 py-2.5 text-xs font-medium cursor-pointer"
               >
                 <Milestone className="h-3.5 w-3.5" />
                 Dashboard
               </TabsTrigger>
               <TabsTrigger
                 value="tasks"
-                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
-                  hover:text-foreground hover:bg-muted/40
-                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
-                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+                className="chrome-tab group flex items-center gap-1.5 px-5 py-2.5 text-xs font-medium cursor-pointer"
               >
                 <Briefcase className="h-3.5 w-3.5" />
                 Tasks
-                <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-mono font-bold text-muted-foreground">{tasks.length}</span>
+                <span className="chrome-tab-badge">{tasks.length}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="issues"
-                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
-                  hover:text-foreground hover:bg-muted/40
-                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
-                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+                className="chrome-tab group flex items-center gap-1.5 px-5 py-2.5 text-xs font-medium cursor-pointer"
               >
                 <ShieldAlert className="h-3.5 w-3.5" />
                 Issues
-                {linkedIssues.length > 0 && <span className="ml-0.5 rounded-full bg-destructive/15 px-1.5 py-0.5 text-[9px] font-mono font-bold text-destructive">{linkedIssues.length}</span>}
+                {linkedIssues.length > 0 && (
+                  <span className="chrome-tab-badge chrome-tab-badge-danger">
+                    {linkedIssues.length}
+                  </span>
+                )}
               </TabsTrigger>
               <TabsTrigger
                 value="workload"
-                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
-                  hover:text-foreground hover:bg-muted/40
-                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
-                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+                className="chrome-tab group flex items-center gap-1.5 px-5 py-2.5 text-xs font-medium cursor-pointer"
               >
                 <Users className="h-3.5 w-3.5" />
                 Workload
               </TabsTrigger>
               <TabsTrigger
                 value="documents"
-                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
-                  hover:text-foreground hover:bg-muted/40
-                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
-                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+                className="chrome-tab group flex items-center gap-1.5 px-5 py-2.5 text-xs font-medium cursor-pointer"
               >
                 <Paperclip className="h-3.5 w-3.5" />
                 Documents
-                {projectAttachments.length > 0 && <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-mono font-bold text-muted-foreground">{projectAttachments.length}</span>}
+                {projectAttachments.length > 0 && (
+                  <span className="chrome-tab-badge">
+                    {projectAttachments.length}
+                  </span>
+                )}
               </TabsTrigger>
               <TabsTrigger
                 value="timelogs"
-                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
-                  hover:text-foreground hover:bg-muted/40
-                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
-                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+                className="chrome-tab group flex items-center gap-1.5 px-5 py-2.5 text-xs font-medium cursor-pointer"
               >
                 <Clock className="h-3.5 w-3.5" />
                 Timelogs
-                {projectTimeEntries.length > 0 && <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-mono font-bold text-muted-foreground">{projectTimeEntries.length}</span>}
+                {projectTimeEntries.length > 0 && (
+                  <span className="chrome-tab-badge">
+                    {projectTimeEntries.length}
+                  </span>
+                )}
               </TabsTrigger>
               <TabsTrigger
                 value="teams"
-                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
-                  hover:text-foreground hover:bg-muted/40
-                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
-                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+                className="chrome-tab group flex items-center gap-1.5 px-5 py-2.5 text-xs font-medium cursor-pointer"
               >
                 <UserCheck className="h-3.5 w-3.5" />
                 Teams
-                {projectTeams.length > 0 && <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-mono font-bold text-muted-foreground">{projectTeams.length}</span>}
+                {projectTeams.length > 0 && (
+                  <span className="chrome-tab-badge">
+                    {projectTeams.length}
+                  </span>
+                )}
               </TabsTrigger>
               <TabsTrigger
                 value="activity"
-                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground transition-all
-                  hover:text-foreground hover:bg-muted/40
-                  data-[state=active]:text-primary data-[state=active]:bg-primary/8 data-[state=active]:font-semibold
-                  data-[state=active]:after:absolute data-[state=active]:after:bottom-[-1px] data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-t-full"
+                className="chrome-tab group flex items-center gap-1.5 px-5 py-2.5 text-xs font-medium cursor-pointer"
               >
                 <Activity className="h-3.5 w-3.5" />
                 Activity
-                {activityEvents.length > 0 && <span className="ml-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-mono font-bold text-primary">{activityEvents.length}</span>}
+                {activityEvents.length > 0 && (
+                  <span className="chrome-tab-badge chrome-tab-badge-primary">
+                    {activityEvents.length}
+                  </span>
+                )}
               </TabsTrigger>
             </TabsList>
           </div>
 
           {/* TAB 1: DASHBOARD & ROADMAP */}
-          <TabsContent value="dashboard" className="space-y-6 p-0 outline-none">
+          <TabsContent value="dashboard" className="space-y-6 p-0 pt-5 outline-none">
             <div className="grid gap-6 lg:grid-cols-3">
-              {/* Left Column: Roadmap & Timeline */}
+              {/* Left Column: Roadmap & Timeline Accordion */}
               <div className="space-y-6 lg:col-span-2">
-                {/* Milestone & Phase Tracking Widget */}
-                <Card className="p-6 glass-card-green">
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Milestone className="h-5 w-5 text-primary" />
-                      <h3 className="font-semibold text-base">Project Milestone Roadmap</h3>
-                    </div>
-
-                    <Dialog open={newPhaseOpen} onOpenChange={setNewPhaseOpen}>
-                      <DialogTrigger asChild>
-                        <Button size="sm" variant="outline" className="text-xs bg-background/50 border-white/10 rounded-xl gap-1">
-                          <Plus className="h-3.5 w-3.5" /> Add Phase
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="glass-card border border-white/10 shadow-[0_8px_32px_0_rgba(16,185,129,0.12)] bg-card/75 backdrop-blur-md rounded-2xl p-6 sm:max-w-[450px]">
-                        <form onSubmit={handleAddPhase} className="space-y-4">
-                          <DialogHeader>
-                            <DialogTitle className="text-lg font-bold text-foreground">Add Project Phase</DialogTitle>
-                            <DialogDescription className="text-xs text-muted-foreground">
-                              Define a new development sprint or milestone objective for this project.
-                            </DialogDescription>
-                          </DialogHeader>
-
-                          <div className="space-y-3">
-                            <div className="space-y-1">
-                              <Label htmlFor="phaseName" className="text-[10px] uppercase font-bold text-muted-foreground">Phase Name</Label>
-                              <Input id="phaseName" placeholder="e.g. Phase 4: Integration testing" value={newPhaseName} onChange={(e) => setNewPhaseName(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" required />
-                            </div>
-
-                            <div className="space-y-1">
-                              <Label htmlFor="phaseGoal" className="text-[10px] uppercase font-bold text-muted-foreground">Goal / Deliverables</Label>
-                              <Input id="phaseGoal" placeholder="e.g. Complete ingress route migration" value={newPhaseGoal} onChange={(e) => setNewPhaseGoal(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1">
-                                <Label htmlFor="phaseStart" className="text-[10px] uppercase font-bold text-muted-foreground">Start Date</Label>
-                                <Input id="phaseStart" type="date" value={newPhaseStart} onChange={(e) => setNewPhaseStart(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" required />
-                              </div>
-                              <div className="space-y-1">
-                                <Label htmlFor="phaseEnd" className="text-[10px] uppercase font-bold text-muted-foreground">End Date</Label>
-                                <Input id="phaseEnd" type="date" value={newPhaseEnd} onChange={(e) => setNewPhaseEnd(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" required />
-                              </div>
-                            </div>
-
-                            <div className="space-y-1">
-                              <Label htmlFor="phaseHours" className="text-[10px] uppercase font-bold text-muted-foreground">Estimated Hours</Label>
-                              <Input id="phaseHours" type="number" value={newPhaseHours} onChange={(e) => setNewPhaseHours(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" />
-                            </div>
-                          </div>
-
-                          <DialogFooter className="pt-2">
-                            <Button type="button" variant="ghost" onClick={() => setNewPhaseOpen(false)} className="text-xs">Cancel</Button>
-                            <Button type="submit" className="bg-gradient-primary text-primary-foreground text-xs font-semibold rounded-lg px-4">
-                              Create Phase
-                            </Button>
-                          </DialogFooter>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-
-                  <div className="relative pl-6 border-l border-border space-y-6 py-2">
-                    {sprintsRoadmap.map((m, idx) => {
-                      const isActive = m.status === "ACTIVE";
-                      const isDone = m.status === "COMPLETED";
-                      return (
-                        <div key={m.id || idx} className="border-l border-border pl-4 pb-4 last:pb-0 relative">
-                          {/* Timeline dot */}
-                          <div className={`absolute -left-[25px] top-1 flex h-[18px] w-[18px] items-center justify-center rounded-full border border-background text-[9px] font-bold text-white transition-all
-                            ${isDone ? "bg-green-500" : isActive ? "bg-primary ring-4 ring-primary/20" : "bg-muted"}`}>
-                            {isDone && <CheckCircle2 className="h-3.5 w-3.5 fill-current bg-background rounded-full" />}
-                            {isActive && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
-                          </div>
-                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between cursor-pointer hover:bg-muted/5 p-2 rounded-xl transition-all"
-                            onClick={(e) => {
-                              if ((e.target as HTMLElement).closest("button")) return;
-                              setSelectedPhase(m);
-                              setIsPhaseOpen(true);
-                            }}
-                          >
-                            <div>
-                              <p className={`text-sm font-medium ${isActive ? "text-primary font-bold" : "text-foreground"}`}>{m.name}</p>
-                              {m.goal && <p className="text-[11px] text-muted-foreground mt-0.5">{m.goal}</p>}
-                              <span className="text-[10px] text-muted-foreground">{m.date}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs font-mono font-medium text-muted-foreground">{m.pct}% complete</span>
-                              <Badge variant={isDone ? "outline" : isActive ? "default" : "secondary"} className={`text-[10px] uppercase ${isDone ? "border-green-500/35 bg-green-50 text-green-700" : ""}`}>
-                                {m.status}
-                              </Badge>
-                              {m.status === "PLANNED" && m.id && (
-                                <Button
-                                  // size="xs"
-                                  variant="outline"
-                                  className="h-6 px-2 text-[10px] border-primary/20 text-primary hover:bg-primary/5 rounded-lg font-semibold"
-                                  onClick={async () => {
-                                    try {
-                                      await updateSprintMutation.mutateAsync({
-                                        id: m.id,
-                                        payload: { status: "ACTIVE" }
-                                      });
-                                      toast.success(`Phase "${m.name}" is now active!`);
-                                    } catch {
-                                      toast.error("Failed to activate phase");
-                                    }
-                                  }}
-                                >
-                                  Activate
-                                </Button>
-                              )}
-                              {m.status === "ACTIVE" && m.id && (
-                                <Button
-                                  // size="xs"
-                                  variant="outline"
-                                  className="h-6 px-2 text-[10px] border-green-500/20 text-green-600 hover:bg-green-50 rounded-lg font-semibold"
-                                  onClick={async () => {
-                                    try {
-                                      await updateSprintMutation.mutateAsync({
-                                        id: m.id,
-                                        payload: { status: "COMPLETED" }
-                                      });
-                                      toast.success(`Phase "${m.name}" completed!`);
-                                    } catch {
-                                      toast.error("Failed to complete phase");
-                                    }
-                                  }}
-                                >
-                                  Complete
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                          {/* Mini Progress */}
-                          <div className="mt-2 h-1 w-full rounded-full bg-muted overflow-hidden">
-                            <div className={`h-full rounded-full ${isDone ? "bg-green-600" : "bg-primary"}`} style={{ width: `${m.pct}%` }} />
-                          </div>
+                <Accordion type="multiple" defaultValue={["roadmap", "workload"]} className="space-y-6">
+                  {/* Milestone Roadmap Item */}
+                  <AccordionItem value="roadmap" className="border border-border/55 rounded-2xl bg-card/65 backdrop-blur-md overflow-hidden shadow-sm hover:border-primary/20 transition-all duration-300">
+                    <AccordionTrigger className="w-full hover:no-underline flex items-center justify-between px-6 py-4 transition-all [&[data-state=open]]:border-b border-border/30">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <div className="flex items-center gap-2.5">
+                          <Milestone className="h-5 w-5 text-primary" />
+                          <span className="font-semibold text-base text-foreground">Project Milestone Roadmap</span>
                         </div>
-                      );
-                    })}
-                  </div>
-                </Card>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Dialog open={newPhaseOpen} onOpenChange={setNewPhaseOpen}>
+                            <DialogTrigger asChild>
+                              <Button size="sm" variant="outline" className="text-xs bg-background/50 border-white/10 rounded-xl gap-1 cursor-pointer">
+                                <Plus className="h-3.5 w-3.5" /> Add Phase
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="glass-card border border-white/10 shadow-[0_8px_32px_0_rgba(16,185,129,0.12)] bg-card/75 backdrop-blur-md rounded-2xl p-6 sm:max-w-[450px]">
+                              <form onSubmit={handleAddPhase} className="space-y-4">
+                                <DialogHeader>
+                                  <DialogTitle className="text-lg font-bold text-foreground">Add Project Phase</DialogTitle>
+                                  <DialogDescription className="text-xs text-muted-foreground">
+                                    Define a new development sprint or milestone objective for this project.
+                                  </DialogDescription>
+                                </DialogHeader>
 
-                {/* Team Workload capacity list preview */}
-                <Card className="glass-card-green p-6">
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-primary" />
-                      <h3 className="font-semibold text-base">Resource Allocation & Load</h3>
-                    </div>
-                    <Link to="/people" className="text-xs text-primary hover:underline flex items-center gap-1">
-                      Manage Team <ArrowRight className="h-3 w-3" />
-                    </Link>
-                  </div>
-                  <div className="space-y-4">
-                    {teamWorkload.slice(0, 3).map((member) => (
-                      <div key={member.id} className="flex items-center gap-4">
-                        <Avatar className="h-9 w-9 shrink-0 border border-border">
-                          <AvatarFallback className="bg-muted text-xs font-bold">{member.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0 space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-medium truncate">{member.name}</span>
-                            <span className="font-mono text-muted-foreground">{member.hours}h assigned</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <Progress value={member.capacityPct} className={`h-1.5 flex-1 ${member.overloaded ? "bg-red-200" : "bg-secondary"}`} />
-                            <span className={`text-[10px] font-semibold w-8 text-right font-mono ${member.overloaded ? "text-red-600" : "text-muted-foreground"}`}>
-                              {member.capacityPct}%
-                            </span>
-                          </div>
+                                <div className="space-y-3">
+                                  <div className="space-y-1">
+                                    <Label htmlFor="phaseName" className="text-[10px] uppercase font-bold text-muted-foreground">Phase Name</Label>
+                                    <Input id="phaseName" placeholder="e.g. Phase 4: Integration testing" value={newPhaseName} onChange={(e) => setNewPhaseName(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" required />
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <Label htmlFor="phaseGoal" className="text-[10px] uppercase font-bold text-muted-foreground">Goal / Deliverables</Label>
+                                    <Input id="phaseGoal" placeholder="e.g. Complete ingress route migration" value={newPhaseGoal} onChange={(e) => setNewPhaseGoal(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" />
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                      <Label htmlFor="phaseStart" className="text-[10px] uppercase font-bold text-muted-foreground">Start Date</Label>
+                                      <Input id="phaseStart" type="date" value={newPhaseStart} onChange={(e) => setNewPhaseStart(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" required />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label htmlFor="phaseEnd" className="text-[10px] uppercase font-bold text-muted-foreground">End Date</Label>
+                                      <Input id="phaseEnd" type="date" value={newPhaseEnd} onChange={(e) => setNewPhaseEnd(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" required />
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <Label htmlFor="phaseHours" className="text-[10px] uppercase font-bold text-muted-foreground">Estimated Hours</Label>
+                                    <Input id="phaseHours" type="number" value={newPhaseHours} onChange={(e) => setNewPhaseHours(e.target.value)} className="h-9 text-xs bg-background/50 border-white/10 rounded-lg" />
+                                  </div>
+                                </div>
+
+                                <DialogFooter className="pt-2">
+                                  <Button type="button" variant="ghost" onClick={() => setNewPhaseOpen(false)} className="text-xs">Cancel</Button>
+                                  <Button type="submit" className="bg-gradient-primary text-primary-foreground text-xs font-semibold rounded-lg px-4">
+                                    Create Phase
+                                  </Button>
+                                </DialogFooter>
+                              </form>
+                            </DialogContent>
+                          </Dialog>
                         </div>
-                        {member.overloaded && (
-                          <Badge variant="destructive" className="text-[9px] uppercase px-1.5 py-0">
-                            Overload
-                          </Badge>
-                        )}
                       </div>
-                    ))}
-                  </div>
-                </Card>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-6">
+                      <div className="relative pl-6 border-l border-border/80 space-y-6 py-2">
+                        {sprintsRoadmap.map((m, idx) => {
+                          const isActive = m.status === "ACTIVE";
+                          const isDone = m.status === "COMPLETED";
+                          return (
+                            <div key={m.id || idx} className="pl-4 pb-4 last:pb-0 relative">
+                              {/* Timeline dot */}
+                              <div className={`absolute -left-[33px] top-2 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-background transition-all z-10
+                                ${isDone ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : isActive ? "bg-primary" : "bg-muted"}`}>
+                                {isActive && <span className="absolute inline-flex h-full w-full rounded-full bg-primary/40 animate-ping" />}
+                              </div>
+                              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between cursor-pointer hover:bg-muted/5 p-2 rounded-xl transition-all"
+                                onClick={(e) => {
+                                  if ((e.target as HTMLElement).closest("button")) return;
+                                  setSelectedPhase(m);
+                                  setIsPhaseOpen(true);
+                                }}
+                              >
+                                <div>
+                                  <p className={`text-sm font-medium ${isActive ? "text-primary font-bold" : "text-foreground"}`}>{m.name}</p>
+                                  {m.goal && <p className="text-[11px] text-muted-foreground mt-0.5">{m.goal}</p>}
+                                  <span className="text-[10px] text-muted-foreground">{m.date}</span>
+                                </div>
+                                <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                                  <span className="text-xs font-mono font-medium text-muted-foreground">{m.pct}% complete</span>
+                                  <Badge variant={isDone ? "outline" : isActive ? "default" : "secondary"} className={`text-[10px] uppercase ${isDone ? "border-green-500/35 bg-green-55 text-green-700" : ""}`}>
+                                    {m.status}
+                                  </Badge>
+                                  {m.status === "PLANNED" && m.id && (
+                                    <Button
+                                      variant="outline"
+                                      className="h-6 px-2 text-[10px] border-primary/20 text-primary hover:bg-primary/5 rounded-lg font-semibold cursor-pointer"
+                                      onClick={async () => {
+                                        try {
+                                          await updateSprintMutation.mutateAsync({
+                                            id: m.id,
+                                            payload: { status: "ACTIVE" }
+                                          });
+                                          toast.success(`Phase "${m.name}" is now active!`);
+                                        } catch {
+                                          toast.error("Failed to activate phase");
+                                        }
+                                      }}
+                                    >
+                                      Activate
+                                    </Button>
+                                  )}
+                                  {m.status === "ACTIVE" && m.id && (
+                                    <Button
+                                      variant="outline"
+                                      className="h-6 px-2 text-[10px] border-green-500/20 text-green-600 hover:bg-green-50 rounded-lg font-semibold cursor-pointer"
+                                      onClick={async () => {
+                                        try {
+                                          await updateSprintMutation.mutateAsync({
+                                            id: m.id,
+                                            payload: { status: "COMPLETED" }
+                                          });
+                                          toast.success(`Phase "${m.name}" completed!`);
+                                        } catch {
+                                          toast.error("Failed to complete phase");
+                                        }
+                                      }}
+                                    >
+                                      Complete
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                              {/* Mini Progress */}
+                              <div className="mt-2 h-1 w-full rounded-full bg-muted overflow-hidden">
+                                <div className={`h-full rounded-full ${isDone ? "bg-green-600" : "bg-primary"}`} style={{ width: `${m.pct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Resource Capacity Item */}
+                  <AccordionItem value="workload" className="border border-border/55 rounded-2xl bg-card/65 backdrop-blur-md overflow-hidden shadow-sm hover:border-primary/20 transition-all duration-300">
+                    <AccordionTrigger className="w-full hover:no-underline flex items-center justify-between px-6 py-4 transition-all [&[data-state=open]]:border-b border-border/30">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <div className="flex items-center gap-2.5">
+                          <Users className="h-5 w-5 text-primary" />
+                          <span className="font-semibold text-base text-foreground">Resource Allocation & Load</span>
+                        </div>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Link to="/people" className="text-xs text-primary hover:underline flex items-center gap-1">
+                            Manage Team <ArrowRight className="h-3 w-3" />
+                          </Link>
+                        </div>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-6">
+                      <div className="space-y-4">
+                        {teamWorkload.slice(0, 3).map((member) => (
+                          <div key={member.id} className="flex items-center gap-4">
+                            <Avatar className="h-9 w-9 shrink-0 border border-border">
+                              <AvatarFallback className="bg-muted text-xs font-bold">{member.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-medium truncate">{member.name}</span>
+                                <span className="font-mono text-muted-foreground">{member.hours}h assigned</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <Progress value={member.capacityPct} className={`h-1.5 flex-1 ${member.overloaded ? "bg-red-200" : "bg-secondary"}`} />
+                                <span className={`text-[10px] font-semibold w-8 text-right font-mono ${member.overloaded ? "text-red-600" : "text-muted-foreground"}`}>
+                                  {member.capacityPct}%
+                                </span>
+                              </div>
+                            </div>
+                            {member.overloaded && (
+                              <Badge variant="destructive" className="text-[9px] uppercase px-1.5 py-0">
+                                Overload
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+
+                <div>
+                  <Button size="sm" variant="outline" onClick={() => setEditOpen(true)} className="w-full cursor-pointer">Edit Project</Button>
+                </div>
               </div>
 
-              {/* Right Column: Financial Health & Warnings */}
+              {/* Right Column: Financial Health & Warnings Accordion */}
               <div className="space-y-6">
-                {/* Budget overview & statistics */}
-                <Card className="glass-card-green p-6">
-                  <div className="mb-4 flex items-center gap-2">
-                    <BadgeDollarSign className="h-5 w-5 text-emerald-600" />
-                    <h3 className="font-semibold text-base">Project Budget & Cost</h3>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide">Planned Budget</p>
-                        <p className="text-xl font-bold text-foreground">${plannedBudget.toLocaleString()}</p>
+                <Accordion type="multiple" defaultValue={["budget", "alerts", "deadlines"]} className="space-y-6">
+                  {/* Budget Item */}
+                  <AccordionItem value="budget" className="border border-border/55 rounded-2xl bg-card/65 backdrop-blur-md overflow-hidden shadow-sm hover:border-primary/20 transition-all duration-300">
+                    <AccordionTrigger className="w-full hover:no-underline flex items-center justify-between px-6 py-4 transition-all [&[data-state=open]]:border-b border-border/30">
+                      <div className="flex items-center gap-2.5">
+                        <BadgeDollarSign className="h-5 w-5 text-primary" />
+                        <span className="font-semibold text-base text-foreground">Project Budget & Cost</span>
                       </div>
-                      <div>
-                        <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide">Actual Spent</p>
-                        <p className="text-xl font-bold text-emerald-600">${actualCost.toLocaleString()}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Budget utilization</span>
-                        <span className="font-mono font-bold text-emerald-700">{budgetProgress}%</span>
-                      </div>
-                      <Progress value={budgetProgress} className="h-2 bg-muted" />
-                    </div>
-
-                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-50/30 p-3 text-xs text-emerald-800">
-                      <span className="font-bold">Financial health: Excellent</span>. Logged hours are well within the planned budget constraints.
-                    </div>
-                  </div>
-                </Card>
-
-                {/* Overdue/Critical Items Widget */}
-                {overdueTasks.length > 0 || linkedIssues.filter((i) => !i.resolved).length > 0 ? (
-                  <Card className="glass-card-green p-6 border border-destructive/30! bg-destructive/5">
-                    <div className="mb-3 flex items-center gap-2 text-destructive">
-                      <Flame className="h-5 w-5 animate-pulse" />
-                      <h3 className="font-semibold text-base text-destructive">Immediate Action Required</h3>
-                    </div>
-                    <div className="space-y-3">
-                      {overdueTasks.slice(0, 2).map((t) => (
-                        <div key={t.id} className="rounded-lg border border-destructive/15 bg-background p-3 text-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-destructive">OVERDUE</span>
-                            <span className="font-mono text-muted-foreground">{t.displayId}</span>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-6">
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide">Planned Budget</p>
+                            <p className="text-xl font-bold text-foreground">${plannedBudget.toLocaleString()}</p>
                           </div>
-                          <p className="mt-1 font-medium truncate text-foreground">{t.title}</p>
-                          <p className="mt-0.5 text-[10px] text-muted-foreground">Due: {formatDateSafely(t.dueDate, "MMM d, yyyy")}</p>
+                          <div>
+                            <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide">Actual Spent</p>
+                            <p className="text-xl font-bold text-primary">${actualCost.toLocaleString()}</p>
+                          </div>
                         </div>
-                      ))}
-                      {linkedIssues.filter((i) => !i.resolved).slice(0, 2).map((i) => {
-                        const issueTask = tasks.find((t) => t.id === i.taskId);
-                        return (
-                          <div key={i.id} className="rounded-lg border border-amber-300/35 bg-background p-3 text-xs">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-amber-700 uppercase">UNRESOLVED BUG</span>
-                              <Badge variant="outline" className="text-[9px] uppercase border-red-200 text-red-600 bg-red-50">
-                                {i.severity}
-                              </Badge>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Budget utilization</span>
+                            <span className="font-mono font-bold text-primary">{budgetProgress}%</span>
+                          </div>
+                          <Progress value={budgetProgress} className="h-2 bg-muted" />
+                        </div>
+
+                        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-primary">
+                          <span className="font-bold">Financial health: Excellent</span>. Logged hours are well within the planned budget constraints.
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Immediate Action / Track Alerts Item */}
+                  <AccordionItem value="alerts" className="border border-border/55 rounded-2xl bg-card/65 backdrop-blur-md overflow-hidden shadow-sm hover:border-primary/20 transition-all duration-300">
+                    <AccordionTrigger className="w-full hover:no-underline flex items-center justify-between px-6 py-4 transition-all [&[data-state=open]]:border-b border-border/30">
+                      {overdueTasks.length > 0 || linkedIssues.filter((i) => !i.resolved).length > 0 ? (
+                        <div className="flex items-center gap-2.5 text-destructive">
+                          <Flame className="h-5 w-5 animate-pulse" />
+                          <span className="font-semibold text-base">Immediate Action Required</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2.5 text-green-600 dark:text-green-400">
+                          <CheckCircle2 className="h-5 w-5" />
+                          <span className="font-semibold text-base">All Items On Track</span>
+                        </div>
+                      )}
+                    </AccordionTrigger>
+                    <AccordionContent className="p-6">
+                      {overdueTasks.length > 0 || linkedIssues.filter((i) => !i.resolved).length > 0 ? (
+                        <div className="space-y-3">
+                          {overdueTasks.slice(0, 2).map((t) => (
+                            <div key={t.id} className="rounded-lg border border-destructive/15 bg-background p-3 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-destructive">OVERDUE</span>
+                                <span className="font-mono text-muted-foreground">{t.displayId}</span>
+                              </div>
+                              <p className="mt-1 font-medium truncate text-foreground">{t.title}</p>
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">Due: {formatDateSafely(t.dueDate, "MMM d, yyyy")}</p>
                             </div>
-                            <p className="mt-1 font-medium truncate text-foreground">{issueTask?.title ?? "System Incident"}</p>
-                            <p className="mt-0.5 text-[10px] text-muted-foreground">SLA Breached: {i.slaBreached ? "Yes" : "No"}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </Card>
-                ) : (
-                  <Card className="p-6 border border-green-500/20 bg-green-50/10 text-center">
-                    <CheckCircle2 className="mx-auto h-8 w-8 text-green-500" />
-                    <h4 className="mt-2 text-sm font-semibold text-foreground">All items on track</h4>
-                    <p className="mt-1 text-xs text-muted-foreground">No overdue items or unresolved critical SLAs found.</p>
-                  </Card>
-                )}
-
-                {/* Upcoming Deadlines */}
-                <Card className="glass-card-green p-6">
-                  <h3 className="font-semibold text-sm mb-3">Upcoming Milestones & Deadlines</h3>
-                  <div className="space-y-3">
-                    {upcomingTasks.map((t) => (
-                      <div key={t.id} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-b-0 last:pb-0">
-                        <div className="min-w-0">
-                          <Link to="/tasks/$id" params={{ id: t.id }} className="text-xs font-semibold text-foreground hover:text-primary truncate block hover:underline">
-                            {t.title}
-                          </Link>
-                          <span className="text-[10px] text-muted-foreground">{t.displayId}</span>
+                          ))}
+                          {linkedIssues.filter((i) => !i.resolved).slice(0, 2).map((i) => {
+                            const issueTask = tasks.find((t) => t.id === i.taskId);
+                            return (
+                              <div key={i.id} className="rounded-lg border border-amber-300/35 bg-background p-3 text-xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-amber-700 uppercase">UNRESOLVED BUG</span>
+                                  <Badge variant="outline" className="text-[9px] uppercase border-red-200 text-red-600 bg-red-50">
+                                    {i.severity}
+                                  </Badge>
+                                </div>
+                                <p className="mt-1 font-medium truncate text-foreground">{issueTask?.title ?? "System Incident"}</p>
+                                <p className="mt-0.5 text-[10px] text-muted-foreground">SLA Breached: {i.slaBreached ? "Yes" : "No"}</p>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <Badge variant="outline" className="text-[10px] shrink-0">
-                          {formatDateSafely(t.dueDate, "MMM d")}
-                        </Badge>
+                      ) : (
+                        <div className="text-center py-6">
+                          <CheckCircle2 className="mx-auto h-8 w-8 text-green-500 mb-2" />
+                          <h4 className="text-sm font-semibold text-foreground">All items on track</h4>
+                          <p className="text-xs text-muted-foreground mt-0.5">No overdue items or unresolved critical SLAs found.</p>
+                        </div>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Upcoming Deadlines Item */}
+                  <AccordionItem value="deadlines" className="border border-border/55 rounded-2xl bg-card/65 backdrop-blur-md overflow-hidden shadow-sm hover:border-primary/20 transition-all duration-300">
+                    <AccordionTrigger className="w-full hover:no-underline flex items-center justify-between px-6 py-4 transition-all [&[data-state=open]]:border-b border-border/30">
+                      <div className="flex items-center gap-2.5">
+                        <Calendar className="h-5 w-5 text-primary" />
+                        <span className="font-semibold text-base text-foreground">Upcoming Deadlines</span>
                       </div>
-                    ))}
-                    {!upcomingTasks.length && <p className="text-xs text-muted-foreground">No upcoming deadlines.</p>}
-                  </div>
-                </Card>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-6">
+                      <div className="space-y-3">
+                        {upcomingTasks.map((t) => (
+                          <div key={t.id} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-b-0 last:pb-0">
+                            <div className="min-w-0">
+                              <Link to="/tasks/$id" params={{ id: t.id }} className="text-xs font-semibold text-foreground hover:text-primary truncate block hover:underline">
+                                {t.title}
+                              </Link>
+                              <span className="text-[10px] text-muted-foreground">{t.displayId}</span>
+                            </div>
+                            <Badge variant="outline" className="text-[10px] shrink-0">
+                              {formatDateSafely(t.dueDate, "MMM d")}
+                            </Badge>
+                          </div>
+                        ))}
+                        {!upcomingTasks.length && <p className="text-xs text-muted-foreground italic">No upcoming deadlines.</p>}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </div>
             </div>
           </TabsContent>
 
           {/* TAB 2: TASKS PIPELINE */}
-          <TabsContent value="tasks" className="p-0 outline-none">
+          <TabsContent value="tasks" className="p-0 pt-5 outline-none">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {statuses.map((status) => {
                 const items = tasks.filter((task) => task.statusId === status.id);
@@ -931,7 +1189,7 @@ function ProjectDetail() {
           </TabsContent>
 
           {/* TAB 3: LINKED ISSUES */}
-          <TabsContent value="issues" className="p-0 outline-none">
+          <TabsContent value="issues" className="p-0 pt-5 outline-none">
             <Card className="p-6">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="font-semibold text-base">Unresolved Bugs & Incident Logs</h3>
@@ -973,7 +1231,7 @@ function ProjectDetail() {
           </TabsContent>
 
           {/* TAB 4: WORKLOAD CAPACITY */}
-          <TabsContent value="workload" className="p-0 outline-none">
+          <TabsContent value="workload" className="p-0 pt-5 outline-none">
             <Card className="p-6">
               <h3 className="font-semibold text-base mb-4">Detailed Member Capacity Roster</h3>
               <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -1022,7 +1280,7 @@ function ProjectDetail() {
           </TabsContent>
 
           {/* TAB 5: PROJECT DOCUMENTS */}
-          <TabsContent value="documents" className="p-0 outline-none animate-in fade-in-50 duration-200">
+          <TabsContent value="documents" className="p-0 pt-5 outline-none animate-in fade-in-50 duration-200">
             <Card className="p-6 border border-white/10 bg-card/65 backdrop-blur-md rounded-2xl shadow-xl shadow-indigo-500/5 hover:border-primary/10 transition-all space-y-6">
               <div className="flex items-center justify-between border-b border-border/50 pb-3">
                 <div className="space-y-1">
@@ -1130,18 +1388,18 @@ function ProjectDetail() {
           </TabsContent>
 
           {/* TAB 6: PROJECT TIMELOGS */}
-          <TabsContent value="timelogs" className="p-0 outline-none">
+          <TabsContent value="timelogs" className="p-0 pt-5 outline-none">
             <Card className="p-6 border border-white/10 bg-card/65 backdrop-blur-md rounded-2xl shadow-xl shadow-indigo-500/5 hover:border-primary/10 transition-all space-y-6">
               <div className="flex items-center justify-between border-b border-border/50 pb-3">
                 <div className="space-y-1">
                   <h3 className="font-bold text-base text-foreground flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-emerald-600" /> Project Time Tracking & Logs
+                    <Clock className="h-5 w-5 text-primary" /> Project Time Tracking & Logs
                   </h3>
                   <p className="text-xs text-muted-foreground">Detailed logs of billable and non-billable hours recorded by team members on this project.</p>
                 </div>
                 <div className="text-right shrink-0">
                   <span className="text-[10px] uppercase font-bold text-muted-foreground block">Total Project Spent</span>
-                  <span className="text-base font-bold text-emerald-600 font-mono">
+                  <span className="text-base font-bold text-primary font-mono">
                     {projectTimeEntries.reduce((sum, te) => sum + (te.hours || 0), 0).toFixed(1)} hrs
                   </span>
                 </div>
@@ -1217,7 +1475,7 @@ function ProjectDetail() {
           </TabsContent>
 
           {/* TAB 7: PROJECT TEAMS */}
-          <TabsContent value="teams" className="p-0 outline-none animate-in fade-in-50 duration-200">
+          <TabsContent value="teams" className="p-0 pt-5 outline-none animate-in fade-in-50 duration-200">
             <Card className="p-6 border border-white/10 bg-card/65 backdrop-blur-md rounded-2xl shadow-xl shadow-indigo-500/5 hover:border-primary/10 transition-all space-y-6">
               <div className="flex items-center justify-between border-b border-border/50 pb-3">
                 <div className="space-y-1">
@@ -1322,8 +1580,8 @@ function ProjectDetail() {
                           </div>
 
                           <div className="flex items-center gap-2 pt-3 border-t border-border/10">
-                            <Avatar className="h-6 w-6 border border-emerald-500/20 shrink-0">
-                              <AvatarFallback className="bg-emerald-500/10 text-[9px] text-emerald-700 font-bold">
+                            <Avatar className="h-6 w-6 border border-primary/20 shrink-0">
+                              <AvatarFallback className="bg-primary/10 text-[9px] text-primary font-bold">
                                 {leadUser?.name?.slice(0, 2).toUpperCase() || "TL"}
                               </AvatarFallback>
                             </Avatar>
@@ -1347,7 +1605,7 @@ function ProjectDetail() {
           </TabsContent>
 
           {/* TAB 8: ACTIVITY STREAM */}
-          <TabsContent value="activity" className="p-0 outline-none animate-in fade-in-50 duration-200">
+          <TabsContent value="activity" className="p-0 pt-5 outline-none animate-in fade-in-50 duration-200">
             <Card className="p-6 border border-white/10 bg-card/65 backdrop-blur-md rounded-2xl shadow-xl shadow-indigo-500/5 space-y-5">
               {/* Header */}
               <div className="flex items-center justify-between border-b border-border/50 pb-3">
@@ -1375,11 +1633,10 @@ function ProjectDetail() {
                   <button
                     key={f.value}
                     onClick={() => setActivityFilter(f.value)}
-                    className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all border ${
-                      activityFilter === f.value
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all border ${activityFilter === f.value
                         ? "bg-primary text-primary-foreground border-primary shadow-sm"
                         : "border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/30"
-                    }`}
+                      }`}
                   >
                     {f.label}
                   </button>
@@ -1416,33 +1673,46 @@ function ProjectDetail() {
                       try {
                         const d = new Date(evt.at);
                         safeAt = isNaN(d.getTime()) ? "" : formatDistanceToNow(d, { addSuffix: true });
-                      } catch {}
+                      } catch { }
 
                       return (
-                        <div key={evt.id} className="flex items-start gap-3 group hover:bg-muted/10 rounded-xl p-2.5 transition-colors relative">
-                          <div className={`shrink-0 h-9 w-9 rounded-full border flex items-center justify-center z-10 bg-background ${cfg.bgColor}`}>
-                            <IconComp className={`h-4 w-4 ${cfg.color}`} />
+                        <div key={evt.id} className="flex items-start gap-3 group hover:bg-muted/15 rounded-2xl p-3 border border-transparent hover:border-border/40 transition-all duration-300 relative">
+                          <div className={`shrink-0 h-9 w-9 rounded-full border flex items-center justify-center z-10 bg-background shadow-sm ${cfg.bgColor}`}>
+                            <IconComp className={`h-4.5 w-4.5 ${cfg.color}`} />
                           </div>
                           <div className="flex-1 min-w-0 pt-0.5">
                             <p className="text-xs text-foreground leading-snug">
-                              {evt.actor && <span className="font-semibold text-foreground">{evt.actor} </span>}
+                              {evt.actor && <span className="font-bold text-foreground">{evt.actor} </span>}
                               <span className="text-muted-foreground">{evt.message}</span>
                             </p>
                             {(evt.from || evt.to) && (
-                              <div className="flex items-center gap-1 mt-1">
-                                {evt.from && <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono">{evt.from}</span>}
-                                {evt.from && evt.to && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
-                                {evt.to && <span className="text-[10px] text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded font-mono">{evt.to}</span>}
+                              <div className="flex items-center gap-1.5 mt-1.5">
+                                {evt.from && (
+                                  <span className="text-[10px] px-2 py-0.5 font-medium rounded-full bg-muted/60 border border-border/50 text-muted-foreground">
+                                    {evt.from}
+                                  </span>
+                                )}
+                                {evt.from && evt.to && <ArrowRight className="h-3 w-3 text-muted-foreground opacity-60" />}
+                                {evt.to && (
+                                  <span className="text-[10px] px-2 py-0.5 font-bold rounded-full bg-primary/10 border border-primary/20 text-primary">
+                                    {evt.to}
+                                  </span>
+                                )}
                               </div>
                             )}
                             {evt.taskDisplayId && (
-                              <Link
-                                to="/tasks/$id"
-                                params={{ id: evt.taskId! }}
-                                className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-primary mt-0.5 transition-colors"
-                              >
-                                #{evt.taskDisplayId}
-                              </Link>
+                              <div className="mt-2 flex items-center gap-2">
+                                <span className="text-[9px] font-bold text-muted-foreground px-1.5 py-0.5 bg-muted/80 border border-border/50 rounded font-mono">
+                                  {evt.taskDisplayId}
+                                </span>
+                                <Link
+                                  to="/tasks/$id"
+                                  params={{ id: evt.taskId! }}
+                                  className="text-[11px] text-primary hover:text-primary/85 hover:underline font-semibold truncate max-w-[280px]"
+                                >
+                                  {evt.taskTitle || "View Task"}
+                                </Link>
+                              </div>
                             )}
                           </div>
                           {safeAt && (
@@ -1469,7 +1739,7 @@ function ProjectDetail() {
             const sprintTasks = tasks.filter(t => t.sprintId === sprint?.id || t.sprintId === selectedPhase.id);
             const standardTasks = sprintTasks.filter(t => t.taskType !== "ISSUE");
             const sprintIssues = sprintTasks.filter(t => t.taskType === "ISSUE");
-            
+
             const currentIdx = sprintsRoadmap.findIndex(m => m.id === selectedPhase.id);
             const prevPhase = currentIdx > 0 ? sprintsRoadmap[currentIdx - 1] : null;
             const nextPhase = currentIdx < sprintsRoadmap.length - 1 ? sprintsRoadmap[currentIdx + 1] : null;
@@ -1604,7 +1874,7 @@ function ProjectDetail() {
                     </TabsList>
 
                     <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
-                      
+
                       <TabsContent value="chart" className="mt-0 outline-none space-y-6">
                         <div className="grid gap-6 sm:grid-cols-2">
                           <Card className="p-4 bg-muted/10 border-border/60">
@@ -1742,7 +2012,7 @@ function ProjectDetail() {
                                 const st = statuses.find(x => x.id === t.statusId);
                                 return (
                                   <tr key={t.id} className="hover:bg-muted/10">
-                                    <td className="px-4 py-2.5 font-mono text-[10.5px]">{t.displayId || t.id.substring(0,8)}</td>
+                                    <td className="px-4 py-2.5 font-mono text-[10.5px]">{t.displayId || t.id.substring(0, 8)}</td>
                                     <td className="px-4 py-2.5 font-medium">{t.title}</td>
                                     <td className="px-4 py-2.5">
                                       <Badge style={{ background: st?.color + "15", color: st?.color, borderColor: st?.color + "30" }} variant="outline" className="text-[10px]">
@@ -1781,7 +2051,7 @@ function ProjectDetail() {
                                 const st = statuses.find(x => x.id === t.statusId);
                                 return (
                                   <tr key={t.id} className="hover:bg-muted/10">
-                                    <td className="px-4 py-2.5 font-mono text-[10.5px]">{t.displayId || t.id.substring(0,8)}</td>
+                                    <td className="px-4 py-2.5 font-mono text-[10.5px]">{t.displayId || t.id.substring(0, 8)}</td>
                                     <td className="px-4 py-2.5 font-medium">{t.title}</td>
                                     <td className="px-4 py-2.5">
                                       <Badge style={{ background: st?.color + "15", color: st?.color, borderColor: st?.color + "30" }} variant="outline" className="text-[10px]">
@@ -1808,14 +2078,14 @@ function ProjectDetail() {
                           <div className="flex items-center justify-between">
                             <h4 className="font-bold text-foreground">Phase Release Summary</h4>
                             <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => {
-                              const text = standardTasks.filter(t => t.statusId === "s-done").map(t => `- ${t.title} (${t.displayId || t.id.substring(0,8)})`).join("\n");
+                              const text = standardTasks.filter(t => t.statusId === "s-done").map(t => `- ${t.title} (${t.displayId || t.id.substring(0, 8)})`).join("\n");
                               navigator.clipboard.writeText(text);
                               toast.success("Release notes copied to clipboard!");
                             }}>Copy to Clipboard</Button>
                           </div>
                           <div className="font-mono text-muted-foreground whitespace-pre-line leading-relaxed bg-background/50 p-3 rounded-lg border border-border/20">
-                            {standardTasks.filter(t => t.statusId === "s-done").length > 0 
-                              ? standardTasks.filter(t => t.statusId === "s-done").map(t => `- ${t.title} (${t.displayId || t.id.substring(0,8)})`).join("\n")
+                            {standardTasks.filter(t => t.statusId === "s-done").length > 0
+                              ? standardTasks.filter(t => t.statusId === "s-done").map(t => `- ${t.title} (${t.displayId || t.id.substring(0, 8)})`).join("\n")
                               : "No completed tasks to report in this release yet."
                             }
                           </div>
@@ -1885,8 +2155,8 @@ function ProjectDetail() {
             ) : (
               <div className="rounded border border-border bg-muted/30 p-8 text-center text-sm text-muted-foreground">
                 Preview not available for this file type.{" "}
-                <button 
-                  className="text-primary underline font-semibold" 
+                <button
+                  className="text-primary underline font-semibold"
                   onClick={() => downloadAuthenticatedFile(preview.url, preview.name)}
                 >
                   Download File
@@ -1910,26 +2180,58 @@ function StatCard({
   truncateValue?: boolean;
 }) {
   const colorMap = {
-    indigo: "text-indigo-600 bg-indigo-50 border-indigo-100",
-    red: "text-red-600 bg-red-50 border-red-100",
-    amber: "text-amber-600 bg-amber-50 border-amber-100",
-    emerald: "text-emerald-600 bg-emerald-50 border-emerald-100",
-    violet: "text-violet-600 bg-violet-50 border-violet-100",
+    indigo: {
+      text: "text-white",
+      bg: "bg-indigo-600 shadow-[0_4px_14px_rgba(99,102,241,0.35)] border-indigo-500/20",
+      border: "border-l-indigo-500 dark:border-l-indigo-400",
+      cardBg: "bg-gradient-to-br from-indigo-500/10 via-card/90 to-card/60 border-indigo-500/15",
+      glow: "hover:shadow-[0_8px_30px_rgba(99,102,241,0.15)] hover:border-indigo-500/35"
+    },
+    red: {
+      text: "text-white",
+      bg: "bg-red-500 shadow-[0_4px_14px_rgba(239,68,68,0.35)] border-red-400/20",
+      border: "border-l-red-500 dark:border-l-red-400",
+      cardBg: "bg-gradient-to-br from-red-500/10 via-card/90 to-card/60 border-red-500/15",
+      glow: "hover:shadow-[0_8px_30px_rgba(239,68,68,0.15)] hover:border-red-500/35"
+    },
+    amber: {
+      text: "text-white",
+      bg: "bg-amber-500 shadow-[0_4px_14px_rgba(245,158,11,0.35)] border-amber-400/20",
+      border: "border-l-amber-500 dark:border-l-amber-400",
+      cardBg: "bg-gradient-to-br from-amber-500/10 via-card/90 to-card/60 border-amber-500/15",
+      glow: "hover:shadow-[0_8px_30px_rgba(245,158,11,0.15)] hover:border-amber-500/35"
+    },
+    emerald: {
+      text: "text-white",
+      bg: "bg-emerald-500 shadow-[0_4px_14px_rgba(16,185,129,0.35)] border-emerald-400/20",
+      border: "border-l-emerald-500 dark:border-l-emerald-400",
+      cardBg: "bg-gradient-to-br from-emerald-500/10 via-card/90 to-card/60 border-emerald-500/15",
+      glow: "hover:shadow-[0_8px_30px_rgba(16,185,129,0.15)] hover:border-emerald-500/35"
+    },
+    violet: {
+      text: "text-white",
+      bg: "bg-violet-500 shadow-[0_4px_14px_rgba(139,92,246,0.35)] border-violet-400/20",
+      border: "border-l-violet-500 dark:border-l-violet-400",
+      cardBg: "bg-gradient-to-br from-violet-500/10 via-card/90 to-card/60 border-violet-500/15",
+      glow: "hover:shadow-[0_8px_30px_rgba(139,92,246,0.15)] hover:border-violet-500/35"
+    },
   };
 
+  const cfg = colorMap[color];
+
   return (
-    <Card className="p-5 border border-border/80 shadow-sm bg-card hover:shadow-md transition">
+    <Card className={`relative overflow-hidden pl-6 pr-5 py-5 border border-l-4 ${cfg.border} ${cfg.cardBg} backdrop-blur-md transition-all duration-300 ${cfg.glow}`}>
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0 mr-2">
-          <p className="text-[10px] overflow-hidden uppercase font-semibold text-muted-foreground tracking-wide">{label}</p>
+          <p className="text-[10px] overflow-hidden uppercase font-semibold text-muted-foreground tracking-wider">{label}</p>
           <p
-            className={`mt-2 text-2xl font-bold tracking-tight text-foreground font-mono ${truncateValue ? "truncate" : ""}`}
+            className={`mt-2 text-xl font-bold tracking-tight text-foreground font-sans ${truncateValue ? "truncate" : ""}`}
             title={truncateValue ? value : undefined}
           >
             {value}
           </p>
         </div>
-        <div className={`rounded-xl border p-2.5 shrink-0 ${colorMap[color]}`}>
+        <div className={`rounded-xl border p-2.5 shrink-0 ${cfg.bg} ${cfg.text}`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>

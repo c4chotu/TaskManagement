@@ -5,7 +5,13 @@ export function AuthenticatedImage({ src, alt, className }: { src: string; alt?:
   const [blobUrl, setBlobUrl] = useState<string>("");
 
   useEffect(() => {
-    if (!src || src.startsWith("data:") || !src.includes("/files/attachments")) {
+    if (!src || src.startsWith("data:") || src.startsWith("blob:")) {
+      setBlobUrl(src);
+      return;
+    }
+
+    const isApiFile = src.includes("/files/") || src.includes("/attachments");
+    if (!isApiFile) {
       setBlobUrl(src);
       return;
     }
@@ -14,11 +20,18 @@ export function AuthenticatedImage({ src, alt, className }: { src: string; alt?:
     const load = async () => {
       try {
         const headers: HeadersInit = {};
-        const storedToken = tokenStore.get() || localStorage.getItem("tfp-token");
+        const storedToken = tokenStore.get() || localStorage.getItem("tfp-token") || localStorage.getItem("tfp.accessToken");
         if (storedToken) {
           headers["Authorization"] = `Bearer ${storedToken}`;
         }
-        const res = await fetch(src, { headers });
+        
+        let fullUrl = src;
+        if (src.startsWith("/")) {
+          const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "";
+          fullUrl = `${baseUrl}${src}`;
+        }
+
+        const res = await fetch(fullUrl, { headers });
         if (!res.ok) throw new Error("Failed to load image");
         const blob = await res.blob();
         if (active) {
@@ -27,7 +40,14 @@ export function AuthenticatedImage({ src, alt, className }: { src: string; alt?:
         }
       } catch (e) {
         console.error("Failed to load authenticated image", src, e);
-        if (active) setBlobUrl(src); // fallback to raw URL
+        if (active) {
+          if (src.startsWith("/")) {
+            const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "";
+            setBlobUrl(`${baseUrl}${src}`);
+          } else {
+            setBlobUrl(src);
+          }
+        }
       }
     };
 

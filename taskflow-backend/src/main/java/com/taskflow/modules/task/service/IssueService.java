@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.*;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,6 +32,7 @@ public class IssueService {
     private final IssueEscalationRepository issueEscalationRepository;
     private final OnCallScheduleRepository onCallScheduleRepository;
     private final UserRepository userRepository;
+    private final TaskActivityRepository taskActivityRepository;
 
     public IssueService(TaskService taskService,
                         TaskRepository taskRepository,
@@ -38,7 +40,8 @@ public class IssueService {
                         SlaDefinitionRepository slaDefinitionRepository,
                         IssueEscalationRepository issueEscalationRepository,
                         OnCallScheduleRepository onCallScheduleRepository,
-                        UserRepository userRepository) {
+                        UserRepository userRepository,
+                        TaskActivityRepository taskActivityRepository) {
         this.taskService = taskService;
         this.taskRepository = taskRepository;
         this.issueDetailRepository = issueDetailRepository;
@@ -46,6 +49,26 @@ public class IssueService {
         this.issueEscalationRepository = issueEscalationRepository;
         this.onCallScheduleRepository = onCallScheduleRepository;
         this.userRepository = userRepository;
+        this.taskActivityRepository = taskActivityRepository;
+    }
+
+    private void logActivity(UUID taskId, UUID userId, String activityType, String description, String oldValue, String newValue) {
+        if (userId == null) {
+            userId = SecurityContextHelper.getCurrentUserId();
+        }
+        if (userId == null) {
+            userId = UUID.fromString("00000000-0000-0000-0000-000000000000");
+        }
+        TaskActivity activity = TaskActivity.builder()
+                .id(UUID.randomUUID())
+                .taskId(taskId)
+                .userId(userId)
+                .activityType(activityType)
+                .description(description)
+                .oldValue(oldValue)
+                .newValue(newValue)
+                .build();
+        taskActivityRepository.save(activity);
     }
 
     @Transactional
@@ -98,6 +121,8 @@ public class IssueService {
 
         IssueDetail savedDetail = issueDetailRepository.save(issueDetail);
 
+        logActivity(savedDetail.getTaskId(), currentUserId, "ISSUE_CREATE", "Issue details configured", null, "Severity: " + severity + ", Env: " + environment);
+
         // Assign to current Week On-Call Engineer if schedule exists
         UUID onCallUser = getOnCallEngineer(orgId);
         if (onCallUser != null) {
@@ -143,6 +168,9 @@ public class IssueService {
 
         IssueDetail saved = issueDetailRepository.save(detail);
 
+        UUID currentUserId = SecurityContextHelper.getCurrentUserId();
+        logActivity(taskId, currentUserId, "SEVERITY_CHANGE", "Severity updated", oldSeverity, newSeverity);
+
         log.info("Severity updated from {} to {} for issue {}", oldSeverity, newSeverity, taskId);
 
         if ("SEV0".equalsIgnoreCase(newSeverity)) {
@@ -160,9 +188,15 @@ public class IssueService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new EntityNotFoundException("Task not found: " + taskId));
 
+        UUID currentUserId = SecurityContextHelper.getCurrentUserId();
+
         if (patches.containsKey("severity")) {
             String newSeverity = (String) patches.get("severity");
-            detail.setSeverity(newSeverity);
+            String oldSeverity = detail.getSeverity();
+            if (!Objects.equals(oldSeverity, newSeverity)) {
+                logActivity(taskId, currentUserId, "SEVERITY_CHANGE", "Severity updated", oldSeverity, newSeverity);
+                detail.setSeverity(newSeverity);
+            }
             // Recalculate SLA timers based on original reported_at
             UUID orgId = task.getOrganizationId();
             int responseMinutes = getDefaultResponseMinutes(newSeverity);
@@ -185,22 +219,52 @@ public class IssueService {
             }
         }
         if (patches.containsKey("environment")) {
-            detail.setEnvironment((String) patches.get("environment"));
+            String oldVal = detail.getEnvironment();
+            String newVal = (String) patches.get("environment");
+            if (!Objects.equals(oldVal, newVal)) {
+                logActivity(taskId, currentUserId, "ENVIRONMENT_CHANGE", "Environment updated", oldVal, newVal);
+                detail.setEnvironment(newVal);
+            }
         }
         if (patches.containsKey("affectedVersion")) {
-            detail.setAffectedVersion((String) patches.get("affectedVersion"));
+            String oldVal = detail.getAffectedVersion();
+            String newVal = (String) patches.get("affectedVersion");
+            if (!Objects.equals(oldVal, newVal)) {
+                logActivity(taskId, currentUserId, "AFFECTED_VERSION_CHANGE", "Affected version updated", oldVal, newVal);
+                detail.setAffectedVersion(newVal);
+            }
         }
         if (patches.containsKey("fixedVersion")) {
-            detail.setFixedVersion((String) patches.get("fixedVersion"));
+            String oldVal = detail.getFixedVersion();
+            String newVal = (String) patches.get("fixedVersion");
+            if (!Objects.equals(oldVal, newVal)) {
+                logActivity(taskId, currentUserId, "FIXED_VERSION_CHANGE", "Fixed version updated", oldVal, newVal);
+                detail.setFixedVersion(newVal);
+            }
         }
         if (patches.containsKey("customerReported")) {
-            detail.setCustomerReported((Boolean) patches.get("customerReported"));
+            Boolean oldVal = detail.isCustomerReported();
+            Boolean newVal = (Boolean) patches.get("customerReported");
+            if (!Objects.equals(oldVal, newVal)) {
+                logActivity(taskId, currentUserId, "CUSTOMER_REPORTED_CHANGE", "Customer reported status updated", oldVal != null ? oldVal.toString() : null, newVal != null ? newVal.toString() : null);
+                detail.setCustomerReported(newVal);
+            }
         }
         if (patches.containsKey("customerName")) {
-            detail.setCustomerName((String) patches.get("customerName"));
+            String oldVal = detail.getCustomerName();
+            String newVal = (String) patches.get("customerName");
+            if (!Objects.equals(oldVal, newVal)) {
+                logActivity(taskId, currentUserId, "CUSTOMER_NAME_CHANGE", "Customer name updated", oldVal, newVal);
+                detail.setCustomerName(newVal);
+            }
         }
         if (patches.containsKey("customerImpact")) {
-            detail.setCustomerImpact((String) patches.get("customerImpact"));
+            String oldVal = detail.getCustomerImpact();
+            String newVal = (String) patches.get("customerImpact");
+            if (!Objects.equals(oldVal, newVal)) {
+                logActivity(taskId, currentUserId, "CUSTOMER_IMPACT_CHANGE", "Customer impact updated", oldVal, newVal);
+                detail.setCustomerImpact(newVal);
+            }
         }
 
         return issueDetailRepository.save(detail);
@@ -214,6 +278,8 @@ public class IssueService {
         if (detail.getRespondedAt() == null) {
             detail.setRespondedAt(Instant.now());
             issueDetailRepository.save(detail);
+            UUID currentUserId = SecurityContextHelper.getCurrentUserId();
+            logActivity(taskId, currentUserId, "ISSUE_RESPONDED", "Responded to issue", null, null);
             log.info("First response logged for issue {}", taskId);
         }
     }
@@ -235,6 +301,9 @@ public class IssueService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new EntityNotFoundException("Task not found: " + taskId));
         
+        UUID currentUserId = SecurityContextHelper.getCurrentUserId();
+        logActivity(taskId, currentUserId, "ISSUE_RESOLVED", "Resolved issue", null, "Root Cause: " + rootCause);
+        
         log.info("Issue {} resolved with root cause: {}", taskId, rootCause);
     }
 
@@ -246,6 +315,8 @@ public class IssueService {
         detail.setVerifiedAt(Instant.now());
         detail.setVerifiedBy(verifierId);
         issueDetailRepository.save(detail);
+
+        logActivity(taskId, verifierId, "ISSUE_VERIFIED", "Verified issue resolution", null, null);
 
         log.info("Issue {} verified by user {}", taskId, verifierId);
     }
@@ -290,6 +361,8 @@ public class IssueService {
         task.setEscalationCount(count + 1);
         task.setEscalatedAt(Instant.now());
         taskRepository.save(task);
+
+        logActivity(taskId, actorId, "ISSUE_ESCALATION", "Issue escalated to " + toRole + ": " + reason, fromRole, toRole);
 
         log.warn("Issue {} escalated from {} to {} due to: {}", taskId, fromRole, toRole, reason);
     }

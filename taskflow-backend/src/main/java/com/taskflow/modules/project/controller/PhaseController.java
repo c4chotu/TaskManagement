@@ -22,4 +22,9 @@ public class PhaseController {
     public ResponseEntity<List<Phase>> listPhases(@PathVariable UUID projectId) {
         return ResponseEntity.ok(phaseRepository.findByProjectId(projectId));
     }
+
+    @GetMapping("/all-phases")
+    public ResponseEntity<List<Phase>> listAllPhases() {
+        return ResponseEntity.ok(phaseRepository.findAll());
+    }
 }

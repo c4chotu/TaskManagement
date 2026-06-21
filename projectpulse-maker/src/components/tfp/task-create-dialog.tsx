@@ -25,11 +25,63 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
-import { useCreateTask, useProjects, useStatuses, useUsers, useTeams, useProjectMembers, useProject, useSprints, usePhases, useUploadAttachment } from "@/lib/queries";
+import { useCreateTask, useProjects, useStatuses, useUsers, useTeams, useProjectMembers, useProject, useSprints, usePhases, useUploadAttachment, useUpdateTask } from "@/lib/queries";
 import { Plus, Sparkles, AlertOctagon, ListChecks, Calendar, Flag, X, Paperclip, Clock, Repeat, Tag, Code, List, ListOrdered, Link2, Users } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
 import type { Task, TaskCategory } from "@/lib/types";
+
+function convertHtmlToMarkdown(node: Node): string {
+  let markdown = "";
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node.textContent || "";
+  }
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    const element = node as HTMLElement;
+    const tagName = element.tagName.toUpperCase();
+    let childrenMarkdown = "";
+    element.childNodes.forEach((child) => {
+      childrenMarkdown += convertHtmlToMarkdown(child);
+    });
+
+    switch (tagName) {
+      case "B":
+      case "STRONG":
+        return `**${childrenMarkdown}**`;
+      case "I":
+      case "EM":
+        return `*${childrenMarkdown}*`;
+      case "U":
+        return `<u>${childrenMarkdown}</u>`;
+      case "DIV":
+        return `\n${childrenMarkdown}`;
+      case "P":
+        return `\n${childrenMarkdown}\n`;
+      case "BR":
+        return "\n";
+      case "IMG":
+        const src = element.getAttribute("src") || "";
+        const alt = element.getAttribute("alt") || "image";
+        return `\n![${alt}](${src})\n`;
+      case "A":
+        const href = element.getAttribute("href") || "";
+        return `[${childrenMarkdown}](${href})`;
+      case "CODE":
+        return `\`${childrenMarkdown}\``;
+      case "PRE":
+        return `\n\`\`\`\n${childrenMarkdown}\n\`\`\`\n`;
+      case "UL":
+        return `\n${childrenMarkdown}\n`;
+      case "OL":
+        return `\n${childrenMarkdown}\n`;
+      case "LI":
+        return `- ${childrenMarkdown}\n`;
+      default:
+        return childrenMarkdown;
+    }
+  }
+  return markdown;
+}
 
 export function TaskCreateDialog({
   defaultProjectId,
@@ -52,6 +104,7 @@ export function TaskCreateDialog({
   const { data: teams = [] } = useTeams();
   const create = useCreateTask();
   const uploadAttachment = useUploadAttachment();
+  const updateTask = useUpdateTask();
 
   const projectMemberUserIds = useMemo(() => new Set(projectMembers.map((m: any) => m.userId)), [projectMembers]);
   const filteredUsers = useMemo(() => {
@@ -71,19 +124,118 @@ export function TaskCreateDialog({
   const [estimatedHours, setEstimatedHours] = useState("");
   const [assignees, setAssignees] = useState<string[]>([]);
   const [recurrenceRule, setRecurrenceRule] = useState("none");
-  const [categories, setCategories] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("tfp.customCategories");
+  const [categories, setCategories] = useState<string[]>([]);
+  useEffect(() => {
+    if (typeof window !== "undefined" && activeProjectId) {
+      const saved = localStorage.getItem(`tfp.customCategories:${activeProjectId}`);
       if (saved) {
         try {
-          return JSON.parse(saved);
+          setCategories(JSON.parse(saved));
+          return;
         } catch (e) {}
       }
     }
-    return ["FRONTEND", "BACKEND", "INFRA", "DESIGN", "QA", "SECURITY", "DOCS", "RESEARCH", "BUG", "FEATURE"];
-  });
+    setCategories(["FRONTEND", "BACKEND", "INFRA", "DESIGN", "QA", "SECURITY", "DOCS", "RESEARCH", "BUG", "FEATURE"]);
+  }, [activeProjectId]);
+
   const [category, setCategory] = useState<string>("none");
   const [taskFiles, setTaskFiles] = useState<File[]>([]);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  const [taskListVal, setTaskListVal] = useState<string>("none");
+
+  const taskListOptions = useMemo(() => {
+    const opts: { value: string; label: string; group: string }[] = [];
+    const isWaterfallOrSoftware = project?.type === "WATERFALL" || project?.type === "SOFTWARE";
+    const isScrum = project?.type === "SCRUM";
+
+    if (isScrum) {
+      sprints.forEach((s) => {
+        opts.push({
+          value: `sprint:${s.id}`,
+          label: s.name,
+          group: "Sprints",
+        });
+      });
+    } else if (isWaterfallOrSoftware) {
+      const list = phases && phases.length > 0 ? phases : sprints;
+      list.forEach((p) => {
+        opts.push({
+          value: `phase:${p.id}`,
+          label: p.name,
+          group: "Phases",
+        });
+      });
+    } else {
+      // Fallback for Kanban or other custom project types: render whatever is available
+      if (phases && phases.length > 0) {
+        phases.forEach((p) => {
+          opts.push({
+            value: `phase:${p.id}`,
+            label: p.name,
+            group: "Phases",
+          });
+        });
+      }
+      if (sprints && sprints.length > 0) {
+        sprints.forEach((s) => {
+          opts.push({
+            value: `sprint:${s.id}`,
+            label: s.name,
+            group: "Sprints",
+          });
+        });
+      }
+    }
+    categories.forEach((c) => {
+      opts.push({
+        value: `category:${c}`,
+        label: c,
+        group: "TaskLists",
+      });
+    });
+    return opts;
+  }, [project, sprints, phases, categories]);
+
+  const handleTaskListChange = (val: string) => {
+    setTaskListVal(val);
+    if (val === "none") {
+      setCategory("none");
+      setSprintId("none");
+      setPhaseId("none");
+    } else if (val.startsWith("category:")) {
+      const cat = val.split(":")[1];
+      setCategory(cat);
+      setSprintId("none");
+      setPhaseId("none");
+    } else if (val.startsWith("sprint:")) {
+      const spId = val.split(":")[1];
+      setSprintId(spId);
+      setCategory("none");
+      setPhaseId("none");
+    } else if (val.startsWith("phase:")) {
+      const phId = val.split(":")[1];
+      setPhaseId(phId);
+      setSprintId("none");
+      setCategory("none");
+    }
+  };
+
+  useEffect(() => {
+    if (category && category !== "none") {
+      setTaskListVal(`category:${category}`);
+    } else if (phaseId && phaseId !== "none") {
+      setTaskListVal(`phase:${phaseId}`);
+    } else if (sprintId && sprintId !== "none") {
+      if (project?.type === "WATERFALL" || project?.type === "SOFTWARE") {
+        setTaskListVal(`phase:${sprintId}`);
+      } else {
+        setTaskListVal(`sprint:${sprintId}`);
+      }
+    } else {
+      setTaskListVal("none");
+    }
+  }, [category, sprintId, phaseId, project?.type]);
 
   const activeStatusId = statuses.some((s) => s.id === statusId)
     ? statusId
@@ -123,22 +275,71 @@ export function TaskCreateDialog({
       setRecurrenceRule("none");
       setCategory("none");
       setTaskFiles([]);
+      if (editorRef.current) {
+        editorRef.current.innerHTML = "";
+      }
     }
   }, [open, defaultProjectId]);
 
-  const insertMarkdown = (prefix: string, suffix: string = "") => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const selected = text.substring(start, end);
-    const replacement = prefix + selected + suffix;
-    setDescription(text.substring(0, start) + replacement + text.substring(end));
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
-    }, 0);
+  const insertHtmlAtCursor = (html: string) => {
+    editorRef.current?.focus();
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) {
+      if (editorRef.current) {
+        editorRef.current.innerHTML += html;
+      }
+      return;
+    }
+    const range = selection.getRangeAt(0);
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (!editor.contains(range.commonAncestorContainer)) {
+      editor.innerHTML += html;
+      return;
+    }
+
+    range.deleteContents();
+    const el = document.createElement("div");
+    el.innerHTML = html;
+    const frag = document.createDocumentFragment();
+    let node;
+    let lastNode;
+    while ((node = el.firstChild)) {
+      lastNode = frag.appendChild(node);
+    }
+    range.insertNode(frag);
+
+    if (lastNode) {
+      const newRange = range.cloneRange();
+      newRange.setStartAfter(lastNode);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+    }
+  };
+
+  const handleFormat = (command: string, value: string = "") => {
+    editorRef.current?.focus();
+    document.execCommand(command, false, value);
+    setDescription(editorRef.current?.innerHTML || "");
+  };
+
+  const handleAddLink = () => {
+    const url = prompt("Enter link URL:");
+    if (url) {
+      handleFormat("createLink", url);
+    }
+  };
+
+  const handleCodeBlock = () => {
+    const selection = window.getSelection();
+    let selectedText = "";
+    if (selection && selection.rangeCount) {
+      selectedText = selection.toString();
+    }
+    const codeHtml = `<pre><code>${selectedText || "\n"}</code></pre>`;
+    insertHtmlAtCursor(codeHtml);
+    setDescription(editorRef.current?.innerHTML || "");
   };
 
   const reset = () => {
@@ -156,6 +357,9 @@ export function TaskCreateDialog({
     setRecurrenceRule("none");
     setCategory("none");
     setTaskFiles([]);
+    if (editorRef.current) {
+      editorRef.current.innerHTML = "";
+    }
   };
 
   const submit = async () => {
@@ -164,7 +368,7 @@ export function TaskCreateDialog({
     try {
       const createdTask = await create.mutateAsync({
         title: title.trim(),
-        description: description.trim() || undefined,
+        description: "",
         projectId: activeProjectId,
         statusId: activeStatusId,
         sprintId: sprintId === "none" ? undefined : sprintId || undefined,
@@ -187,6 +391,50 @@ export function TaskCreateDialog({
           });
         } catch (uploadErr) {
           console.error("Failed to upload attachment", file.name, uploadErr);
+        }
+      }
+
+      let finalDescription = "";
+      if (editorRef.current) {
+        const htmlContent = editorRef.current.innerHTML;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlContent, "text/html");
+        const imgs = doc.querySelectorAll("img");
+        
+        for (const img of Array.from(imgs)) {
+          const src = img.getAttribute("src") || "";
+          if (src.startsWith("data:image/")) {
+            try {
+              const res = await fetch(src);
+              const blob = await res.blob();
+              const ext = blob.type.split("/")[1] || "png";
+              const file = new File([blob], `pasted-image-${Date.now()}.${ext}`, { type: blob.type });
+              
+              const att = await uploadAttachment.mutateAsync({
+                taskId: createdTask.id,
+                file,
+              });
+              
+              if (att && att.url) {
+                img.setAttribute("src", att.url);
+              }
+            } catch (err) {
+              console.error("Failed to upload inline image", err);
+            }
+          }
+        }
+        
+        finalDescription = convertHtmlToMarkdown(doc.body).trim();
+      }
+
+      if (finalDescription) {
+        try {
+          await updateTask.mutateAsync({
+            id: createdTask.id,
+            patch: { description: finalDescription },
+          });
+        } catch (patchErr) {
+          console.error("Failed to update task description with inline images", patchErr);
         }
       }
 
@@ -332,51 +580,84 @@ export function TaskCreateDialog({
                     </Select>
                   </div>
 
-                  {/* Sprints / Phases Conditional */}
-                  {((project?.type === "SCRUM" && sprints.length > 0) || (project?.type === "WATERFALL" && phases.length > 0)) && (
-                    <div className="space-y-1.5">
-                      {project?.type === "SCRUM" && (
-                        <>
-                          <Label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                            <Clock className="h-3 w-3 text-primary" /> Sprint
-                          </Label>
-                          <Select value={sprintId} onValueChange={setSprintId}>
-                            <SelectTrigger className="h-9 text-xs rounded-xl bg-background border-border/60 focus:ring-primary focus:border-primary">
-                              <SelectValue placeholder="Select sprint" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl border-border/80">
-                              <SelectItem value="none" className="text-xs text-muted-foreground">None</SelectItem>
-                              {sprints.map((s) => (
-                                <SelectItem key={s.id} value={s.id} className="text-xs">
-                                  {s.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </>
-                      )}
-                      {project?.type === "WATERFALL" && sprints.length > 0 && (
-                        <>
-                          <Label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                            <Clock className="h-3 w-3 text-primary" /> Phase
-                          </Label>
-                          <Select value={sprintId} onValueChange={setSprintId}>
-                            <SelectTrigger className="h-9 text-xs rounded-xl bg-background border-border/60 focus:ring-primary focus:border-primary">
-                              <SelectValue placeholder="Select phase" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl border-border/80">
-                              <SelectItem value="none" className="text-xs text-muted-foreground">None</SelectItem>
-                              {sprints.map((p) => (
-                                <SelectItem key={p.id} value={p.id} className="text-xs">
-                                  {p.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </>
-                      )}
-                    </div>
-                  )}
+                  {/* TaskList (Sprints / Phases / Categories) */}
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      <List className="h-3 w-3 text-primary" /> TaskList / Phase
+                    </Label>
+                    <Select value={taskListVal} onValueChange={handleTaskListChange}>
+                      <SelectTrigger className="h-9 text-xs rounded-xl bg-background border-border/60 focus:ring-primary focus:border-primary">
+                        <SelectValue placeholder="Select TaskList / Phase" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/80 max-h-[300px] overflow-y-auto">
+                        <SelectItem value="none" className="text-xs text-muted-foreground">None</SelectItem>
+                        
+                        {taskListOptions.filter(o => o.group === "Sprints").length > 0 && (
+                          <>
+                            <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/30 my-1 bg-muted/20">
+                              Sprints
+                            </div>
+                            {taskListOptions.filter(o => o.group === "Sprints").map((o) => (
+                              <SelectItem key={o.value} value={o.value} className="text-xs pl-4">
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+
+                        {taskListOptions.filter(o => o.group === "Phases").length > 0 && (
+                          <>
+                            <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/30 my-1 bg-muted/20">
+                              Phases
+                            </div>
+                            {taskListOptions.filter(o => o.group === "Phases").map((o) => (
+                              <SelectItem key={o.value} value={o.value} className="text-xs pl-4">
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+
+                        {taskListOptions.filter(o => o.group === "TaskLists").length > 0 && (
+                          <>
+                            <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/30 my-1 bg-muted/20">
+                              TaskLists
+                            </div>
+                            {taskListOptions.filter(o => o.group === "TaskLists").map((o) => (
+                              <SelectItem key={o.value} value={o.value} className="text-xs pl-4">
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                        <div className="p-1 border-t border-border mt-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="w-full justify-start text-[10px] h-7 text-primary hover:text-primary-foreground hover:bg-primary rounded-lg"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const name = prompt("Enter new TaskList name:");
+                              if (name && name.trim()) {
+                                const clean = name.trim().toUpperCase();
+                                if (!categories.includes(clean)) {
+                                  const updated = [...categories, clean];
+                                  setCategories(updated);
+                                  localStorage.setItem(`tfp.customCategories:${activeProjectId}`, JSON.stringify(updated));
+                                  setCategory(clean);
+                                  toast.success(`TaskList "${clean}" added`);
+                                } else {
+                                  setCategory(clean);
+                                }
+                              }
+                            }}
+                          >
+                            + Add TaskList
+                          </Button>
+                        </div>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                   {/* Priority */}
                   <div className="space-y-1.5">
@@ -440,50 +721,7 @@ export function TaskCreateDialog({
                     </Select>
                   </div>
 
-                  {/* Category */}
-                  <div className="space-y-1.5">
-                    <Label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      <Tag className="h-3 w-3 text-primary" /> Category
-                    </Label>
-                    <Select value={category} onValueChange={setCategory}>
-                      <SelectTrigger className="h-9 text-xs rounded-xl bg-background border-border/60 focus:ring-primary focus:border-primary">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border/80">
-                        <SelectItem value="none" className="text-xs text-muted-foreground">No Category</SelectItem>
-                        {categories.map((c) => (
-                          <SelectItem key={c} value={c} className="text-xs">
-                            {c}
-                          </SelectItem>
-                        ))}
-                        <div className="p-1 border-t border-border mt-1">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="w-full justify-start text-[10px] h-7 text-primary hover:text-primary-foreground hover:bg-primary rounded-lg"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const name = prompt("Enter new category name:");
-                              if (name && name.trim()) {
-                                const clean = name.trim().toUpperCase();
-                                if (!categories.includes(clean)) {
-                                  const updated = [...categories, clean];
-                                  setCategories(updated);
-                                  localStorage.setItem("tfp.customCategories", JSON.stringify(updated));
-                                  setCategory(clean);
-                                  toast.success(`Category "${clean}" added`);
-                                } else {
-                                  setCategory(clean);
-                                }
-                              }
-                            }}
-                          >
-                            + Add Category
-                          </Button>
-                        </div>
-                      </SelectContent>
-                    </Select>
-                  </div>
+
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -505,7 +743,7 @@ export function TaskCreateDialog({
                     <button
                       type="button"
                       title="Bold"
-                      onClick={() => insertMarkdown("**", "**")}
+                      onClick={() => handleFormat("bold")}
                       className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition text-xs font-bold px-2"
                     >
                       B
@@ -513,7 +751,7 @@ export function TaskCreateDialog({
                     <button
                       type="button"
                       title="Italic"
-                      onClick={() => insertMarkdown("*", "*")}
+                      onClick={() => handleFormat("italic")}
                       className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition text-xs italic px-2"
                     >
                       I
@@ -521,7 +759,7 @@ export function TaskCreateDialog({
                     <button
                       type="button"
                       title="Underline"
-                      onClick={() => insertMarkdown("<u>", "</u>")}
+                      onClick={() => handleFormat("underline")}
                       className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition text-xs underline px-2"
                     >
                       U
@@ -530,7 +768,7 @@ export function TaskCreateDialog({
                     <button
                       type="button"
                       title="Code block"
-                      onClick={() => insertMarkdown("```\n", "\n```")}
+                      onClick={handleCodeBlock}
                       className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
                     >
                       <Code className="h-3.5 w-3.5" />
@@ -538,7 +776,7 @@ export function TaskCreateDialog({
                     <button
                       type="button"
                       title="Bullet List"
-                      onClick={() => insertMarkdown("- ", "")}
+                      onClick={() => handleFormat("insertUnorderedList")}
                       className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
                     >
                       <List className="h-3.5 w-3.5" />
@@ -546,7 +784,7 @@ export function TaskCreateDialog({
                     <button
                       type="button"
                       title="Numbered List"
-                      onClick={() => insertMarkdown("1. ", "")}
+                      onClick={() => handleFormat("insertOrderedList")}
                       className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
                     >
                       <ListOrdered className="h-3.5 w-3.5" />
@@ -554,45 +792,59 @@ export function TaskCreateDialog({
                     <button
                       type="button"
                       title="Link"
-                      onClick={() => insertMarkdown("[", "](url)")}
+                      onClick={handleAddLink}
                       className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
                     >
                       <Link2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
 
-                  <Textarea
-                    ref={textareaRef}
-                    id="desc"
-                    placeholder="Add detail, links, repro steps… (Paste images to embed inline)"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    onPaste={async (e) => {
-                      const items = e.clipboardData.items;
-                      for (const item of items) {
-                        if (item.type.indexOf("image") !== -1) {
-                          e.preventDefault();
-                          const file = item.getAsFile();
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (ev) => {
-                              const base64 = ev.target?.result as string;
-                              const markdownImage = `\n![pasted image](${base64})\n`;
-                              const textarea = e.currentTarget;
-                              const start = textarea.selectionStart;
-                              const end = textarea.selectionEnd;
-                              const newVal = description.substring(0, start) + markdownImage + description.substring(end);
-                              setDescription(newVal);
-                              toast.success("Image embedded in description");
-                            };
-                            reader.readAsDataURL(file);
+                  <div className="relative">
+                    <style>{`
+                      .rich-editor:empty::before {
+                        content: attr(data-placeholder);
+                        color: hsl(var(--muted-foreground) / 0.6);
+                        pointer-events: none;
+                      }
+                    `}</style>
+                    <div
+                      ref={editorRef}
+                      contentEditable
+                      data-placeholder="Add detail, links, repro steps… (Paste images to embed inline)"
+                      onInput={(e) => {
+                        const html = e.currentTarget.innerHTML;
+                        const text = e.currentTarget.innerText.trim();
+                        if (!text && !e.currentTarget.querySelector("img")) {
+                          e.currentTarget.innerHTML = "";
+                          setDescription("");
+                        } else {
+                          setDescription(html);
+                        }
+                      }}
+                      onPaste={(e) => {
+                        const items = e.clipboardData.items;
+                        for (const item of items) {
+                          if (item.type.indexOf("image") !== -1) {
+                            e.preventDefault();
+                            const file = item.getAsFile();
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const base64 = ev.target?.result as string;
+                                const imgHtml = `<img src="${base64}" alt="pasted image" style="max-width: 100%; max-height: 250px; display: block; border-radius: 8px; margin: 8px 0;" />`;
+                                insertHtmlAtCursor(imgHtml);
+                                setDescription(editorRef.current?.innerHTML || "");
+                                toast.success("Image pasted inline");
+                              };
+                              reader.readAsDataURL(file);
+                            }
                           }
                         }
-                      }
-                    }}
-                    rows={3}
-                    className="text-xs bg-background border-border/60 focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary rounded-xl"
-                  />
+                      }}
+                      className="rich-editor w-full min-h-[120px] text-xs border border-border/60 focus:outline-none focus:ring-1 focus:ring-primary bg-background rounded-xl p-3 overflow-y-auto"
+                      style={{ outline: "none" }}
+                    />
+                  </div>
                 </div>
 
                 {/* Attachments Dropzone */}

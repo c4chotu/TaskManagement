@@ -29,6 +29,7 @@ public class StatusWorkflowService {
     private final RoleHierarchyService roleHierarchyService;
     private final IssueDetailRepository issueDetailRepository;
     private final TaskStatusRepository taskStatusRepository;
+    private final TaskActivityRepository taskActivityRepository;
     private final RestTemplate restTemplate;
 
     public StatusWorkflowService(TaskRepository taskRepository,
@@ -38,7 +39,8 @@ public class StatusWorkflowService {
                                  TaskDependencyRepository taskDependencyRepository,
                                  RoleHierarchyService roleHierarchyService,
                                  IssueDetailRepository issueDetailRepository,
-                                 TaskStatusRepository taskStatusRepository) {
+                                 TaskStatusRepository taskStatusRepository,
+                                 TaskActivityRepository taskActivityRepository) {
         this.taskRepository = taskRepository;
         this.customTaskStatusRepository = customTaskStatusRepository;
         this.statusTransitionRepository = statusTransitionRepository;
@@ -47,7 +49,27 @@ public class StatusWorkflowService {
         this.roleHierarchyService = roleHierarchyService;
         this.issueDetailRepository = issueDetailRepository;
         this.taskStatusRepository = taskStatusRepository;
+        this.taskActivityRepository = taskActivityRepository;
         this.restTemplate = new RestTemplate();
+    }
+
+    private void logActivity(UUID taskId, UUID userId, String activityType, String description, String oldValue, String newValue) {
+        if (userId == null) {
+            userId = com.taskflow.common.security.SecurityContextHelper.getCurrentUserId();
+        }
+        if (userId == null) {
+            userId = UUID.fromString("00000000-0000-0000-0000-000000000000");
+        }
+        TaskActivity activity = TaskActivity.builder()
+                .id(UUID.randomUUID())
+                .taskId(taskId)
+                .userId(userId)
+                .activityType(activityType)
+                .description(description)
+                .oldValue(oldValue)
+                .newValue(newValue)
+                .build();
+        taskActivityRepository.save(activity);
     }
 
     @Transactional(readOnly = true)
@@ -111,6 +133,8 @@ public class StatusWorkflowService {
                 .build();
 
         statusHistoryRepository.save(history);
+
+        logActivity(taskId, userId, "STATUS_CHANGE", "changed status", oldStatusId != null ? oldStatusId.toString() : null, newStatusId.toString());
 
         // 4. Update task status
         task.setCurrentStatusId(newStatusId);

@@ -31,8 +31,7 @@ public class SprintController {
         if (projectId != null) {
             sprints = sprintService.listSprintsByProject(projectId);
         } else {
-            // Return all sprints if projectId is not provided
-            sprints = new ArrayList<>(); // Or fetch all from repository if needed, but project-specific is the main flow.
+            sprints = sprintService.listAllSprints();
         }
         
         List<SprintResponse> responses = sprints.stream()

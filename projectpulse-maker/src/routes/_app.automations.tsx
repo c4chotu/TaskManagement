@@ -1,6 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { Topbar } from "@/components/tfp/topbar";
+import { RoutingRuleCreateDialog } from "@/components/tfp/routing-rule-create-dialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,6 +84,8 @@ function AutomationsPage() {
   const [autoProject, setAutoProject] = useState("");
   const [scopeType, setScopeType] = useState<"global" | "project" | "team">("global");
   const [autoTeam, setAutoTeam] = useState("");
+  const [autoDept, setAutoDept] = useState("");
+  const [routingRuleDialogOpen, setRoutingRuleDialogOpen] = useState(false);
   
   // Single Condition
   const [autoCondField, setAutoCondField] = useState("statusId");
@@ -103,6 +106,7 @@ function AutomationsPage() {
     setAutoProject(projects[0]?.id || "");
     setScopeType("global");
     setAutoTeam(teams[0]?.id || "");
+      setAutoDept(teams[0]?.departmentId || "");
     setAutoCondField("statusId");
     setAutoCondOp("EQUALS");
     setAutoCondVal(statuses[0]?.id || "");
@@ -310,10 +314,8 @@ function AutomationsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button size="sm" asChild className="bg-gradient-primary text-primary-foreground font-semibold rounded-xl gap-1">
-              <Link to="/automations/new">
-                <Plus className="mr-1.5 h-4 w-4" /> Create Rule
-              </Link>
+            <Button size="sm" onClick={() => setRoutingRuleDialogOpen(true)} className="bg-gradient-primary text-primary-foreground font-semibold rounded-xl gap-1">
+              <Plus className="mr-1.5 h-4 w-4" /> Create Rule
             </Button>
           </div>
         </div>
@@ -595,8 +597,10 @@ function AutomationsPage() {
                     if (v === "project" && !autoProject && projects.length > 0) {
                       setAutoProject(projects[0].id);
                     }
-                    if (v === "team" && !autoTeam && teams.length > 0) {
-                      setAutoTeam(teams[0].id);
+                    if (v === "team" && !autoDept && departments.length > 0) {
+                      setAutoDept(departments[0].id);
+                      const deptTeams = teams.filter(t => t.departmentId === departments[0].id);
+                      if (deptTeams.length > 0) setAutoTeam(deptTeams[0].id);
                     }
                   }}>
                     <SelectTrigger className="h-9 text-xs">
@@ -658,18 +662,38 @@ function AutomationsPage() {
               )}
 
               {scopeType === "team" && (
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Team</Label>
-                  <Select value={autoTeam} onValueChange={setAutoTeam}>
-                    <SelectTrigger className="h-9 text-xs">
-                      <SelectValue placeholder="Select Team" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {teams.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">Department</Label>
+                    <Select value={autoDept} onValueChange={(v) => {
+                      setAutoDept(v);
+                      const filteredTeams = teams.filter(t => t.departmentId === v);
+                      if (filteredTeams.length > 0) setAutoTeam(filteredTeams[0].id);
+                      else setAutoTeam("");
+                    }}>
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue placeholder="Select Department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departments.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">Team</Label>
+                    <Select value={autoTeam} onValueChange={setAutoTeam}>
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue placeholder="Select Team" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {teams.filter(t => !autoDept || t.departmentId === autoDept).map((t) => (
+                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               )}
 
@@ -765,6 +789,7 @@ function AutomationsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        <RoutingRuleCreateDialog open={routingRuleDialogOpen} onOpenChange={setRoutingRuleDialogOpen} />
       </main>
     </>
   );

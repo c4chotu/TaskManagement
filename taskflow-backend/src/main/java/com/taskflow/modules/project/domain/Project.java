@@ -1,6 +1,10 @@
 package com.taskflow.modules.project.domain;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -38,6 +42,19 @@ public class Project {
     private int taskCounter = 0;
 
     private String description;
+
+    @Column(columnDefinition = "TEXT")
+    private String specification;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "project_features", schema = "projects", joinColumns = @JoinColumn(name = "project_id"))
+    @Column(name = "feature")
+    private java.util.List<String> features;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "project_tech_stack", schema = "projects", joinColumns = @JoinColumn(name = "project_id"))
+    @Column(name = "tech")
+    private java.util.List<String> techStack;
 
     @Column(nullable = false)
     private String status;

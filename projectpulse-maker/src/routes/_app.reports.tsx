@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Topbar } from "@/components/tfp/topbar";
 import { Card } from "@/components/ui/card";
-import { useProjects, useTasks, useUsers, useSprints } from "@/lib/queries";
+import { useProjects, useTasks, useUsers, useSprints, usePhases } from "@/lib/queries";
 import { DataTable } from "@/components/tfp/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Task } from "@/lib/types";
@@ -30,6 +30,8 @@ function ReportsPage() {
   const { data: tasks = [] } = useTasks();
   const { data: users = [] } = useUsers();
   const { data: sprints = [] } = useSprints();
+  const { data: phasesList = [] } = usePhases();
+  const allPhasesAndSprints = useMemo(() => [...sprints, ...phasesList], [sprints, phasesList]);
   const { user } = useAuth();
 
   const [selectedProject, setSelectedProject] = useState<string>("all");
@@ -165,7 +167,7 @@ function ReportsPage() {
       accessorKey: "category",
       header: () => (
         <div className="flex items-center gap-1 cursor-pointer" onClick={() => setIsFilterPanelOpen(true)}>
-          <span>Category</span>
+          <span>TaskList</span>
           <Filter className="h-3 w-3 text-muted-foreground/60 hover:text-foreground" />
         </div>
       ),
@@ -237,10 +239,15 @@ function ReportsPage() {
         const p = projects.find(x => x.id === task.projectId);
         groupName = p?.name || "Unknown Project";
       } else if (groupBy === "category") {
-        groupName = task.category || "No Category";
+        groupName = task.category || "No TaskList";
       } else if (groupBy === "phase") {
-        const s = sprints.find(x => x.id === task.sprintId);
-        groupName = s?.name || "No Phase / Sprint";
+        const targetId = task.phaseId || task.sprintId;
+        if (targetId && targetId !== "none") {
+          const s = allPhasesAndSprints.find(x => x.id.toLowerCase() === targetId.toLowerCase());
+          groupName = s?.name || targetId;
+        } else {
+          groupName = "No Phase / Sprint";
+        }
       }
 
       if (!groups[groupName]) {
@@ -250,7 +257,7 @@ function ReportsPage() {
     });
 
     return groups;
-  }, [filteredTasks, groupBy, projects, sprints]);
+  }, [filteredTasks, groupBy, projects, allPhasesAndSprints]);
 
   const handleExportStart = async () => {
     setIsExporting(true);
@@ -374,7 +381,7 @@ function ReportsPage() {
                   <SelectItem value="status">Status</SelectItem>
                   <SelectItem value="priority">Priority</SelectItem>
                   <SelectItem value="project">Project</SelectItem>
-                  <SelectItem value="category">Category</SelectItem>
+                  <SelectItem value="category">TaskList</SelectItem>
                   <SelectItem value="phase">Phase</SelectItem>
                 </SelectContent>
               </Select>

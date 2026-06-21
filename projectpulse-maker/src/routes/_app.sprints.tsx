@@ -44,7 +44,7 @@ function SprintsPage() {
 
   return (
     <>
-      <Topbar title="Sprints" actions={<TaskCreateDialog defaultProjectId={projectId} />} />
+      <Topbar title="Sprints" />
       <main className="flex-1 space-y-4 p-6">
         <Card className="flex flex-wrap items-center gap-3 p-3">
           <CalendarRange className="h-4 w-4 text-primary" />

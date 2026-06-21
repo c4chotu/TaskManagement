@@ -168,7 +168,7 @@ function SuperAdminPage() {
             { label: "MRR Revenue", value: `$${totalRevenue.toFixed(0)}`, sub: "Monthly recurring", icon: DollarSign, color: "text-emerald-600 bg-emerald-500/10" },
             { label: "Total Projects", value: totalProjects.toLocaleString(), sub: `${totalIssues} open issues`, icon: FolderKanban, color: "text-violet-600 bg-violet-500/10" },
           ].map((stat) => (
-            <Card key={stat.label} className="glass-card-green p-5 shadow-[0_0_20px_rgba(16,185,129,0.06)] hover:shadow-[0_0_28px_rgba(16,185,129,0.12)] transition-all">
+            <Card key={stat.label} className="glass-card-green p-5 shadow-primary-sm hover:shadow-primary-md transition-all">
               <div className="flex items-start gap-3">
                 <div className={`p-2.5 rounded-xl shrink-0 ${stat.color}`}>
                   <stat.icon className="h-5 w-5" />
@@ -192,7 +192,7 @@ function SuperAdminPage() {
             { label: "Events Today", value: mockSystemMetrics.eventsToday.toLocaleString(), icon: BarChart3, color: "text-purple-600 bg-purple-500/10", good: true },
             { label: "Automations Ran", value: mockSystemMetrics.automationsRan.toLocaleString(), icon: Cpu, color: "text-emerald-600 bg-emerald-500/10", good: true },
           ].map((m) => (
-            <Card key={m.label} className="glass-card-green p-4 shadow-[0_0_20px_rgba(16,185,129,0.06)]">
+            <Card key={m.label} className="glass-card-green p-4 shadow-primary-sm">
               <div className="flex items-center gap-2.5">
                 <div className={`p-2 rounded-lg ${m.color}`}>
                   <m.icon className="h-4 w-4" />
@@ -222,7 +222,7 @@ function SuperAdminPage() {
             ) : orgs.length === 0 ? (
               <Card className="glass-card-green p-8 text-center text-sm text-muted-foreground">No organizations registered yet.</Card>
             ) : (
-              <Card className="glass-card-green overflow-hidden shadow-[0_0_20px_rgba(16,185,129,0.06)]">
+              <Card className="glass-card-green overflow-hidden shadow-primary-sm">
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow>
@@ -271,7 +271,7 @@ function SuperAdminPage() {
 
             {/* Storage & Performance */}
             <div className="grid grid-cols-2 gap-4">
-              <Card className="glass-card-green p-4 shadow-[0_0_20px_rgba(16,185,129,0.06)]">
+              <Card className="glass-card-green p-4 shadow-primary-sm">
                 <div className="flex items-center gap-2 mb-3">
                   <Server className="h-4 w-4 text-primary" />
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Storage</h3>
@@ -280,7 +280,7 @@ function SuperAdminPage() {
                 <Progress value={(mockSystemMetrics.storageUsedGB / mockSystemMetrics.storageTotalGB) * 100} className="mt-2 h-2" />
                 <p className="text-[10px] text-muted-foreground mt-1">{Math.round((mockSystemMetrics.storageUsedGB / mockSystemMetrics.storageTotalGB) * 100)}% used</p>
               </Card>
-              <Card className="glass-card-green p-4 shadow-[0_0_20px_rgba(16,185,129,0.06)]">
+              <Card className="glass-card-green p-4 shadow-primary-sm">
                 <div className="flex items-center gap-2 mb-3">
                   <TrendingUp className="h-4 w-4 text-primary" />
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Platform Health</h3>
@@ -345,7 +345,7 @@ function SuperAdminPage() {
             )}
 
             {/* Plan Distribution */}
-            <Card className="glass-card-green p-5 shadow-[0_0_20px_rgba(16,185,129,0.06)]">
+            <Card className="glass-card-green p-5 shadow-primary-sm">
               <div className="flex items-center gap-2 mb-4">
                 <BarChart3 className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold">Plan Distribution</h3>
@@ -373,7 +373,7 @@ function SuperAdminPage() {
             </Card>
 
             {/* System Insights */}
-            <Card className="glass-card-green p-5 shadow-[0_0_20px_rgba(16,185,129,0.06)]">
+            <Card className="glass-card-green p-5 shadow-primary-sm">
               <div className="flex items-center gap-2 mb-4">
                 <TrendingUp className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold">System Insights</h3>

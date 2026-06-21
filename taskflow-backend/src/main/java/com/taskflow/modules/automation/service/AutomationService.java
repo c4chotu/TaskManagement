@@ -199,13 +199,36 @@ public class AutomationService {
     /**
      * Evaluate all active rules for a project against a triggered event.
      * Called internally by TaskService/NotificationService on relevant state changes.
+     * Evaluates in a strict hierarchy: Level 1 (Project) -> Level 2 (Team) -> Level 3 (Global)
+     * and stops upon the first successfully executed rule.
      */
     @Transactional
     public void evaluateRules(String triggerType, UUID projectId, Task task, Map<String, Object> eventContext) {
         UUID orgId = task.getOrganizationId();
         UUID teamId = task.getTeamId();
-        List<AutomationRule> rules = ruleRepository.findActiveRulesByScope(orgId, projectId, teamId, triggerType, true);
 
+        // Level 1: Project-Specific Automation
+        if (projectId != null) {
+            List<AutomationRule> level1Rules = ruleRepository.findByOrganizationIdAndProjectIdAndTriggerTypeIgnoreCaseAndEnabled(orgId, projectId, triggerType, true);
+            if (evaluateAndExecuteRuleList(level1Rules, triggerType, task, eventContext)) {
+                return; // Stop if a rule executed
+            }
+        }
+
+        // Level 2: Team Lead Automation
+        if (teamId != null) {
+            List<AutomationRule> level2Rules = ruleRepository.findByOrganizationIdAndProjectIdIsNullAndTeamIdAndTriggerTypeIgnoreCaseAndEnabled(orgId, teamId, triggerType, true);
+            if (evaluateAndExecuteRuleList(level2Rules, triggerType, task, eventContext)) {
+                return; // Stop if a rule executed
+            }
+        }
+
+        // Level 3: Global Automation
+        List<AutomationRule> level3Rules = ruleRepository.findByOrganizationIdAndProjectIdIsNullAndTeamIdIsNullAndTriggerTypeIgnoreCaseAndEnabled(orgId, triggerType, true);
+        evaluateAndExecuteRuleList(level3Rules, triggerType, task, eventContext);
+    }
+
+    private boolean evaluateAndExecuteRuleList(List<AutomationRule> rules, String triggerType, Task task, Map<String, Object> eventContext) {
         for (AutomationRule rule : rules) {
             StringBuilder businessLog = new StringBuilder();
             businessLog.append(String.format("Starting evaluation of Rule: '%s' (ID: %s, Scope: %s)\n", rule.getName(), rule.getId(), rule.getRuleType()));
@@ -220,6 +243,7 @@ public class AutomationService {
                     .status("PENDING")
                     .build();
 
+            boolean executed = false;
             try {
                 boolean allConditionsMet = true;
                 if (rule.getConditions().isEmpty()) {
@@ -250,6 +274,7 @@ public class AutomationService {
                         }
                     }
                     execution.setStatus("SUCCESS");
+                    executed = true;
                 } else {
                     businessLog.append("\nEvaluation outcome: SKIPPED (One or more conditions were not met).\n");
                     execution.setStatus("SKIPPED");
@@ -262,7 +287,12 @@ public class AutomationService {
 
             execution.setExecutionLog(businessLog.toString());
             executionRepository.save(execution);
+
+            if (executed) {
+                return true;
+            }
         }
+        return false;
     }
 
     @Transactional(readOnly = true)

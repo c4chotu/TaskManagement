@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useAddComment, useComments, useIssue, useProject, useStatuses, useTask,
   useAckIssue, useResolveIssue, useStartTimer, useStopTimer, useTimeEntries,
-  useUsers, useRoutingHistory,
+  useUsers, useRoutingHistory, useUploadAttachment, useTaskActivities,
 } from "@/lib/queries";
 import { toast } from "sonner";
 import { findUser } from "@/lib/mock-data";
@@ -47,6 +47,7 @@ function IssueDetail() {
   const { data: users = [] } = useUsers();
   const { data: timeEntries = [] } = useTimeEntries();
   const { data: history = [] } = useRoutingHistory(id);
+  const { data: serverActivities = [] } = useTaskActivities(id);
 
   const addComment = useAddComment();
   const ackIssue = useAckIssue();
@@ -55,6 +56,7 @@ function IssueDetail() {
   const stopTimer = useStopTimer();
 
   const [body, setBody] = useState("");
+  const uploadAttachment = useUploadAttachment();
   const runningEntry = timeEntries.find((te) => te.taskId === id && !te.endTime);
   const taskEntries = timeEntries.filter((e) => e.taskId === id);
   const totalLogged = taskEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
@@ -178,8 +180,9 @@ function IssueDetail() {
                 <TabsList className="mb-4 bg-muted/40 p-1 rounded-xl">
                   <TabsTrigger value="comments" className="text-xs gap-1.5 rounded-lg"><MessageSquare className="h-3.5 w-3.5" /> Comments ({comments.length})</TabsTrigger>
                   <TabsTrigger value="history" className="text-xs gap-1.5 rounded-lg"><History className="h-3.5 w-3.5" /> Assignment History</TabsTrigger>
+                  <TabsTrigger value="activity" className="text-xs gap-1.5 rounded-lg"><Clock className="h-3.5 w-3.5" /> Activity Stream</TabsTrigger>
                   <TabsTrigger value="attachments" className="text-xs gap-1.5 rounded-lg"><Paperclip className="h-3.5 w-3.5" /> Attachments</TabsTrigger>
-                  <TabsTrigger value="timelog" className="text-xs gap-1.5 rounded-lg"><Clock className="h-3.5 w-3.5" /> Time Log</TabsTrigger>
+                  <TabsTrigger value="timelog" className="text-xs gap-1.5 rounded-lg"><Timer className="h-3.5 w-3.5" /> Time Log</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="comments" className="space-y-4">
@@ -212,9 +215,35 @@ function IssueDetail() {
                   <Separator className="bg-border/60" />
                   <div className="space-y-3">
                     <Textarea 
-                      placeholder="Share updates, links, or logs..." 
+                      placeholder="Share updates, links, or logs... (Paste images to embed inline)" 
                       value={body} 
                       onChange={(e) => setBody(e.target.value)} 
+                      onPaste={async (e) => {
+                        const items = e.clipboardData.items;
+                        for (const item of items) {
+                          if (item.type.indexOf("image") !== -1) {
+                            e.preventDefault();
+                            const file = item.getAsFile();
+                            if (file) {
+                              toast.loading("Uploading image to comment...", { id: "comment-upload" });
+                              try {
+                                const att = await uploadAttachment.mutateAsync({ taskId: id, file });
+                                const md = `\n![image](${att.url || '#'})`;
+                                setBody(prev => prev + md);
+                                toast.success("Image embedded in comment!", { id: "comment-upload" });
+                              } catch (err) {
+                                console.error("Upload failed, falling back to base64", err);
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  setBody(prev => prev + `\n![image](${ev.target?.result})`);
+                                  toast.success("Image embedded (local fallback)!", { id: "comment-upload" });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }
+                          }
+                        }
+                      }}
                       rows={3} 
                       className="text-xs rounded-xl border border-border/60 focus:border-primary focus:ring-1 focus:ring-primary/20 bg-background/50 placeholder:text-muted-foreground/60 transition-all duration-300"
                     />
@@ -247,6 +276,53 @@ function IssueDetail() {
                             </div>
                             <p className="mt-0.5 text-xs font-semibold">{prev?.name ?? "Unassigned"} → {next?.name ?? "Unassigned"}</p>
                             {h.reason && <p className="mt-0.5 text-[10px] text-muted-foreground">{h.reason}</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="activity" className="space-y-4">
+                  {serverActivities.length === 0 ? (
+                    <div className="text-center py-6 text-xs text-muted-foreground/80 italic">No activity logs recorded yet.</div>
+                  ) : (
+                    <div className="relative pl-6 space-y-4 pt-2">
+                      <div className="absolute left-2.5 top-3 bottom-3 w-0.5 bg-border/40 animate-in fade-in duration-300" />
+                      {serverActivities.map((act: any) => {
+                        let safeAt = "";
+                        try {
+                          const d = new Date(act.at);
+                          safeAt = isNaN(d.getTime()) ? "" : formatDistanceToNow(d, { addSuffix: true });
+                        } catch {}
+
+                        return (
+                          <div key={act.id} className="relative flex items-start gap-3 text-xs leading-snug animate-in fade-in duration-200">
+                            <div className="absolute -left-[27px] top-0 h-5 w-5 rounded-full bg-background border border-border flex items-center justify-center text-muted-foreground shrink-0 shadow-sm">
+                              <Clock className="h-3 w-3" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-foreground">
+                                <span className="font-semibold text-foreground/90">{act.actor}</span>{" "}
+                                <span className="text-muted-foreground">{act.message}</span>
+                              </p>
+                              {(act.from || act.to) && (
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  {act.from && (
+                                    <span className="text-[10px] px-1.5 py-0.2 bg-muted border rounded-full text-muted-foreground">
+                                      {act.from}
+                                    </span>
+                                  )}
+                                  {act.from && act.to && <ChevronRight className="h-3 w-3 text-muted-foreground/60" />}
+                                  {act.to && (
+                                    <span className="text-[10px] px-1.5 py-0.2 bg-primary/10 border border-primary/20 rounded-full text-primary font-semibold">
+                                      {act.to}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {safeAt && <span className="text-[10px] text-muted-foreground block mt-0.5">{safeAt}</span>}
+                            </div>
                           </div>
                         );
                       })}

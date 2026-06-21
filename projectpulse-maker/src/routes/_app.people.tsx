@@ -25,6 +25,7 @@ import { useState, useMemo } from "react";
 import { EnterpriseGrid, type GridColumn } from "@/components/tfp/enterprise-grid";
 import type { User } from "@/lib/types";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/people")({
   head: () => ({ meta: [{ title: "People & Org — TaskFlow Pro" }] }),
@@ -32,6 +33,9 @@ export const Route = createFileRoute("/_app/people")({
 });
 
 function PeoplePage() {
+  const { user } = useAuth();
+  const isOrgAdmin = user && ((user.roleLevel ?? 0) >= 4 || user.roleName === "SUPER_ADMIN");
+
   const { data: users = [] } = useUsers();
   const { data: depts = [] } = useDepartments();
   const { data: teams = [] } = useTeams();
@@ -412,7 +416,7 @@ function PeoplePage() {
 
         {/* KPI Stats */}
         <div className="relative z-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="glass-card-green p-5 shadow-[0_0_20px_rgba(16,185,129,0.08)]">
+          <Card className="glass-card-green p-5 shadow-primary-sm">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500"><UsersIcon className="h-5 w-5" /></div>
               <div>
@@ -422,7 +426,7 @@ function PeoplePage() {
               </div>
             </div>
           </Card>
-          <Card className="glass-card-green p-5 shadow-[0_0_20px_rgba(16,185,129,0.08)]">
+          <Card className="glass-card-green p-5 shadow-primary-sm">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-red-500/10 text-red-500"><Activity className="h-5 w-5" /></div>
               <div>
@@ -432,7 +436,7 @@ function PeoplePage() {
               </div>
             </div>
           </Card>
-          <Card className="glass-card-green p-5 shadow-[0_0_20px_rgba(16,185,129,0.08)]">
+          <Card className="glass-card-green p-5 shadow-primary-sm">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-500"><Clock className="h-5 w-5" /></div>
               <div>
@@ -442,7 +446,7 @@ function PeoplePage() {
               </div>
             </div>
           </Card>
-          <Card className="glass-card-green p-5 shadow-[0_0_20px_rgba(16,185,129,0.08)]">
+          <Card className="glass-card-green p-5 shadow-primary-sm">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-violet-500/10 text-violet-500"><BarChart3 className="h-5 w-5" /></div>
               <div>
@@ -499,6 +503,13 @@ function PeoplePage() {
                     <button onClick={() => setViewMode("cards")} className={`p-1.5 rounded transition-colors ${viewMode === "cards" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}><Grid3X3 className="h-3.5 w-3.5" /></button>
                     <button onClick={() => setViewMode("grid")} className={`p-1.5 rounded transition-colors ${viewMode === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}><List className="h-3.5 w-3.5" /></button>
                   </div>
+                  {isOrgAdmin && (
+                    <Button size="sm" asChild className="bg-gradient-primary text-primary-foreground font-semibold text-xs rounded-xl gap-1 h-8">
+                      <Link to="/people-onboarding">
+                        <Plus className="h-3.5 w-3.5" /> Onboard Member
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -522,7 +533,7 @@ function PeoplePage() {
                     const roleIcon = u.roleName === "ORG_OWNER" ? Crown : u.roleName === "ORG_ADMIN" ? Shield : u.roleName === "DEPT_HEAD" ? Star : UserCheck;
                     const RoleIcon = roleIcon;
                     return (
-                      <Card key={u.id} className={`glass-card-green p-4 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all ${m.overloaded ? "border-destructive/40" : ""}`}>
+                      <Card key={u.id} className={`glass-card-green p-4 hover:shadow-primary-sm transition-all ${m.overloaded ? "border-destructive/40" : ""}`}>
                         <div className="flex items-start gap-3">
                           <div className="relative">
                             <Avatar className="h-11 w-11 border-2 border-emerald-500/20 shrink-0">
@@ -618,7 +629,7 @@ function PeoplePage() {
                       const deptMembers = users.filter((u) => deptTeams.some((t) => t.id === (u as any).teamId));
                       const deptTasks = tasks.filter(t => deptTeams.some(dt => dt.id === (t as any).teamId)).length;
                       return (
-                        <Card key={d.id} className="glass-card-green p-5 hover:shadow-[0_0_24px_rgba(16,185,129,0.15)] transition-all group">
+                        <Card key={d.id} className="glass-card-green p-5 hover:shadow-primary-md transition-all group">
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-2.5">
                               <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500/15 to-indigo-500/10 text-emerald-600">
@@ -726,7 +737,7 @@ function PeoplePage() {
                       const members = users.filter(u => (u as any).teamId === team.id);
                       const teamTasks = tasks.filter(t => (t as any).teamId === team.id);
                       return (
-                        <Card key={team.id} className="glass-card-green p-5 hover:shadow-[0_0_24px_rgba(16,185,129,0.15)] transition-all group flex flex-col h-full">
+                        <Card key={team.id} className="glass-card-green p-5 hover:shadow-primary-md transition-all group flex flex-col h-full">
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-2.5">
                               <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500/15 to-indigo-500/10 text-violet-600">

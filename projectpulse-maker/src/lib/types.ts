@@ -9,7 +9,7 @@ export type RoleName =
 export type RoleLevel = 0 | 1 | 2 | 3 | 4 | 5 | 10;
 export type Severity = "SEV0" | "SEV1" | "SEV2" | "SEV3";
 export type StatusCategory = "PLANNING" | "ACTIVE" | "BLOCKED" | "COMPLETED";
-export type ProjectType = "KANBAN" | "SCRUM" | "WATERFALL";
+export type ProjectType = "KANBAN" | "SCRUM" | "WATERFALL" | "SOFTWARE";
 export type TaskType = "TASK" | "ISSUE";
 export type TaskCategory = "FRONTEND" | "BACKEND" | "INFRA" | "DESIGN" | "QA" | "SECURITY" | "DOCS" | "RESEARCH" | "BUG" | "FEATURE";
 export type TaskBadge = "URGENT" | "BLOCKED" | "CUSTOMER_REPORTED" | "P0" | "HOT_FIX" | "INNOVATION" | "MILESTONE" | "GOOD_FIRST" | "NEEDS_REVIEW" | "ON_TRACK";
@@ -67,6 +67,12 @@ export interface Project {
   progress?: number;
   estimatedHours?: number;
   group?: string;
+  /** Optional rich specification/about text */
+  specification?: string | null;
+  /** List of feature strings for the project */
+  features?: string[];
+  /** Technology stack items */
+  techStack?: string[];
 }
 
 export interface CustomTaskStatus {
@@ -107,6 +113,7 @@ export interface Task {
   category?: TaskCategory;
   badges?: TaskBadge[];
   sprintId?: string;
+  phaseId?: string;
   storyPoints?: number;
 }
 
@@ -159,6 +166,7 @@ export interface RoutingRule {
   ruleName: string;
   taskType: TaskType;
   targetDepartmentId?: string;
+  targetTeamId?: string;
   assignToRole?: RoleName;
   assignmentStrategy: "ROUND_ROBIN" | "LEAST_LOADED" | "ON_CALL";
   priority: number;

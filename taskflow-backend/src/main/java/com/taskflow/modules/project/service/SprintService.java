@@ -45,6 +45,11 @@ public class SprintService {
     }
 
     @Transactional(readOnly = true)
+    public List<Sprint> listAllSprints() {
+        return sprintRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
     public Sprint getSprint(UUID sprintId) {
         return sprintRepository.findById(sprintId)
                 .orElseThrow(() -> new EntityNotFoundException("Sprint not found with ID: " + sprintId));

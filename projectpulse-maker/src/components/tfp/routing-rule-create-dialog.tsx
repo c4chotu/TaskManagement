@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+﻿import { useState } from "react";
 import { Topbar } from "@/components/tfp/topbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   useCreateRoutingRule,
   useDepartments,
+  useTeams,
   useUsers,
   useProjects,
   useStatuses
@@ -18,20 +19,15 @@ import { ArrowLeft, Plus, Trash2, Sparkles, AlertCircle, Info } from "lucide-rea
 import { toast } from "sonner";
 import type { RoleName, TaskType } from "@/lib/types";
 
-export const Route = createFileRoute("/_app/automations/new")({
-  head: () => ({ meta: [{ title: "New Rule — TaskFlow Pro" }] }),
-  component: CreateRulePage,
-});
-
 interface ConditionRow {
   field: "priority" | "taskType" | "statusId" | "projectId" | "departmentId";
   operator: "=" | "!=";
   value: string;
 }
 
-function CreateRulePage() {
-  const navigate = useNavigate();
+export function RoutingRuleCreateDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
   const { data: departments = [] } = useDepartments();
+  const { data: teams = [] } = useTeams();
   const { data: users = [] } = useUsers();
   const { data: projects = [] } = useProjects();
   const { data: statuses = [] } = useStatuses();
@@ -41,6 +37,7 @@ function CreateRulePage() {
   const [taskType, setTaskType] = useState<TaskType>("TASK");
   const [priority, setPriority] = useState(5);
   const [targetDeptId, setTargetDeptId] = useState("");
+  const [targetTeamId, setTargetTeamId] = useState("");
 
   // WHEN (Trigger)
   const [triggerType, setTriggerType] = useState("task_created");
@@ -125,7 +122,8 @@ function CreateRulePage() {
       await createRule.mutateAsync({
         ruleName: encodedRuleName,
         taskType,
-        targetDepartmentId: targetDeptId || undefined,
+        targetDepartmentId: targetDeptId && targetDeptId !== "_none" ? targetDeptId : undefined,
+        targetTeamId: targetTeamId && targetTeamId !== "_none" ? targetTeamId : undefined,
         assignToRole: actionType === "assign_role" ? actionRole : "TEAM_MEMBER",
         assignmentStrategy: actionType === "assign_role" ? strategy : "ROUND_ROBIN",
         priority,
@@ -139,9 +137,26 @@ function CreateRulePage() {
   };
 
   return (
-    <>
-      <Topbar title="Create Automation Rule" />
-      <main className="flex-1 p-6 max-w-4xl mx-auto space-y-6">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl border-primary/20 bg-card p-0 sm:max-w-3xl overflow-hidden rounded-2xl shadow-glow animate-in fade-in duration-200">
+        
+        {/* Header Section */}
+        <div className="bg-gradient-to-br from-primary/10 via-card to-card border-b border-border/60 px-6 py-4 flex items-center justify-between">
+          <div className="space-y-1">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+                <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+                Create Routing Rule
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-xs text-muted-foreground mt-1">
+              Configure how tasks are automatically assigned to teams or individuals.
+            </p>
+          </div>
+        </div>
+
+        {/* Body Section */}
+        <div className="p-6 overflow-y-auto max-h-[70vh]">
         {/* Back Link */}
         <div>
           <Link to="/automations" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
@@ -169,7 +184,7 @@ function CreateRulePage() {
                 <Label>Rule Name</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Critical Bug Auto-Assign" className="h-10 text-sm" />
               </div>
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-4">
                 <div className="space-y-1.5">
                   <Label>Task Type Scope</Label>
                   <Select value={taskType} onValueChange={(v) => setTaskType(v as TaskType)}>
@@ -188,7 +203,10 @@ function CreateRulePage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Target Department</Label>
-                  <Select value={targetDeptId} onValueChange={setTargetDeptId}>
+                  <Select value={targetDeptId} onValueChange={(v) => {
+                    setTargetDeptId(v);
+                    setTargetTeamId(""); // Reset team on dept change
+                  }}>
                     <SelectTrigger className="h-10">
                       <SelectValue placeholder="Any Department" />
                     </SelectTrigger>
@@ -196,6 +214,20 @@ function CreateRulePage() {
                       <SelectItem value="_none">Any Department</SelectItem>
                       {departments.map((dept) => (
                         <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Target Team</Label>
+                  <Select value={targetTeamId} onValueChange={setTargetTeamId} disabled={targetDeptId === "_none" || !targetDeptId}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Any Team" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Any Team</SelectItem>
+                      {teams.filter(t => !targetDeptId || t.departmentId === targetDeptId).map((team) => (
+                        <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -427,7 +459,19 @@ function CreateRulePage() {
             <Sparkles className="mr-1.5 h-4 w-4" /> Save Automation Rule
           </Button>
         </div>
-      </main>
-    </>
+      
+        </div>
+
+        {/* Footer Section */}
+        <DialogFooter className="border-t border-border/60 bg-muted/10 px-6 py-4 flex items-center justify-end gap-3 mt-auto">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleCreate} className="bg-primary text-primary-foreground font-semibold">
+            <Sparkles className="mr-2 h-4 w-4" />
+            Create Rule
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
+

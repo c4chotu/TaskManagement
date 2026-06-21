@@ -11,6 +11,7 @@ import com.taskflow.modules.project.repository.ProjectRepository;
 import com.taskflow.modules.task.domain.*;
 import com.taskflow.modules.task.dto.*;
 import com.taskflow.modules.task.repository.*;
+import com.taskflow.modules.auth.repository.UserRepository;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ public class TaskService {
     private final ProjectMemberRepository projectMemberRepository;
     private final RecurringTaskRepository recurringTaskRepository;
     private final IssueDetailRepository issueDetailRepository;
+    private final UserRepository userRepository;
 
     private static final Logger log = LoggerFactory.getLogger(TaskService.class);
 
@@ -65,7 +67,8 @@ public class TaskService {
                        ProjectRepository projectRepository,
                        ProjectMemberRepository projectMemberRepository,
                        RecurringTaskRepository recurringTaskRepository,
-                       IssueDetailRepository issueDetailRepository) {
+                       IssueDetailRepository issueDetailRepository,
+                       UserRepository userRepository) {
         this.taskRepository = taskRepository;
         this.taskStatusRepository = taskStatusRepository;
         this.customTaskStatusRepository = customTaskStatusRepository;
@@ -79,6 +82,7 @@ public class TaskService {
         this.projectMemberRepository = projectMemberRepository;
         this.recurringTaskRepository = recurringTaskRepository;
         this.issueDetailRepository = issueDetailRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -234,8 +238,10 @@ public class TaskService {
             ctx.put("description", savedTask.getDescription());
             ctx.put("teamId", savedTask.getTeamId() != null ? savedTask.getTeamId().toString() : null);
             ctx.put("projectId", savedTask.getProjectId().toString());
+            ctx.put("departmentId", savedTask.getDepartmentId() != null ? savedTask.getDepartmentId().toString() : null);
             ctx.put("statusId", savedTask.getCurrentStatusId() != null ? savedTask.getCurrentStatusId().toString() : (savedTask.getStatusId() != null ? savedTask.getStatusId().toString() : null));
             ctx.put("taskType", savedTask.getTaskType());
+            ctx.put("issueType", savedTask.getTaskType());
             automationService.evaluateRules("TASK_CREATED", savedTask.getProjectId(), savedTask, ctx);
         } catch (Exception e) {
             log.error("Automation evaluation failed on create: {}", e.getMessage());
@@ -431,16 +437,36 @@ public class TaskService {
         }
 
         if (body.containsKey("startDate")) {
-            task.setStartDate(parseInstant(body.get("startDate")));
+            Instant oldStart = task.getStartDate();
+            Instant newStart = parseInstant(body.get("startDate"));
+            if (!Objects.equals(oldStart, newStart)) {
+                logActivity(taskId, currentUserId, "START_DATE_CHANGE", "Start date updated", formatDate(oldStart), formatDate(newStart));
+                task.setStartDate(newStart);
+            }
         }
         if (body.containsKey("dueDate")) {
-            task.setDueDate(parseInstant(body.get("dueDate")));
+            Instant oldDue = task.getDueDate();
+            Instant newDue = parseInstant(body.get("dueDate"));
+            if (!Objects.equals(oldDue, newDue)) {
+                logActivity(taskId, currentUserId, "DUE_DATE_CHANGE", "Due date updated", formatDate(oldDue), formatDate(newDue));
+                task.setDueDate(newDue);
+            }
         }
         if (body.containsKey("storyPoints")) {
-            task.setStoryPoints(parseInteger(body.get("storyPoints")));
+            Integer oldPoints = task.getStoryPoints();
+            Integer newPoints = parseInteger(body.get("storyPoints"));
+            if (!Objects.equals(oldPoints, newPoints)) {
+                logActivity(taskId, currentUserId, "STORY_POINTS_CHANGE", "Story points updated", oldPoints != null ? oldPoints.toString() : null, newPoints != null ? newPoints.toString() : null);
+                task.setStoryPoints(newPoints);
+            }
         }
         if (body.containsKey("estimatedHours")) {
-            task.setEstimatedHours(parseDouble(body.get("estimatedHours")));
+            Double oldHours = task.getEstimatedHours();
+            Double newHours = parseDouble(body.get("estimatedHours"));
+            if (!Objects.equals(oldHours, newHours)) {
+                logActivity(taskId, currentUserId, "ESTIMATED_HOURS_CHANGE", "Estimated hours updated", oldHours != null ? oldHours.toString() : null, newHours != null ? newHours.toString() : null);
+                task.setEstimatedHours(newHours);
+            }
         }
         if (body.containsKey("phaseId")) {
             task.setPhaseId(parseUUID(body.get("phaseId")));
@@ -464,6 +490,23 @@ public class TaskService {
         if (body.containsKey("assigneeIds")) {
             List<UUID> assigneeIds = parseUUIDList(body.get("assigneeIds"));
             if (assigneeIds != null) {
+                List<UUID> currentAssigneeIds = taskAssignmentRepository.findByTaskId(taskId).stream()
+                        .map(TaskAssignment::getUserId)
+                        .collect(Collectors.toList());
+
+                // Log removed assignees
+                for (UUID currentId : currentAssigneeIds) {
+                    if (!assigneeIds.contains(currentId)) {
+                        logActivity(taskId, currentUserId, "ASSIGNMENT_REMOVE", "unassigned user", currentId.toString(), null);
+                    }
+                }
+                // Log added assignees
+                for (UUID newId : assigneeIds) {
+                    if (!currentAssigneeIds.contains(newId)) {
+                        logActivity(taskId, currentUserId, "ASSIGNMENT_ADD", "assigned user", null, newId.toString());
+                    }
+                }
+
                 taskAssignmentRepository.deleteByTaskId(taskId);
                 for (UUID assigneeId : assigneeIds) {
                     projectMemberRepository.findByProjectIdAndUserId(task.getProjectId(), assigneeId)
@@ -501,8 +544,10 @@ public class TaskService {
                 ctx.put("description", updatedTask.getDescription());
                 ctx.put("teamId", updatedTask.getTeamId() != null ? updatedTask.getTeamId().toString() : null);
                 ctx.put("projectId", updatedTask.getProjectId().toString());
+                ctx.put("departmentId", updatedTask.getDepartmentId() != null ? updatedTask.getDepartmentId().toString() : null);
                 ctx.put("statusId", updatedTask.getCurrentStatusId() != null ? updatedTask.getCurrentStatusId().toString() : (updatedTask.getStatusId() != null ? updatedTask.getStatusId().toString() : null));
                 ctx.put("taskType", updatedTask.getTaskType());
+                ctx.put("issueType", updatedTask.getTaskType());
                 automationService.evaluateRules("TASK_STATUS_CHANGED", updatedTask.getProjectId(), updatedTask, ctx);
             }
 
@@ -517,8 +562,10 @@ public class TaskService {
                 ctx2.put("description", updatedTask.getDescription());
                 ctx2.put("teamId", updatedTask.getTeamId() != null ? updatedTask.getTeamId().toString() : null);
                 ctx2.put("projectId", updatedTask.getProjectId().toString());
+                ctx2.put("departmentId", updatedTask.getDepartmentId() != null ? updatedTask.getDepartmentId().toString() : null);
                 ctx2.put("statusId", updatedTask.getCurrentStatusId() != null ? updatedTask.getCurrentStatusId().toString() : (updatedTask.getStatusId() != null ? updatedTask.getStatusId().toString() : null));
                 ctx2.put("taskType", updatedTask.getTaskType());
+                ctx2.put("issueType", updatedTask.getTaskType());
                 automationService.evaluateRules("TASK_DUE_DATE_CHANGED", updatedTask.getProjectId(), updatedTask, ctx2);
             }
         } catch (Exception e) {
@@ -702,6 +749,16 @@ public class TaskService {
             java.util.Map<String, Object> ctx = new java.util.HashMap<>();
             ctx.put("assigneeId", userId.toString());
             ctx.put("assignedBy", currentUserId != null ? currentUserId.toString() : null);
+            ctx.put("priority", task.getPriority());
+            ctx.put("category", task.getCategory());
+            ctx.put("title", task.getTitle());
+            ctx.put("description", task.getDescription());
+            ctx.put("teamId", task.getTeamId() != null ? task.getTeamId().toString() : null);
+            ctx.put("projectId", task.getProjectId().toString());
+            ctx.put("departmentId", task.getDepartmentId() != null ? task.getDepartmentId().toString() : null);
+            ctx.put("statusId", task.getCurrentStatusId() != null ? task.getCurrentStatusId().toString() : (task.getStatusId() != null ? task.getStatusId().toString() : null));
+            ctx.put("taskType", task.getTaskType());
+            ctx.put("issueType", task.getTaskType());
             automationService.evaluateRules("TASK_ASSIGNED", task.getProjectId(), task, ctx);
         } catch (Exception e) {
             log.error("Automation evaluation failed on assign: {}", e.getMessage());
@@ -980,6 +1037,17 @@ public class TaskService {
         taskActivityRepository.save(activity);
     }
 
+    private String formatDate(Instant instant) {
+        if (instant == null) return null;
+        try {
+            return java.time.format.DateTimeFormatter.ISO_LOCAL_DATE
+                    .withZone(java.time.ZoneOffset.UTC)
+                    .format(instant);
+        } catch (Exception e) {
+            return instant.toString();
+        }
+    }
+
     private TaskResponse mapToResponse(Task task) {
         List<UUID> assigneeIds = taskAssignmentRepository.findByTaskId(task.getId()).stream()
                 .map(TaskAssignment::getUserId)
@@ -1046,5 +1114,128 @@ public class TaskService {
                 .findFirst()
                 .map(TaskStatus::getId)
                 .orElse(projectStatuses.get(0).getId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getTaskActivities(UUID taskId) {
+        Task task = getTaskEntity(taskId); // Access validation
+        
+        List<TaskActivity> activities = taskActivityRepository.findByTaskIdOrderByCreatedAtDesc(taskId);
+        
+        Map<UUID, String> userNames = new HashMap<>();
+        Map<UUID, String> statusNames = new HashMap<>();
+        
+        List<Map<String, Object>> result = new java.util.ArrayList<>();
+        
+        for (TaskActivity act : activities) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", act.getId().toString());
+            
+            String fType = "status_changed";
+            String type = act.getActivityType();
+            if ("CREATE".equals(type)) {
+                fType = "task_created";
+            } else if ("COMMENT_ADD".equals(type)) {
+                fType = "comment_added";
+            }
+            map.put("type", fType);
+            map.put("taskId", act.getTaskId().toString());
+            map.put("taskTitle", task.getTitle());
+            map.put("taskDisplayId", task.getDisplayId());
+            
+            String actorName = userNames.computeIfAbsent(act.getUserId(), uid -> {
+                return userRepository.findById(uid)
+                    .map(u -> u.getName())
+                    .orElse("System");
+            });
+            map.put("actor", actorName);
+            map.put("at", act.getCreatedAt().toString());
+            
+            String message = act.getDescription();
+            if ("STATUS_CHANGE".equals(type)) {
+                String fromStatus = "Unknown";
+                String toStatus = "Unknown";
+                
+                try {
+                    if (act.getOldValue() != null && !act.getOldValue().isEmpty()) {
+                        UUID fromId = UUID.fromString(act.getOldValue());
+                        fromStatus = statusNames.computeIfAbsent(fromId, sid -> {
+                            String name = customTaskStatusRepository.findById(sid).map(CustomTaskStatus::getName).orElse(null);
+                            if (name == null) {
+                                name = taskStatusRepository.findById(sid).map(TaskStatus::getName).orElse("Unknown");
+                            }
+                            return name;
+                        });
+                    }
+                } catch (Exception ignored) {}
+                
+                try {
+                    if (act.getNewValue() != null && !act.getNewValue().isEmpty()) {
+                        UUID toId = UUID.fromString(act.getNewValue());
+                        toStatus = statusNames.computeIfAbsent(toId, sid -> {
+                            String name = customTaskStatusRepository.findById(sid).map(CustomTaskStatus::getName).orElse(null);
+                            if (name == null) {
+                                name = taskStatusRepository.findById(sid).map(TaskStatus::getName).orElse("Unknown");
+                            }
+                            return name;
+                        });
+                    }
+                } catch (Exception ignored) {}
+                
+                map.put("from", fromStatus);
+                map.put("to", toStatus);
+                message = "changed status";
+            } else if ("ASSIGNMENT_ADD".equals(type)) {
+                String assignedUser = "Unknown User";
+                try {
+                    if (act.getNewValue() != null && !act.getNewValue().isEmpty()) {
+                        UUID assignedUid = UUID.fromString(act.getNewValue());
+                        assignedUser = userNames.computeIfAbsent(assignedUid, uid -> 
+                            userRepository.findById(uid)
+                                .map(u -> u.getName())
+                                .orElse("Unknown User")
+                        );
+                    }
+                } catch (Exception ignored) {}
+                message = "assigned task to " + assignedUser;
+            } else if ("ASSIGNMENT_REMOVE".equals(type)) {
+                String unassignedUser = "Unknown User";
+                try {
+                    if (act.getOldValue() != null && !act.getOldValue().isEmpty()) {
+                        UUID unassignedUid = UUID.fromString(act.getOldValue());
+                        unassignedUser = userNames.computeIfAbsent(unassignedUid, uid -> 
+                            userRepository.findById(uid)
+                                .map(u -> u.getName())
+                                .orElse("Unknown User")
+                        );
+                    }
+                } catch (Exception ignored) {}
+                message = "unassigned " + unassignedUser;
+            } else if ("COMMENT_ADD".equals(type)) {
+                message = "added a comment";
+            } else if ("CREATE".equals(type)) {
+                message = "created the task";
+            } else if ("DESC_CHANGE".equals(type)) {
+                message = "updated task description";
+            } else if ("TITLE_CHANGE".equals(type)) {
+                message = "updated task title";
+            } else if ("PRIORITY_CHANGE".equals(type)) {
+                message = "changed priority to " + act.getNewValue();
+            } else {
+                message = act.getDescription().toLowerCase();
+            }
+            
+            if (!map.containsKey("from") && act.getOldValue() != null) {
+                map.put("from", act.getOldValue());
+            }
+            if (!map.containsKey("to") && act.getNewValue() != null) {
+                map.put("to", act.getNewValue());
+            }
+            
+            map.put("message", message);
+            result.add(map);
+        }
+        
+        return result;
     }
 }

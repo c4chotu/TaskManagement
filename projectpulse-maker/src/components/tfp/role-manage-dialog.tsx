@@ -235,7 +235,7 @@ export function RoleManageDialog({ user, trigger, defaultTab = "role" }: RoleMan
                       isCurrentRole
                         ? "border-primary/40 bg-primary/5 cursor-default"
                         : isSelected
-                          ? "border-emerald-500/60 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+                          ? "border-emerald-500/60 bg-emerald-500/10 shadow-primary-xs"
                           : chk.ok
                             ? "border-border/60 hover:border-primary/40 hover:bg-muted/30 cursor-pointer"
                             : "border-border/30 opacity-40 cursor-not-allowed"

@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, ChevronRight, ChevronLeft, Copy, Mail, Shield, Sparkles, UserPlus, Users, FolderKanban, KeyRound, Send, Camera } from "lucide-react";
 import { toast } from "sonner";
-import { useAuth } from "@/lib/auth";
-import { useDepartments, useTeams, useProjects, useOnboardUser, useAddProjectMember } from "@/lib/queries";
-import { Topbar } from "@/components/tfp/topbar";
 
-export const Route = createFileRoute("/_app/people-onboarding")({
+export const Route = createFileRoute("/_app/people-onboarding copy")({
   head: () => ({ meta: [{ title: "Onboard Member — TaskFlow Pro" }] }),
   component: OnboardPage,
 });
@@ -46,16 +43,6 @@ const PERMS = [
 ];
 
 function OnboardPage() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const { data: departments = [] } = useDepartments();
-  const { data: teams = [] } = useTeams();
-  const { data: projects = [] } = useProjects();
-  const onboardUser = useOnboardUser();
-  const addProjectMember = useAddProjectMember();
-
-  const isAuthorized = user && ((user.roleLevel ?? 0) >= 4 || user.roleName === "SUPER_ADMIN");
-
   const [step, setStep] = useState(0);
   const [data, setData] = useState({
     name: "", email: "", title: "", department: "", role: "contributor",
@@ -65,93 +52,17 @@ function OnboardPage() {
   });
   const [done, setDone] = useState(false);
 
-  // Sync permissions based on selected role
-  useEffect(() => {
-    let newPerms = { ...data.perms };
-    if (data.role === "viewer") {
-      newPerms = { tasks_create: false, tasks_assign: false, tasks_delete: false, projects_create: false, time_approve: false, incidents_resolve: false, settings_edit: false, billing_view: false };
-    } else if (data.role === "contributor") {
-      newPerms = { tasks_create: true, tasks_assign: false, tasks_delete: false, projects_create: false, time_approve: false, incidents_resolve: false, settings_edit: false, billing_view: false };
-    } else if (data.role === "lead") {
-      newPerms = { tasks_create: true, tasks_assign: true, tasks_delete: true, projects_create: true, time_approve: true, incidents_resolve: true, settings_edit: false, billing_view: false };
-    } else if (data.role === "admin") {
-      newPerms = { tasks_create: true, tasks_assign: true, tasks_delete: true, projects_create: true, time_approve: true, incidents_resolve: true, settings_edit: true, billing_view: true };
-    }
-    
-    // Only update if perms actually changed to avoid infinite loop
-    const changed = Object.keys(newPerms).some(k => newPerms[k] !== data.perms[k]);
-    if (changed) {
-      setData(d => ({ ...d, perms: newPerms }));
-    }
-  }, [data.role]);
-
   const update = (patch: Partial<typeof data>) => setData(d => ({ ...d, ...patch }));
   const togglePerm = (k: string) => setData(d => ({ ...d, perms: { ...d.perms, [k]: !d.perms[k] } }));
   const toggleProject = (p: string) => setData(d => ({ ...d, projects: d.projects.includes(p) ? d.projects.filter(x => x !== p) : [...d.projects, p] }));
 
   const next = () => setStep(s => Math.min(STEPS.length - 1, s + 1));
   const back = () => setStep(s => Math.max(0, s - 1));
-  const submit = async () => {
-    if (!data.name.trim() || !data.email.trim()) {
-      toast.error("Please provide a name and email.");
-      return;
-    }
-    
-    // map role
-    let roleName = "TEAM_MEMBER";
-    if (data.role === "viewer") roleName = "GUEST";
-    else if (data.role === "lead") roleName = "TEAM_LEAD";
-    else if (data.role === "admin") roleName = "ORG_ADMIN";
-
-    try {
-      const newUser = await onboardUser.mutateAsync({
-        name: data.name,
-        email: data.email,
-        password: "password123", // Default temp password
-        roleName: roleName,
-        departmentId: data.department || undefined,
-        teamId: data.team || undefined,
-      });
-
-      // Add to projects
-      if (newUser && newUser.id && data.projects.length > 0) {
-        for (const projId of data.projects) {
-          try {
-            await addProjectMember.mutateAsync({
-              projectId: projId,
-              userId: newUser.id,
-              role: roleName === "ORG_ADMIN" ? "ADMIN" : "MEMBER"
-            });
-          } catch (e) {
-            console.error("Failed to add to project", projId, e);
-          }
-        }
-      }
-
-      setDone(true);
-      toast.success("Invite sent!");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to onboard user");
-    }
-  };
-
-  if (!isAuthorized) {
-    return (
-      <>
-        <Topbar title="Access Denied" />
-        <main className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center">
-          <Shield className="mb-4 h-16 w-16 text-destructive" />
-          <h2 className="text-2xl font-semibold">Team Onboarding Restricted</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Only administrators can invite new members to the workspace.</p>
-          <Button className="mt-6 bg-gradient-primary text-primary-foreground" onClick={() => navigate({ to: "/people" })}>Back to People</Button>
-        </main>
-      </>
-    );
-  }
+  const submit = () => { setDone(true); toast.success("Invite sent!"); };
 
   if (done) {
     return (
-      <div className="flex-1 grid place-items-center p-6">
+      <div className="min-h-full bg-mesh grid place-items-center p-6">
         <div className="glass-strong rounded-3xl p-10 max-w-lg text-center relative overflow-hidden">
           <div className="absolute -top-20 -left-20 h-60 w-60 rounded-full bg-gradient-to-br from-emerald-400/40 to-primary/40 blur-3xl" />
           <div className="relative">
@@ -176,11 +87,8 @@ function OnboardPage() {
   }
 
   return (
-    <>
-      <Topbar title="Onboard Member" />
-      <main className="flex-1 relative">
-        <div className="min-h-full bg-mesh w-full">
-          <div className="max-w-7xl mx-auto p-6 w-full">
+    <div className="min-h-full bg-mesh">
+      <div className="max-w-7xl mx-auto p-6">
         {/* Hero */}
         <div className="glass-strong rounded-3xl p-6 mb-6">
           <div className="inline-flex items-center gap-1.5 rounded-full glass-pill px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary">
@@ -209,9 +117,9 @@ function OnboardPage() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6 items-start">
+        <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6">
           {/* Form column */}
-          <div className="glass rounded-3xl p-6 min-h-[440px] w-full">
+          <div className="glass rounded-3xl p-6 min-h-[440px]">
             {step === 0 && (
               <div className="space-y-4 animate-in fade-in">
                 <h2 className="text-lg font-bold">Profile</h2>
@@ -229,10 +137,7 @@ function OnboardPage() {
                   <FormField label="Department">
                     <Select value={data.department} onValueChange={(v) => update({ department: v })}>
                       <SelectTrigger className="h-10 rounded-xl"><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="_none">No department</SelectItem>
-                        {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                      </SelectContent>
+                      <SelectContent><SelectItem value="eng">Engineering</SelectItem><SelectItem value="design">Design</SelectItem><SelectItem value="ops">Operations</SelectItem><SelectItem value="pm">Product</SelectItem></SelectContent>
                     </Select>
                   </FormField>
                 </div>
@@ -254,12 +159,7 @@ function OnboardPage() {
                 <FormField label="Team">
                   <Select value={data.team} onValueChange={(v) => update({ team: v })}>
                     <SelectTrigger className="h-10 rounded-xl"><SelectValue placeholder="Select team" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="_none">No team</SelectItem>
-                      {teams.filter(t => !data.department || data.department === "_none" || t.departmentId === data.department).map(t => (
-                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                      ))}
-                    </SelectContent>
+                    <SelectContent><SelectItem value="fe">Frontend</SelectItem><SelectItem value="be">Backend</SelectItem><SelectItem value="data">Data</SelectItem><SelectItem value="sre">SRE</SelectItem></SelectContent>
                   </Select>
                 </FormField>
               </div>
@@ -270,12 +170,12 @@ function OnboardPage() {
                 <h2 className="text-lg font-bold">Project access</h2>
                 <p className="text-xs text-muted-foreground">Pick projects this member can see.</p>
                 <div className="grid sm:grid-cols-2 gap-2">
-                  {projects.map(p => {
-                    const on = data.projects.includes(p.id);
+                  {["Phoenix", "Atlas", "Helios", "Nimbus", "Voyager", "Orion"].map(p => {
+                    const on = data.projects.includes(p);
                     return (
-                      <button key={p.id} onClick={() => toggleProject(p.id)} className={`flex items-center gap-2 rounded-xl p-3 border transition ${on ? "border-primary bg-primary/10" : "border-border bg-card/60 hover:border-primary/40"}`}>
+                      <button key={p} onClick={() => toggleProject(p)} className={`flex items-center gap-2 rounded-xl p-3 border transition ${on ? "border-primary bg-primary/10" : "border-border bg-card/60 hover:border-primary/40"}`}>
                         <div className={`grid h-5 w-5 place-items-center rounded-md ${on ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{on && <Check className="h-3 w-3" />}</div>
-                        <span className="text-sm font-semibold">{p.name}</span>
+                        <span className="text-sm font-semibold">{p}</span>
                       </button>
                     );
                   })}
@@ -309,9 +209,8 @@ function OnboardPage() {
                   <Row k="Name" v={data.name || "—"} />
                   <Row k="Email" v={data.email || "—"} />
                   <Row k="Role" v={ROLES.find(r => r.id === data.role)?.label ?? data.role} />
-                  <Row k="Department" v={departments.find(d => d.id === data.department)?.name || "—"} />
-                  <Row k="Team" v={teams.find(t => t.id === data.team)?.name || "—"} />
-                  <Row k="Projects" v={data.projects.map(pid => projects.find(p => p.id === pid)?.name).filter(Boolean).join(", ") || "none"} />
+                  <Row k="Team" v={data.team || "—"} />
+                  <Row k="Projects" v={data.projects.join(", ") || "none"} />
                   <Row k="Permissions" v={`${Object.values(data.perms).filter(Boolean).length} enabled`} />
                 </div>
                 <div className="flex items-center justify-between rounded-xl bg-primary/8 border border-primary/30 p-3">
@@ -336,7 +235,7 @@ function OnboardPage() {
           </div>
 
           {/* Live preview */}
-          <div className="glass rounded-3xl p-6 sticky top-4 h-fit w-full">
+          <div className="glass rounded-3xl p-6 sticky top-4 h-fit">
             <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Invitee preview</div>
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/15 via-fuchsia-500/10 to-sky-500/15 p-5 border border-border">
               <div className="water-bg absolute inset-0 opacity-30" />
@@ -345,14 +244,14 @@ function OnboardPage() {
                   <AvatarFallback className="text-xl font-extrabold bg-gradient-to-br from-primary to-fuchsia-500 text-white">{data.name.slice(0, 2).toUpperCase() || "?"}</AvatarFallback>
                 </Avatar>
                 <div className="mt-3 text-base font-bold">{data.name || "New member"}</div>
-                <div className="text-[11px] text-muted-foreground">{data.title || "—"} · {departments.find(d => d.id === data.department)?.name || "—"}</div>
+                <div className="text-[11px] text-muted-foreground">{data.title || "—"} · {data.department || "—"}</div>
                 <Badge className="mt-2 bg-primary text-primary-foreground border-0">{ROLES.find(r => r.id === data.role)?.label}</Badge>
               </div>
             </div>
             <div className="mt-4 space-y-1.5">
               <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Projects</div>
               {data.projects.length === 0 && <p className="text-xs text-muted-foreground">None selected yet.</p>}
-              <div className="flex flex-wrap gap-1">{data.projects.map(pid => <Badge key={pid} variant="outline" className="text-[10px]">{projects.find(p => p.id === pid)?.name}</Badge>)}</div>
+              <div className="flex flex-wrap gap-1">{data.projects.map(p => <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>)}</div>
             </div>
             <div className="mt-4">
               <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Permissions</div>
@@ -363,9 +262,7 @@ function OnboardPage() {
         </div>
       </div>
     </div>
-  </main>
-  </>
-);
+  );
 }
 
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
@@ -376,6 +273,6 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
     </div>
   );
 }
-function Row({ k, v }: { k: string; v: string | undefined }) {
+function Row({ k, v }: { k: string; v: string }) {
   return <div className="flex items-center justify-between text-xs"><span className="text-muted-foreground">{k}</span><span className="font-semibold">{v}</span></div>;
 }

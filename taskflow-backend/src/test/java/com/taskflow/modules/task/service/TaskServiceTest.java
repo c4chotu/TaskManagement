@@ -7,6 +7,7 @@ import com.taskflow.modules.project.domain.Project;
 import com.taskflow.modules.project.domain.ProjectMember;
 import com.taskflow.modules.project.repository.ProjectMemberRepository;
 import com.taskflow.modules.project.repository.ProjectRepository;
+import com.taskflow.modules.auth.repository.UserRepository;
 import com.taskflow.modules.task.domain.*;
 import com.taskflow.modules.task.dto.TaskRequest;
 import com.taskflow.modules.task.dto.TaskResponse;
@@ -45,6 +46,7 @@ public class TaskServiceTest {
     @Mock private ProjectRepository projectRepository;
     @Mock private ProjectMemberRepository projectMemberRepository;
     @Mock private CustomTaskStatusRepository customTaskStatusRepository;
+    @Mock private UserRepository userRepository;
 
     @InjectMocks
     private TaskService taskService;

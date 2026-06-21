@@ -14,6 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
+import java.time.Instant;
+import com.taskflow.common.exception.EntityNotFoundException;
+import com.taskflow.modules.auth.dto.ForgotPasswordRequest;
+import com.taskflow.modules.auth.dto.ResetPasswordRequest;
 
 @Service
 public class AuthService {
@@ -152,5 +156,44 @@ public class AuthService {
             default:
                 return 1;
         }
+    }
+
+    @Transactional
+    public java.util.Map<String, String> forgotPassword(ForgotPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new EntityNotFoundException("User not found with email: " + request.getEmail()));
+
+        String token = UUID.randomUUID().toString();
+        user.setResetToken(token);
+        user.setResetTokenExpiresAt(Instant.now().plus(java.time.Duration.ofHours(1)));
+        userRepository.save(user);
+
+        System.out.println("=================================================");
+        System.out.println("PASSWORD RESET TOKEN FOR " + request.getEmail() + ": " + token);
+        System.out.println("=================================================");
+
+        java.util.Map<String, String> response = new java.util.HashMap<>();
+        response.put("message", "Password reset token generated. Check console/logs.");
+        response.put("token", token);
+        return response;
+    }
+
+    @Transactional
+    public java.util.Map<String, String> resetPassword(ResetPasswordRequest request) {
+        User user = userRepository.findByResetToken(request.getToken())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired password reset token"));
+
+        if (user.getResetTokenExpiresAt() == null || user.getResetTokenExpiresAt().isBefore(Instant.now())) {
+            throw new IllegalArgumentException("Invalid or expired password reset token");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setResetToken(null);
+        user.setResetTokenExpiresAt(null);
+        userRepository.save(user);
+
+        java.util.Map<String, String> response = new java.util.HashMap<>();
+        response.put("message", "Password has been reset successfully.");
+        return response;
     }
 }

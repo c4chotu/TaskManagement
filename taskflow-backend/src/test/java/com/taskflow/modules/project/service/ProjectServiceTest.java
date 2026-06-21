@@ -82,7 +82,7 @@ public class ProjectServiceTest {
     void createProject_shouldAssignOwnerRole() {
         when(projectRepository.save(any(Project.class))).thenReturn(project);
 
-        Project created = projectService.createProject("Test Project", "Desc", "KAIZEN", null, null);
+        Project created = projectService.createProject("Test Project", "Desc", "KAIZEN", null, null, java.util.List.of(), java.util.List.of(), null);
 
         assertNotNull(created);
         verify(projectRepository, times(1)).save(any(Project.class));
@@ -105,7 +105,7 @@ public class ProjectServiceTest {
         when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId)).thenReturn(Optional.of(owner));
         when(projectRepository.save(any(Project.class))).thenReturn(project);
 
-        Project updated = projectService.updateProject(projectId, "New Name", "Desc", "ACTIVE", "KAIZEN", null, null);
+        Project updated = projectService.updateProject(projectId, "New Name", "Desc", "ACTIVE", "KAIZEN", null, null, java.util.List.of(), java.util.List.of(), null);
 
         assertNotNull(updated);
         verify(projectRepository, times(1)).save(project);
@@ -123,7 +123,7 @@ public class ProjectServiceTest {
         when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId)).thenReturn(Optional.of(viewer));
 
         assertThrows(UnauthorizedException.class, () -> 
-                projectService.updateProject(projectId, "New Name", "Desc", "ACTIVE", "KAIZEN", null, null)
+                projectService.updateProject(projectId, "New Name", "Desc", "ACTIVE", "KAIZEN", null, null, java.util.List.of(), java.util.List.of(), null)
         );
         
         verify(projectRepository, never()).save(any(Project.class));

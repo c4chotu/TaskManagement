@@ -38,6 +38,7 @@ import {
   useUpdateIssueDetail,
   useTeams,
   useSprints,
+  useTaskActivities,
 } from "@/lib/queries";
 import { toast } from "sonner";
 import { SlaCountdown } from "@/components/tfp/sla";
@@ -112,6 +113,7 @@ function TaskDetail() {
   const { data: statuses = [] } = useStatuses();
   const { data: comments = [] } = useComments(id);
   const { data: issue } = useIssue(id);
+  const { data: serverActivities = [] } = useTaskActivities(id);
   const addComment = useAddComment();
   const [body, setBody] = useState("");
   const uploadAttachment = useUploadAttachment();
@@ -768,13 +770,26 @@ function TaskDetail() {
                           </div>
                         </div>
                       ) : (
-                        <div className="text-xs text-foreground/80 leading-relaxed min-h-[40px] relative group">
+                        <div 
+                          className="text-xs text-foreground/80 leading-relaxed min-h-[40px] relative group cursor-pointer hover:bg-muted/10 p-1.5 rounded-lg transition-colors"
+                          onClick={(e) => {
+                            if (isClosed) return;
+                            const target = e.target as HTMLElement;
+                            if (target.closest("a") || target.closest("button")) return;
+                            setEditDescVal(task.description || "");
+                            setIsEditingDesc(true);
+                          }}
+                        >
                           {task.description ? renderContentWithImagesAndLinks(task.description) : (
-                            <span className="text-muted-foreground italic">No description. Click edit button to add one.</span>
+                            <span className="text-muted-foreground italic">No description. Click here or edit button to add one.</span>
                           )}
                           {!isClosed && (
                             <Button variant="ghost" size="icon" className="h-6 w-6 absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground"
-                              onClick={() => { setEditDescVal(task.description || ""); setIsEditingDesc(true); }}>
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setEditDescVal(task.description || ""); 
+                                setIsEditingDesc(true); 
+                              }}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
                           )}
@@ -849,8 +864,38 @@ function TaskDetail() {
                           </Avatar>
                           <div className="flex-1 space-y-2">
                             <div className="relative">
-                              <Textarea value={body} onChange={(e) => setBody(e.target.value)}
-                                placeholder="Type comment..." className="text-xs min-h-[60px] rounded-xl pr-10 resize-none" />
+                              <Textarea 
+                                value={body} 
+                                onChange={(e) => setBody(e.target.value)}
+                                onPaste={async (e) => {
+                                  const items = e.clipboardData.items;
+                                  for (const item of items) {
+                                    if (item.type.indexOf("image") !== -1) {
+                                      e.preventDefault();
+                                      const file = item.getAsFile();
+                                      if (file) {
+                                        toast.loading("Uploading image to comment...", { id: "comment-upload" });
+                                        try {
+                                          const att = await uploadAttachment.mutateAsync({ taskId: id, file });
+                                          const md = `\n![image](${att.url || '#'})`;
+                                          setBody(prev => prev + md);
+                                          toast.success("Image embedded in comment!", { id: "comment-upload" });
+                                        } catch (err) {
+                                          console.error("Upload failed, falling back to base64", err);
+                                          const reader = new FileReader();
+                                          reader.onload = (ev) => {
+                                            setBody(prev => prev + `\n![image](${ev.target?.result})`);
+                                            toast.success("Image embedded (local fallback)!", { id: "comment-upload" });
+                                          };
+                                          reader.readAsDataURL(file);
+                                        }
+                                      }
+                                    }
+                                  }
+                                }}
+                                placeholder="Type comment... (Paste images to embed inline)" 
+                                className="text-xs min-h-[60px] rounded-xl pr-10 resize-none" 
+                              />
                               <button type="button" onClick={() => document.getElementById("comment-file-upload")?.click()}
                                 className="absolute right-3 bottom-2.5 text-muted-foreground hover:text-foreground">
                                 <Paperclip className="h-4 w-4" />
@@ -1222,8 +1267,56 @@ function TaskDetail() {
 
                     {/* ACTIVITY STREAM */}
                     {activeTab === "activity" && (
-                      <div className="text-xs text-muted-foreground italic p-4 text-center">
-                        Activity feed is synchronized dynamically. Check back later for updates.
+                      <div className="space-y-4">
+                        {serverActivities.length === 0 ? (
+                          <div className="text-xs text-muted-foreground italic p-4 text-center">
+                            No activities logged for this task yet.
+                          </div>
+                        ) : (
+                          <div className="relative pl-6 space-y-4 pt-2">
+                            {/* Connector line */}
+                            <div className="absolute left-2.5 top-3 bottom-3 w-0.5 bg-border/40" />
+
+                            {serverActivities.map((act: any) => {
+                              let safeAt = "";
+                              try {
+                                const d = new Date(act.at);
+                                safeAt = isNaN(d.getTime()) ? "" : formatDistanceToNow(d, { addSuffix: true });
+                              } catch {}
+
+                              return (
+                                <div key={act.id} className="relative flex items-start gap-3 text-xs leading-snug">
+                                  {/* Icon / Node */}
+                                  <div className="absolute -left-[27px] top-0 h-5 w-5 rounded-full bg-background border border-border flex items-center justify-center text-muted-foreground shrink-0 shadow-sm">
+                                    <Clock className="h-3 w-3" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="text-foreground">
+                                      <span className="font-semibold text-foreground/90">{act.actor}</span>{" "}
+                                      <span className="text-muted-foreground">{act.message}</span>
+                                    </p>
+                                    {(act.from || act.to) && (
+                                      <div className="flex items-center gap-1.5 mt-1">
+                                        {act.from && (
+                                          <span className="text-[10px] px-1.5 py-0.2 bg-muted border rounded-full text-muted-foreground">
+                                            {act.from}
+                                          </span>
+                                        )}
+                                        {act.from && act.to && <ChevronRight className="h-3 w-3 text-muted-foreground/60" />}
+                                        {act.to && (
+                                          <span className="text-[10px] px-1.5 py-0.2 bg-primary/10 border border-primary/20 rounded-full text-primary font-semibold">
+                                            {act.to}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                    {safeAt && <span className="text-[10px] text-muted-foreground block mt-0.5">{safeAt}</span>}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     )}
 

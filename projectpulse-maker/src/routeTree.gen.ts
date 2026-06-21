@@ -21,6 +21,7 @@ import { Route as AppSprintsRouteImport } from './routes/_app.sprints'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
 import { Route as AppProjectsRouteImport } from './routes/_app.projects'
+import { Route as AppPeopleOnboardingcopyRouteImport } from './routes/_app.people-onboarding copy'
 import { Route as AppPeopleOnboardingRouteImport } from './routes/_app.people-onboarding'
 import { Route as AppPeopleRouteImport } from './routes/_app.people'
 import { Route as AppOnboardingRouteImport } from './routes/_app.onboarding'
@@ -40,7 +41,6 @@ import { Route as AppTasksIdRouteImport } from './routes/_app.tasks.$id'
 import { Route as AppProjectsNewRouteImport } from './routes/_app.projects.new'
 import { Route as AppProjectsIdRouteImport } from './routes/_app.projects.$id'
 import { Route as AppIncidentsIdRouteImport } from './routes/_app.incidents.$id'
-import { Route as AppAutomationsNewRouteImport } from './routes/_app.automations.new'
 import { Route as AppSuperadminOrganizationsIdRouteImport } from './routes/_app.superadmin.organizations.$id'
 
 const RegisterRoute = RegisterRouteImport.update({
@@ -100,6 +100,11 @@ const AppReportsRoute = AppReportsRouteImport.update({
 const AppProjectsRoute = AppProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPeopleOnboardingcopyRoute = AppPeopleOnboardingcopyRouteImport.update({
+  id: '/people-onboarding copy',
+  path: '/people-onboarding copy',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPeopleOnboardingRoute = AppPeopleOnboardingRouteImport.update({
@@ -197,11 +202,6 @@ const AppIncidentsIdRoute = AppIncidentsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppIncidentsRoute,
 } as any)
-const AppAutomationsNewRoute = AppAutomationsNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => AppAutomationsRoute,
-} as any)
 const AppSuperadminOrganizationsIdRoute =
   AppSuperadminOrganizationsIdRouteImport.update({
     id: '/organizations/$id',
@@ -213,7 +213,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
-  '/automations': typeof AppAutomationsRouteWithChildren
+  '/automations': typeof AppAutomationsRoute
   '/bulk-upload': typeof AppBulkUploadRoute
   '/calendar': typeof AppCalendarRoute
   '/collaboration': typeof AppCollaborationRoute
@@ -226,6 +226,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof AppOnboardingRoute
   '/people': typeof AppPeopleRoute
   '/people-onboarding': typeof AppPeopleOnboardingRoute
+  '/people-onboarding copy': typeof AppPeopleOnboardingcopyRoute
   '/projects': typeof AppProjectsRouteWithChildren
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
@@ -234,7 +235,6 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof AppTasksRouteWithChildren
   '/time': typeof AppTimeRoute
   '/workload': typeof AppWorkloadRoute
-  '/automations/new': typeof AppAutomationsNewRoute
   '/incidents/$id': typeof AppIncidentsIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
   '/projects/new': typeof AppProjectsNewRoute
@@ -247,7 +247,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
-  '/automations': typeof AppAutomationsRouteWithChildren
+  '/automations': typeof AppAutomationsRoute
   '/bulk-upload': typeof AppBulkUploadRoute
   '/calendar': typeof AppCalendarRoute
   '/collaboration': typeof AppCollaborationRoute
@@ -260,6 +260,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AppOnboardingRoute
   '/people': typeof AppPeopleRoute
   '/people-onboarding': typeof AppPeopleOnboardingRoute
+  '/people-onboarding copy': typeof AppPeopleOnboardingcopyRoute
   '/projects': typeof AppProjectsRouteWithChildren
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
@@ -268,7 +269,6 @@ export interface FileRoutesByTo {
   '/tasks': typeof AppTasksRouteWithChildren
   '/time': typeof AppTimeRoute
   '/workload': typeof AppWorkloadRoute
-  '/automations/new': typeof AppAutomationsNewRoute
   '/incidents/$id': typeof AppIncidentsIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
   '/projects/new': typeof AppProjectsNewRoute
@@ -283,7 +283,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
-  '/_app/automations': typeof AppAutomationsRouteWithChildren
+  '/_app/automations': typeof AppAutomationsRoute
   '/_app/bulk-upload': typeof AppBulkUploadRoute
   '/_app/calendar': typeof AppCalendarRoute
   '/_app/collaboration': typeof AppCollaborationRoute
@@ -296,6 +296,7 @@ export interface FileRoutesById {
   '/_app/onboarding': typeof AppOnboardingRoute
   '/_app/people': typeof AppPeopleRoute
   '/_app/people-onboarding': typeof AppPeopleOnboardingRoute
+  '/_app/people-onboarding copy': typeof AppPeopleOnboardingcopyRoute
   '/_app/projects': typeof AppProjectsRouteWithChildren
   '/_app/reports': typeof AppReportsRoute
   '/_app/settings': typeof AppSettingsRoute
@@ -304,7 +305,6 @@ export interface FileRoutesById {
   '/_app/tasks': typeof AppTasksRouteWithChildren
   '/_app/time': typeof AppTimeRoute
   '/_app/workload': typeof AppWorkloadRoute
-  '/_app/automations/new': typeof AppAutomationsNewRoute
   '/_app/incidents/$id': typeof AppIncidentsIdRoute
   '/_app/projects/$id': typeof AppProjectsIdRoute
   '/_app/projects/new': typeof AppProjectsNewRoute
@@ -332,6 +332,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/people'
     | '/people-onboarding'
+    | '/people-onboarding copy'
     | '/projects'
     | '/reports'
     | '/settings'
@@ -340,7 +341,6 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/time'
     | '/workload'
-    | '/automations/new'
     | '/incidents/$id'
     | '/projects/$id'
     | '/projects/new'
@@ -366,6 +366,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/people'
     | '/people-onboarding'
+    | '/people-onboarding copy'
     | '/projects'
     | '/reports'
     | '/settings'
@@ -374,7 +375,6 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/time'
     | '/workload'
-    | '/automations/new'
     | '/incidents/$id'
     | '/projects/$id'
     | '/projects/new'
@@ -401,6 +401,7 @@ export interface FileRouteTypes {
     | '/_app/onboarding'
     | '/_app/people'
     | '/_app/people-onboarding'
+    | '/_app/people-onboarding copy'
     | '/_app/projects'
     | '/_app/reports'
     | '/_app/settings'
@@ -409,7 +410,6 @@ export interface FileRouteTypes {
     | '/_app/tasks'
     | '/_app/time'
     | '/_app/workload'
-    | '/_app/automations/new'
     | '/_app/incidents/$id'
     | '/_app/projects/$id'
     | '/_app/projects/new'
@@ -510,6 +510,13 @@ declare module '@tanstack/react-router' {
       path: '/projects'
       fullPath: '/projects'
       preLoaderRoute: typeof AppProjectsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/people-onboarding copy': {
+      id: '/_app/people-onboarding copy'
+      path: '/people-onboarding copy'
+      fullPath: '/people-onboarding copy'
+      preLoaderRoute: typeof AppPeopleOnboardingcopyRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/people-onboarding': {
@@ -645,13 +652,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIncidentsIdRouteImport
       parentRoute: typeof AppIncidentsRoute
     }
-    '/_app/automations/new': {
-      id: '/_app/automations/new'
-      path: '/new'
-      fullPath: '/automations/new'
-      preLoaderRoute: typeof AppAutomationsNewRouteImport
-      parentRoute: typeof AppAutomationsRoute
-    }
     '/_app/superadmin/organizations/$id': {
       id: '/_app/superadmin/organizations/$id'
       path: '/organizations/$id'
@@ -661,18 +661,6 @@ declare module '@tanstack/react-router' {
     }
   }
 }
-
-interface AppAutomationsRouteChildren {
-  AppAutomationsNewRoute: typeof AppAutomationsNewRoute
-}
-
-const AppAutomationsRouteChildren: AppAutomationsRouteChildren = {
-  AppAutomationsNewRoute: AppAutomationsNewRoute,
-}
-
-const AppAutomationsRouteWithChildren = AppAutomationsRoute._addFileChildren(
-  AppAutomationsRouteChildren,
-)
 
 interface AppIncidentsRouteChildren {
   AppIncidentsIdRoute: typeof AppIncidentsIdRoute
@@ -727,7 +715,7 @@ const AppTasksRouteWithChildren = AppTasksRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
-  AppAutomationsRoute: typeof AppAutomationsRouteWithChildren
+  AppAutomationsRoute: typeof AppAutomationsRoute
   AppBulkUploadRoute: typeof AppBulkUploadRoute
   AppCalendarRoute: typeof AppCalendarRoute
   AppCollaborationRoute: typeof AppCollaborationRoute
@@ -740,6 +728,7 @@ interface AppRouteChildren {
   AppOnboardingRoute: typeof AppOnboardingRoute
   AppPeopleRoute: typeof AppPeopleRoute
   AppPeopleOnboardingRoute: typeof AppPeopleOnboardingRoute
+  AppPeopleOnboardingcopyRoute: typeof AppPeopleOnboardingcopyRoute
   AppProjectsRoute: typeof AppProjectsRouteWithChildren
   AppReportsRoute: typeof AppReportsRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -752,7 +741,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppAutomationsRoute: AppAutomationsRouteWithChildren,
+  AppAutomationsRoute: AppAutomationsRoute,
   AppBulkUploadRoute: AppBulkUploadRoute,
   AppCalendarRoute: AppCalendarRoute,
   AppCollaborationRoute: AppCollaborationRoute,
@@ -765,6 +754,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppOnboardingRoute: AppOnboardingRoute,
   AppPeopleRoute: AppPeopleRoute,
   AppPeopleOnboardingRoute: AppPeopleOnboardingRoute,
+  AppPeopleOnboardingcopyRoute: AppPeopleOnboardingcopyRoute,
   AppProjectsRoute: AppProjectsRouteWithChildren,
   AppReportsRoute: AppReportsRoute,
   AppSettingsRoute: AppSettingsRoute,

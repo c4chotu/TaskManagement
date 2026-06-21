@@ -11,10 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { useCreateProject, useCreateSprint, useCreateTask, useUsers, useAddProjectMember, useTeams, useUploadProjectAttachment, useAddProjectTeam } from "@/lib/queries";
 import { tokenStore, apiRequest } from "@/lib/api";
 import { Plus, Trash2, Calendar, ArrowLeft, Layers, CheckSquare, Save, User, Clock, AlertCircle, Settings, Check, UploadCloud, X, FileText, Paperclip } from "lucide-react";
+import { TagAutocomplete } from "@/components/ui/tag-autocomplete";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { format, addDays } from "date-fns";
 import { mockAttachments } from "@/lib/mock-data";
+import { TagInput } from "@/components/ui/tag-input";
 
 export const Route = createFileRoute("/_app/projects/new")({
   head: () => ({ meta: [{ title: "Create Project — TaskFlow Pro" }] }),
@@ -29,6 +31,8 @@ interface TaskBlueprint {
   assigneeId: string;
   estimatedHours: number;
   dueDate: string;
+  active?: boolean;
+  completed?: boolean;
 }
 
 interface PhaseBlueprint {
@@ -39,6 +43,7 @@ interface PhaseBlueprint {
   endDate: string;
   tasks: TaskBlueprint[];
   estimatedHours: number;
+  active?: boolean;
 }
 
 function humanSize(b: number) {
@@ -51,7 +56,7 @@ function CreateProjectPage() {
   const navigate = useNavigate();
   const { data: users = [] } = useUsers();
   const { data: teams = [] } = useTeams();
-  
+
   const createProject = useCreateProject();
   const createSprint = useCreateSprint();
   const createTask = useCreateTask();
@@ -66,6 +71,9 @@ function CreateProjectPage() {
   // Project General Details State
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [specification, setSpecification] = useState("");
+  const [features, setFeatures] = useState<string[]>([]);
+  const [techStack, setTechStack] = useState<string[]>([]);
   const [type, setType] = useState<"KANBAN" | "SCRUM" | "WATERFALL">("KANBAN");
   const [startDate, setStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(addDays(new Date(), 30), "yyyy-MM-dd"));
@@ -110,16 +118,28 @@ function CreateProjectPage() {
   // Add Phase Handler
   const handleAddPhase = () => {
     const nextIndex = phases.length + 1;
+    // Determine next phase start: day after previous phase end, or project start
+    const nextStart = phases.length > 0
+      ? format(addDays(new Date(phases[phases.length - 1].endDate), 1), "yyyy-MM-dd")
+      : startDate;
+
+    // Default estimated hours for new phase
+    const defaultHours = 20;
+    // Map hours to days assuming 8h workday
+    const durationDays = Math.max(1, Math.ceil(defaultHours / 8));
+    const nextEnd = format(addDays(new Date(nextStart), durationDays - 1), "yyyy-MM-dd");
+
     setPhases([
       ...phases,
       {
         tempId: `phase-${Date.now()}-${Math.random()}`,
         name: `Phase ${nextIndex}: Milestone Objectives`,
         goal: "",
-        startDate: startDate,
-        endDate: format(addDays(new Date(startDate), 14), "yyyy-MM-dd"),
+        startDate: nextStart,
+        endDate: nextEnd,
         tasks: [],
-        estimatedHours: 20,
+        estimatedHours: defaultHours,
+        active: false,
       }
     ]);
   };
@@ -133,23 +153,27 @@ function CreateProjectPage() {
   const handleAddTask = (phaseTempId: string) => {
     const phase = phases.find(p => p.tempId === phaseTempId);
     if (!phase) return;
-
     setPhases(phases.map(p => {
       if (p.tempId !== phaseTempId) return p;
+      const newTask: TaskBlueprint = {
+        tempId: `task-${Date.now()}-${Math.random()}`,
+        title: "Task Title",
+        description: "",
+        priority: "MEDIUM",
+        assigneeId: "",
+        estimatedHours: 4,
+        dueDate: p.endDate,
+        active: true,
+        completed: false,
+      };
+
       return {
         ...p,
         tasks: [
           ...p.tasks,
-          {
-            tempId: `task-${Date.now()}-${Math.random()}`,
-            title: "Task Title",
-            description: "",
-            priority: "MEDIUM",
-            assigneeId: "",
-            estimatedHours: 4,
-            dueDate: p.endDate,
-          }
-        ]
+          newTask
+        ],
+        active: true,
       };
     }));
   };
@@ -158,9 +182,11 @@ function CreateProjectPage() {
   const handleDeleteTask = (phaseTempId: string, taskTempId: string) => {
     setPhases(phases.map(p => {
       if (p.tempId !== phaseTempId) return p;
+      const remaining = p.tasks.filter(t => t.tempId !== taskTempId);
       return {
         ...p,
-        tasks: p.tasks.filter(t => t.tempId !== taskTempId)
+        tasks: remaining,
+        active: remaining.length > 0 ? p.active : false,
       };
     }));
   };
@@ -193,7 +219,7 @@ function CreateProjectPage() {
       toast.error("Project name is required");
       return;
     }
-
+    console.log(phases)
     const loadId = toast.loading("Configuring project timeline and blueprint...");
     try {
       // 1. Create project
@@ -206,6 +232,9 @@ function CreateProjectPage() {
         status: "ACTIVE",
         progress: 0,
         estimatedHours,
+        specification,
+        features,
+        techStack,
       });
 
       // Collect unique assignee IDs (excluding empty ones and the current user who is auto-owner)
@@ -274,7 +303,7 @@ function CreateProjectPage() {
             title: t.title,
             description: t.description || `Task scoped under ${phase.name}`,
             projectId: proj.id,
-            statusId: "s-todo",
+            statusId: phase.active ? "s-inprogress" : "s-todo",
             taskType: "TASK",
             priority: t.priority,
             dueDate: new Date(t.dueDate).toISOString(),
@@ -318,9 +347,9 @@ function CreateProjectPage() {
           <Link to="/projects" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" /> Back to Projects
           </Link>
-          
-          <Button 
-            onClick={handleSaveProject} 
+
+          <Button
+            onClick={handleSaveProject}
             className="bg-gradient-primary text-primary-foreground font-semibold px-4 py-2 rounded-xl shadow-md hover:shadow-glow transition-all gap-1.5"
           >
             <Save className="h-4 w-4" /> Save Project Blueprint
@@ -379,17 +408,19 @@ function CreateProjectPage() {
                 No phases defined yet. Start planning by clicking the "+ Add Phase" button.
               </Card>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-6 max-h-[65vh] overflow-y-auto pr-1">
                 {phases.map((phase, pIdx) => {
                   const hasTasks = phase.tasks.length > 0;
-                  
+                  const completedCount = phase.tasks.filter(t => t.completed).length;
+                  const phaseProgress = phase.tasks.length ? Math.round((completedCount / phase.tasks.length) * 100) : 0;
+
                   return (
                     <Card key={phase.tempId} className="border border-white/10 shadow-xl shadow-indigo-500/5 rounded-2xl p-5 bg-card/55 backdrop-blur-md space-y-4 relative group hover:border-primary/25 transition-all">
                       {/* Phase Header Controls */}
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/40 pb-3">
                         <div className="flex-1 min-w-0">
-                          <Input 
-                            value={phase.name} 
+                          <Input
+                            value={phase.name}
                             onChange={(e) => handleUpdatePhase(phase.tempId, { name: e.target.value })}
                             className="text-sm font-bold text-foreground border-transparent hover:border-border/60 bg-transparent px-2 h-8 rounded-lg focus-visible:ring-primary focus-visible:bg-card w-full max-w-lg"
                             placeholder="Phase Title"
@@ -399,7 +430,7 @@ function CreateProjectPage() {
                         <div className="flex flex-wrap items-center gap-3 shrink-0">
                           <div className="flex items-center gap-1.5">
                             <span className="text-[10px] text-muted-foreground font-semibold">Hours:</span>
-                            <Input 
+                            <Input
                               type="number"
                               value={phase.estimatedHours || 0}
                               onChange={(e) => handleUpdatePhase(phase.tempId, { estimatedHours: Number(e.target.value) })}
@@ -408,7 +439,7 @@ function CreateProjectPage() {
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-[10px] text-muted-foreground font-semibold">Start:</span>
-                            <Input 
+                            <Input
                               type="date"
                               value={phase.startDate}
                               onChange={(e) => handleUpdatePhase(phase.tempId, { startDate: e.target.value })}
@@ -417,16 +448,16 @@ function CreateProjectPage() {
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-[10px] text-muted-foreground font-semibold">End:</span>
-                            <Input 
+                            <Input
                               type="date"
                               value={phase.endDate}
                               onChange={(e) => handleUpdatePhase(phase.tempId, { endDate: e.target.value })}
                               className="h-7 w-[125px] text-[10px] px-2 rounded-lg bg-transparent border-border/60 font-semibold"
                             />
                           </div>
-                          <Button 
-                            size="icon" 
-                            variant="ghost" 
+                          <Button
+                            size="icon"
+                            variant="ghost"
                             className="h-8 w-8 hover:bg-destructive/15 hover:text-destructive text-muted-foreground rounded-lg transition-colors"
                             onClick={() => handleDeletePhase(phase.tempId)}
                           >
@@ -435,11 +466,34 @@ function CreateProjectPage() {
                         </div>
                       </div>
 
+                      {/* Phase Active / Progress */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 w-full">
+                          <div className="w-full">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="text-[10px] text-muted-foreground">Progress</div>
+                              <div className="text-[10px] font-semibold">{phaseProgress}%</div>
+                            </div>
+                            <div className="w-full bg-background/20 rounded-full h-2 overflow-hidden">
+                              <div className="bg-primary h-2" style={{ width: `${phaseProgress}%` }} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0">
+                          {phase.active ? (
+                            <Badge variant="secondary" className="text-[10px]">Active</Badge>
+                          ) : (
+                            <Badge className="text-[10px]">Planned</Badge>
+                          )}
+                        </div>
+                      </div>
+
                       {/* Phase Goal/Goal description */}
                       <div className="space-y-1.5">
                         <Label className="text-[10px] font-bold text-muted-foreground uppercase">Phase Deliverables Goal</Label>
-                        <Textarea 
-                          placeholder="Describe the milestone objective or goal for this phase..." 
+                        <Textarea
+                          placeholder="Describe the milestone objective or goal for this phase..."
                           value={phase.goal}
                           onChange={(e) => handleUpdatePhase(phase.tempId, { goal: e.target.value })}
                           className="text-xs h-14 rounded-xl resize-none bg-background/40"
@@ -465,12 +519,18 @@ function CreateProjectPage() {
                           <div className="space-y-2">
                             {phase.tasks.map((task, tIdx) => (
                               <div key={task.tempId} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center bg-card/75 border border-white/10 p-3 rounded-xl hover:border-primary/30 transition-all shadow-sm">
-                                {/* Title Input */}
-                                <div className="md:col-span-4 space-y-1">
-                                  <Input 
+                                {/* Title Input + Completed Toggle */}
+                                <div className="md:col-span-4 space-y-1 flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!task.completed}
+                                    onChange={(e) => handleUpdateTask(phase.tempId, task.tempId, { completed: e.target.checked })}
+                                    className="h-4 w-4 text-primary rounded"
+                                  />
+                                  <Input
                                     value={task.title}
                                     onChange={(e) => handleUpdateTask(phase.tempId, task.tempId, { title: e.target.value })}
-                                    className="h-8 text-xs font-semibold px-2 rounded-lg bg-background/50"
+                                    className={`h-8 text-xs font-semibold px-2 rounded-lg bg-background/50 ${task.completed ? 'line-through text-muted-foreground' : ''}`}
                                     placeholder="Task Title"
                                   />
                                 </div>
@@ -517,7 +577,7 @@ function CreateProjectPage() {
 
                                 {/* Est Hours input */}
                                 <div className="md:col-span-1.5 flex items-center gap-1">
-                                  <Input 
+                                  <Input
                                     type="number"
                                     min="0"
                                     value={task.estimatedHours || ""}
@@ -529,15 +589,15 @@ function CreateProjectPage() {
 
                                 {/* Remove Task */}
                                 <div className="md:col-span-1.5 flex items-center justify-end gap-1.5">
-                                  <Input 
+                                  <Input
                                     type="date"
                                     value={task.dueDate}
                                     onChange={(e) => handleUpdateTask(phase.tempId, task.tempId, { dueDate: e.target.value })}
                                     className="h-8 text-[9px] px-1 rounded-lg w-[90px] bg-background/50"
                                   />
-                                  <Button 
-                                    size="icon" 
-                                    variant="ghost" 
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
                                     className="h-7 w-7 hover:bg-destructive/15 hover:text-destructive rounded-lg text-muted-foreground"
                                     onClick={() => handleDeleteTask(phase.tempId, task.tempId)}
                                   >
@@ -567,9 +627,9 @@ function CreateProjectPage() {
             <Card className="p-5 border border-white/10 bg-card/65 backdrop-blur-md rounded-2xl space-y-4 shadow-xl shadow-indigo-500/5 hover:border-primary/20 transition-all">
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-muted-foreground uppercase">Project Name</Label>
-                <Input 
-                  value={name} 
-                  onChange={(e) => setName(e.target.value)} 
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Ingress Controller Migration"
                   className="text-xs h-9 rounded-xl focus-visible:ring-primary font-semibold bg-background/40"
                 />
@@ -605,11 +665,10 @@ function CreateProjectPage() {
                             setSelectedTeamIds([...selectedTeamIds, t.id]);
                           }
                         }}
-                        className={`flex items-center justify-between text-left p-2 rounded-lg border text-[10px] font-semibold transition-all ${
-                          isSelected
+                        className={`flex items-center justify-between text-left p-2 rounded-lg border text-[10px] font-semibold transition-all ${isSelected
                             ? "border-primary bg-primary/10 text-primary"
                             : "border-border/60 hover:bg-muted/30 text-muted-foreground"
-                        }`}
+                          }`}
                       >
                         <span className="truncate">{t.name}</span>
                         {isSelected && <Check className="h-3 w-3 shrink-0" />}
@@ -621,12 +680,34 @@ function CreateProjectPage() {
 
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-muted-foreground uppercase">Project Description</Label>
-                <Textarea 
-                  value={description} 
-                  onChange={(e) => setDescription(e.target.value)} 
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                   placeholder="Set up a new workspace for tracking and incidents..."
                   className="text-xs h-24 rounded-xl resize-none bg-background/40"
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase">Specification / About (long)</Label>
+                <Textarea
+                  value={specification}
+                  onChange={(e) => setSpecification(e.target.value)}
+                  placeholder="Detailed specification, architecture notes, acceptance criteria..."
+                  className="text-xs h-28 rounded-xl resize-none bg-background/40"
+                />
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Features</Label>
+                  <TagInput value={features} onChange={setFeatures} placeholder="Add feature and press Enter" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Tech Stack</Label>
+                  <TagInput value={techStack} onChange={setTechStack} placeholder="Add tech and press Enter" />
+                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -648,10 +729,10 @@ function CreateProjectPage() {
 
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-muted-foreground uppercase">Total Project Hours</Label>
-                <Input 
+                <Input
                   type="number"
-                  value={estimatedHours || ""} 
-                  onChange={(e) => setEstimatedHours(Number(e.target.value))} 
+                  value={estimatedHours || ""}
+                  onChange={(e) => setEstimatedHours(Number(e.target.value))}
                   placeholder="e.g. 100"
                   className="text-xs h-9 rounded-xl focus-visible:ring-primary font-semibold bg-background/40"
                 />
@@ -663,10 +744,10 @@ function CreateProjectPage() {
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-bold text-muted-foreground uppercase">Start Date</Label>
                   <div className="relative">
-                    <Input 
-                      type="date" 
-                      value={startDate} 
-                      onChange={(e) => setStartDate(e.target.value)} 
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
                       className="text-xs h-9 rounded-xl pr-2 bg-background/40"
                     />
                   </div>
@@ -675,10 +756,10 @@ function CreateProjectPage() {
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-bold text-muted-foreground uppercase">End Date</Label>
                   <div className="relative">
-                    <Input 
-                      type="date" 
-                      value={endDate} 
-                      onChange={(e) => setEndDate(e.target.value)} 
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
                       className="text-xs h-9 rounded-xl pr-2 bg-background/40"
                     />
                   </div>
@@ -757,11 +838,10 @@ function CreateProjectPage() {
                   }
                 }}
                 onClick={() => fileInputRef.current?.click()}
-                className={`rounded-xl border-2 border-dashed p-4 text-center cursor-pointer transition-all ${
-                  dragOver
+                className={`rounded-xl border-2 border-dashed p-4 text-center cursor-pointer transition-all ${dragOver
                     ? "border-primary bg-primary/10 scale-[0.98]"
                     : "border-border/60 hover:border-primary/45 bg-muted/20 hover:bg-muted/30"
-                }`}
+                  }`}
               >
                 <UploadCloud className="mx-auto mb-2 h-7 w-7 text-muted-foreground" />
                 <p className="text-xs font-semibold text-foreground">Drag & drop files here</p>

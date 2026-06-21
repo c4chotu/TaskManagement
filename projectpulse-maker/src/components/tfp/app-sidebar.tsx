@@ -58,7 +58,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isActive = (url: string) => pathname === url || pathname.startsWith(url + "/");
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const nav = useNavigate();
 
   const isSuperAdmin = user?.roleName === "SUPER_ADMIN";
@@ -111,7 +111,7 @@ export function AppSidebar() {
         <div className={`flex items-center pt-1.5 ${collapsed ? "justify-center px-0 w-full" : "justify-center px-2 relative"}`}>
           <div className={`flex items-center min-w-0 ${collapsed ? "justify-center w-full" : "w-full"}`}>
             {!collapsed && (
-              <div className="flex items-center justify-center py-1 w-full px-8">
+              <div className="flex items-center justify-center py-1 w-full px-2">
                 <img
                   src={`${logoNew}?v=4`}
                   alt="TaskFlow Pro"
@@ -121,7 +121,7 @@ export function AppSidebar() {
             )}
 
             {collapsed && (
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 shadow-[0_4px_14px_-2px_rgba(16,185,129,0.45)]">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-primary/80 via-primary to-primary/90 shadow-[0_4px_14px_-2px_hsl(var(--primary)/0.45)]">
                 <img
                   src={logo}
                   alt="TaskFlow Pro"
@@ -129,93 +129,7 @@ export function AppSidebar() {
                 />              </div>
             )}
           </div>
-          {!collapsed && (
-            <button
-              onClick={toggleSidebar}
-              className="absolute right-2 top-1/2 -translate-y-1/2 grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition"
-              title="Collapse sidebar"
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </button>
-          )}
         </div>
-
-        {/* New Task split-button (hidden for super admin / when collapsed) */}
-        {!isSuperAdmin && !collapsed && (
-          <div className="flex items-center gap-1.5 px-2 pb-1.5">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="sm"
-                  className="flex-1 h-9 justify-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white font-semibold shadow-[0_4px_12px_-2px_rgba(16,185,129,0.5)] border-0"
-                >
-                  <Plus className="h-4 w-4" />
-                  Create                  <ChevronDown className="h-3.5 w-3.5 opacity-80" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52">
-                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider">Create</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => nav({ to: "/tasks/new" })} className="text-xs cursor-pointer">
-                  <ListChecks className="h-3.5 w-3.5 mr-2 text-emerald-500" /> Task
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => nav({ to: "/incidents" })} className="text-xs cursor-pointer">
-                  <Bug className="h-3.5 w-3.5 mr-2 text-orange-500" /> Issue
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => nav({ to: "/projects" })} className="text-xs cursor-pointer">
-                  <FolderKanban className="h-3.5 w-3.5 mr-2 text-indigo-500" /> Project
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => nav({ to: "/sprints" })} className="text-xs cursor-pointer">
-                  <CalendarRange className="h-3.5 w-3.5 mr-2 text-violet-500" /> Sprint
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => nav({ to: "/reports" })} className="text-xs cursor-pointer">
-                  <FileText className="h-3.5 w-3.5 mr-2 text-blue-500" /> Report
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  className="h-9 w-9 rounded-lg border-sidebar-border bg-sidebar-accent/30 hover:bg-sidebar-accent"
-                  title="More actions"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider">Quick Actions</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => nav({ to: "/calendar" })} className="text-xs cursor-pointer">
-                  <CalendarDays className="h-3.5 w-3.5 mr-2" /> Open Calendar
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => nav({ to: "/time" })} className="text-xs cursor-pointer">
-                  <Clock className="h-3.5 w-3.5 mr-2" /> Log Time
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => nav({ to: "/downloads" })} className="text-xs cursor-pointer">
-                  <Upload className="h-3.5 w-3.5 mr-2" /> Exports
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => nav({ to: "/settings" })} className="text-xs cursor-pointer">
-                  <Settings className="h-3.5 w-3.5 mr-2" /> Settings
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
-
-        {/* Collapsed: expand trigger */}
-        {collapsed && (
-          <button
-            onClick={toggleSidebar}
-            className="mx-auto grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition"
-            title="Expand sidebar"
-          >
-            <PanelLeft className="h-4 w-4" />
-          </button>
-        )}
       </SidebarHeader>
       <SidebarContent className="scrollbar-thin">
         {groups.map((g) => (
@@ -236,12 +150,12 @@ export function AppSidebar() {
                         isActive={active}
                         tooltip={item.title}
                         className={`transition-all duration-150 rounded-lg ${active
-                          ? "bg-gradient-to-r from-emerald-500/10 to-emerald-500/0 text-emerald-600 dark:text-emerald-400 border-l-[3px] border-emerald-500 rounded-l-none font-semibold"
+                          ? "bg-gradient-to-r from-primary/10 to-primary/0 text-primary border-l-[3px] border-primary rounded-l-none font-semibold"
                           : "hover:bg-sidebar-accent/50 text-muted-foreground hover:text-foreground"
                           }`}
                       >
                         <Link to={item.url} className="flex items-center gap-2.5">
-                          <item.icon className={`h-4 w-4 shrink-0 transition-transform ${active ? "text-emerald-500 scale-105" : "text-muted-foreground"
+                          <item.icon className={`h-4 w-4 shrink-0 transition-transform ${active ? "text-primary scale-105" : "text-muted-foreground"
                             }`} />
                           {!collapsed && <span className="text-xs">{item.title}</span>}
                         </Link>
@@ -259,13 +173,13 @@ export function AppSidebar() {
           <DropdownMenuTrigger asChild>
             <button className={`flex w-full items-center gap-2.5 rounded-lg p-1.5 hover:bg-sidebar-accent/50 text-left transition-all duration-200 outline-none group ${collapsed ? "justify-center" : ""}`}>
               <Avatar className="h-8 w-8 border border-sidebar-border shrink-0 transition-transform group-hover:scale-105">
-                <AvatarFallback className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
                   {user?.name?.slice(0, 2).toUpperCase() ?? "??"}
                 </AvatarFallback>
               </Avatar>
               {!collapsed && (
                 <div className="flex flex-1 min-w-0 flex-col">
-                  <span className="truncate text-xs font-semibold text-foreground group-hover:text-emerald-500 transition-colors">{user?.name}</span>
+                  <span className="truncate text-xs font-semibold text-foreground group-hover:text-primary transition-colors">{user?.name}</span>
                   <span className="truncate text-[10px] text-muted-foreground/80">{user?.email}</span>
                 </div>
               )}

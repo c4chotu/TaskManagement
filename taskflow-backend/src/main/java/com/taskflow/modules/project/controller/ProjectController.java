@@ -38,6 +38,9 @@ public class ProjectController {
         String type = (String) body.get("type");
         String startDateStr = (String) body.get("startDate");
         String endDateStr = (String) body.get("endDate");
+        Object featuresObj = body.get("features");
+        Object techStackObj = body.get("techStack");
+        String specification = (String) body.get("specification");
 
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Project name is required");
@@ -46,7 +49,16 @@ public class ProjectController {
         Instant startDate = startDateStr != null ? Instant.parse(startDateStr) : null;
         Instant endDate = endDateStr != null ? Instant.parse(endDateStr) : null;
 
-        return ResponseEntity.ok(projectService.createProject(name, description, type, startDate, endDate));
+        java.util.List<String> features = new java.util.ArrayList<>();
+        java.util.List<String> techStack = new java.util.ArrayList<>();
+        if (featuresObj instanceof java.util.List) {
+            for (Object o : (java.util.List<?>) featuresObj) if (o != null) features.add(o.toString());
+        }
+        if (techStackObj instanceof java.util.List) {
+            for (Object o : (java.util.List<?>) techStackObj) if (o != null) techStack.add(o.toString());
+        }
+
+        return ResponseEntity.ok(projectService.createProject(name, description, type, startDate, endDate, features, techStack, specification));
     }
 
     @GetMapping
@@ -69,11 +81,25 @@ public class ProjectController {
         String type = (String) body.get("type");
         String startDateStr = (String) body.get("startDate");
         String endDateStr = (String) body.get("endDate");
+        Object featuresObj = body.get("features");
+        Object techStackObj = body.get("techStack");
+        String specification = (String) body.get("specification");
 
         Instant startDate = startDateStr != null ? Instant.parse(startDateStr) : null;
         Instant endDate = endDateStr != null ? Instant.parse(endDateStr) : null;
 
-        return ResponseEntity.ok(projectService.updateProject(projectId, name, description, status, type, startDate, endDate));
+        java.util.List<String> features = null;
+        java.util.List<String> techStack = null;
+        if (featuresObj instanceof java.util.List) {
+            features = new java.util.ArrayList<>();
+            for (Object o : (java.util.List<?>) featuresObj) if (o != null) features.add(o.toString());
+        }
+        if (techStackObj instanceof java.util.List) {
+            techStack = new java.util.ArrayList<>();
+            for (Object o : (java.util.List<?>) techStackObj) if (o != null) techStack.add(o.toString());
+        }
+
+        return ResponseEntity.ok(projectService.updateProject(projectId, name, description, status, type, startDate, endDate, features, techStack, specification));
     }
 
     @DeleteMapping("/{projectId}")
@@ -184,6 +210,11 @@ public class ProjectController {
         projectTeamRepository.findByProjectIdAndTeamId(projectId, teamId)
                 .ifPresent(projectTeamRepository::delete);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{projectId}/activities")
+    public ResponseEntity<List<Map<String, Object>>> getProjectActivities(@PathVariable UUID projectId) {
+        return ResponseEntity.ok(projectService.getProjectActivities(projectId));
     }
 }
 

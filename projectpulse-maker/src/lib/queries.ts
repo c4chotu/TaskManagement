@@ -73,6 +73,30 @@ export async function authRegister(payload: {
   return apiRequest<AuthResult>("/auth/register", { method: "POST", body: payload, auth: false });
 }
 
+export async function authForgotPassword(email: string): Promise<{ message: string; token?: string }> {
+  if (USE_MOCK) {
+    await sleep();
+    return { message: "Mock reset token generated", token: "mock-reset-token-123" };
+  }
+  return apiRequest<{ message: string; token?: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: { email },
+    auth: false,
+  });
+}
+
+export async function authResetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+  if (USE_MOCK) {
+    await sleep();
+    return { message: "Password reset successful" };
+  }
+  return apiRequest<{ message: string }>("/auth/reset-password", {
+    method: "POST",
+    body: { token, newPassword },
+    auth: false,
+  });
+}
+
 // ---------- users / org ----------
 export function useUsers() {
   return useQuery({
@@ -182,6 +206,62 @@ export function useProject(id: string | undefined) {
         return data || null;
       } catch (err) {
         return null;
+      }
+    },
+  });
+}
+
+export function useProjectActivities(projectId: string | undefined) {
+  return useQuery({
+    queryKey: ["project-activities", projectId],
+    enabled: !!projectId,
+    queryFn: async (): Promise<any[]> => {
+      if (USE_MOCK) return [];
+      try {
+        return await apiRequest<any[]>(`/projects/${projectId}/activities`);
+      } catch (err) {
+        return [];
+      }
+    },
+  });
+}
+
+export function useTaskActivities(taskId: string | undefined) {
+  return useQuery({
+    queryKey: ["task-activities", taskId],
+    enabled: !!taskId,
+    queryFn: async (): Promise<any[]> => {
+      if (USE_MOCK) {
+        return [
+          {
+            id: `mock-act-1`,
+            type: "task_created",
+            actor: "Sarah Connor",
+            at: new Date(Date.now() - 3600_000 * 24 * 3).toISOString(),
+            message: "created the task"
+          },
+          {
+            id: `mock-act-2`,
+            type: "status_changed",
+            actor: "John Connor",
+            at: new Date(Date.now() - 3600_000 * 24 * 2).toISOString(),
+            message: "changed status",
+            from: "To Do",
+            to: "In Progress"
+          },
+          {
+            id: `mock-act-3`,
+            type: "comment_added",
+            actor: "Sarah Connor",
+            at: new Date(Date.now() - 3600_000 * 2).toISOString(),
+            message: "added a comment"
+          }
+        ];
+      }
+      try {
+        return await apiRequest<any[]>(`/tasks/${taskId}/activities`);
+      } catch (err) {
+        return [];
       }
     },
   });
@@ -1007,7 +1087,8 @@ export function useSprints(projectId?: string) {
         return projectId
           ? mock.mockSprints.filter((s) => s.projectId === projectId)
           : mock.mockSprints;
-      return apiRequest<Sprint[]>("/sprints", { query: { projectId } });
+      const query = projectId ? { projectId } : undefined;
+      return apiRequest<Sprint[]>("/sprints", { query });
     },
   });
 }
@@ -1025,9 +1106,9 @@ export function usePhases(projectId?: string) {
     queryKey: ["phases", projectId ?? "all"],
     queryFn: async (): Promise<Phase[]> => {
       if (USE_MOCK) return [];
-      return apiRequest<Phase[]>(`/projects/${projectId}/phases`);
+      const url = projectId ? `/projects/${projectId}/phases` : "/projects/all-phases";
+      return apiRequest<Phase[]>(url);
     },
-    enabled: !!projectId,
   });
 }
 
@@ -1424,6 +1505,7 @@ export function useCreateRoutingRule() {
           ruleName: payload.ruleName,
           taskType: payload.taskType,
           targetDepartmentId: payload.targetDepartmentId,
+          targetTeamId: payload.targetTeamId,
           assignToRole: payload.assignToRole || "TEAM_MEMBER",
           assignmentStrategy: payload.assignmentStrategy || "ROUND_ROBIN",
           priority: payload.priority ?? 1,

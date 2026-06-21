@@ -140,7 +140,11 @@ public class DataInitializer implements CommandLineRunner {
                 jdbcTemplate.execute("DELETE FROM users.departments WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
                 jdbcTemplate.execute("DELETE FROM auth.user_roles WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
                 jdbcTemplate.execute("DELETE FROM users.user_profiles WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
+                jdbcTemplate.execute("DELETE FROM automations.automation_conditions WHERE rule_id IN (SELECT id FROM automations.automation_rules WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
+                jdbcTemplate.execute("DELETE FROM automations.automation_actions WHERE rule_id IN (SELECT id FROM automations.automation_rules WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000')");
+                jdbcTemplate.execute("DELETE FROM automations.automation_rules WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
                 jdbcTemplate.execute("DELETE FROM auth.users WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
+                jdbcTemplate.execute("DELETE FROM tasks.routing_rules WHERE organization_id = 'ab0c0d0e-1234-5678-abcd-efabcdef0000'");
             } catch (Exception e) {
                 log.error("Failed to clear old seeded database elements: {}", e.getMessage());
             }
@@ -254,7 +258,7 @@ public class DataInitializer implements CommandLineRunner {
                     .description("Core project for " + cfg.teamName())
                     .status("ACTIVE").type("KANBAN")
                     .startDate(projStart).endDate(projEnd)
-                    .taskCounter(0)
+                    .taskCounter(4)
                     .organizationId(AVENDUM_ORG_ID).build());
 
             // VP as owner
@@ -274,6 +278,8 @@ public class DataInitializer implements CommandLineRunner {
             projectRepository.flush();
             teamRepository.flush();
             userRepository.flush();
+
+            seedTasksAndActivities(projectId, derivedKey, AVENDUM_ORG_ID, memberIds, vpId, leadId);
 
             // Associate Team with Project
             projectTeamRepository.save(ProjectTeam.builder()
@@ -304,7 +310,13 @@ public class DataInitializer implements CommandLineRunner {
             jdbcTemplate.update("INSERT INTO automations.automation_actions (id, rule_id, action_type, action_config, position) VALUES (?, ?, ?, ?::jsonb, ?)",
                     UUID.randomUUID(), ruleId, "CHANGE_STATUS", statusConfig, 1);
 
-            log.info("  ✔ Project '{}'  (key={}) and custom auto-assign rule", cfg.projName(), derivedKey);
+            // Seed Routing Rule for the team
+            UUID routingRuleId = UUID.randomUUID();
+            String routingRuleCondition = String.format("{\"field\":\"title\",\"operator\":\"CONTAINS\",\"value\":\"%s\"}", cfg.slug());
+            jdbcTemplate.update("INSERT INTO tasks.routing_rules (id, organization_id, rule_name, task_type, trigger_condition, target_department_id, target_team_id, assign_to_role, assignment_strategy, priority, enabled, created_at) VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?)",
+                    routingRuleId, AVENDUM_ORG_ID, "[WHEN: title contains '" + cfg.slug() + "'] Route to " + cfg.teamName() + " Lead", "TASK", routingRuleCondition, deptId, teamId, "TEAM_LEAD", "ROUND_ROBIN", 10, true, java.sql.Timestamp.from(Instant.now()));
+
+            log.info("  ✔ Project '{}'  (key={}) and routing rule", cfg.projName(), derivedKey);
 
             seededTeams.add(new TeamData(teamId, mgrId, leadId, memberIds, cfg.teamName()));
         }
@@ -370,5 +382,63 @@ public class DataInitializer implements CommandLineRunner {
         TeamData(UUID t, UUID m, UUID l, List<UUID> ms, String n) {
             teamId = t; managerId = m; leadId = l; memberIds = ms; name = n;
         }
+    }
+
+    private void seedTasksAndActivities(UUID projectId, String projectKey, UUID orgId, List<UUID> memberIds, UUID vpId, UUID leadId) {
+        List<CustomTaskStatus> statuses = customTaskStatusRepository.findByOrganizationIdAndProjectIdOrderBySortOrderAsc(orgId, null);
+        if (statuses.isEmpty()) return;
+        
+        // Seed standard statuses in task_statuses table for the project
+        UUID todoId = UUID.randomUUID();
+        UUID ipId = UUID.randomUUID();
+        UUID doneId = UUID.randomUUID();
+        
+        jdbcTemplate.update("INSERT INTO tasks.task_statuses (id, project_id, name, color, sort_order, is_default, is_completed) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                todoId, projectId, "To Do", "#CCCCCC", 0, true, false);
+        jdbcTemplate.update("INSERT INTO tasks.task_statuses (id, project_id, name, color, sort_order, is_default, is_completed) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                ipId, projectId, "In Progress", "#3b82f6", 1, false, false);
+        jdbcTemplate.update("INSERT INTO tasks.task_statuses (id, project_id, name, color, sort_order, is_default, is_completed) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                doneId, projectId, "Done", "#22c55e", 2, false, true);
+
+        CustomTaskStatus openStatus = statuses.stream().filter(s -> s.getName().equals("Open")).findFirst().orElse(statuses.get(0));
+        CustomTaskStatus ipStatus = statuses.stream().filter(s -> s.getName().equals("In Progress")).findFirst().orElse(statuses.get(0));
+        CustomTaskStatus reviewStatus = statuses.stream().filter(s -> s.getName().equals("In Review")).findFirst().orElse(statuses.get(0));
+        CustomTaskStatus closedStatus = statuses.stream().filter(s -> s.getName().equals("Closed")).findFirst().orElse(statuses.get(0));
+        
+        UUID t1 = UUID.randomUUID();
+        UUID t2 = UUID.randomUUID();
+        UUID t3 = UUID.randomUUID();
+        UUID t4 = UUID.randomUUID();
+        
+        insertTask(t1, projectId, projectKey, orgId, doneId, closedStatus.getId(), "Set up development repository", "Initialize git repository, configure workflow pipelines and branches.", "HIGH", vpId, Instant.now().minus(5, ChronoUnit.DAYS), 1);
+        insertTask(t2, projectId, projectKey, orgId, ipId, ipStatus.getId(), "Design database schema", "Create relational entity diagrams and migrations for authentication tables.", "MEDIUM", leadId, Instant.now().minus(3, ChronoUnit.DAYS), 2);
+        insertTask(t3, projectId, projectKey, orgId, todoId, openStatus.getId(), "Perform security audit", "Validate access tokens security and test CORS configurations.", "CRITICAL", leadId, Instant.now().minus(1, ChronoUnit.DAYS), 3);
+        insertTask(t4, projectId, projectKey, orgId, ipId, reviewStatus.getId(), "Build landing page", "Create responsive React routes for welcome dashboard and auth forms.", "LOW", memberIds.isEmpty() ? leadId : memberIds.get(0), Instant.now().minus(4, ChronoUnit.DAYS), 4);
+
+        // Seed Task Activities
+        insertActivity(UUID.randomUUID(), t1, vpId, "CREATE", "Task created", null, projectKey + "-T1: Set up development repository", Instant.now().minus(5, ChronoUnit.DAYS));
+        insertActivity(UUID.randomUUID(), t1, leadId, "STATUS_CHANGE", "changed status", openStatus.getId().toString(), ipStatus.getId().toString(), Instant.now().minus(4, ChronoUnit.DAYS));
+        insertActivity(UUID.randomUUID(), t1, leadId, "STATUS_CHANGE", "changed status", ipStatus.getId().toString(), closedStatus.getId().toString(), Instant.now().minus(3, ChronoUnit.DAYS));
+
+        insertActivity(UUID.randomUUID(), t2, vpId, "CREATE", "Task created", null, projectKey + "-T2: Design database schema", Instant.now().minus(3, ChronoUnit.DAYS));
+        insertActivity(UUID.randomUUID(), t2, vpId, "ASSIGNMENT_ADD", "assigned task to " + leadId.toString(), null, leadId.toString(), Instant.now().minus(2, ChronoUnit.DAYS));
+        insertActivity(UUID.randomUUID(), t2, leadId, "STATUS_CHANGE", "changed status", openStatus.getId().toString(), ipStatus.getId().toString(), Instant.now().minus(1, ChronoUnit.DAYS));
+
+        insertActivity(UUID.randomUUID(), t3, vpId, "CREATE", "Task created", null, projectKey + "-T3: Perform security audit", Instant.now().minus(1, ChronoUnit.DAYS));
+
+        insertActivity(UUID.randomUUID(), t4, vpId, "CREATE", "Task created", null, projectKey + "-T4: Build landing page", Instant.now().minus(4, ChronoUnit.DAYS));
+        insertActivity(UUID.randomUUID(), t4, leadId, "STATUS_CHANGE", "changed status", openStatus.getId().toString(), ipStatus.getId().toString(), Instant.now().minus(3, ChronoUnit.DAYS));
+        insertActivity(UUID.randomUUID(), t4, leadId, "STATUS_CHANGE", "changed status", ipStatus.getId().toString(), reviewStatus.getId().toString(), Instant.now().minus(2, ChronoUnit.DAYS));
+    }
+
+    private void insertTask(UUID id, UUID projectId, String projectKey, UUID orgId, UUID standardStatusId, UUID customStatusId, String title, String description, String priority, UUID createdBy, Instant createdAt, int number) {
+        String displayId = projectKey + "-T" + number;
+        jdbcTemplate.update("INSERT INTO tasks.tasks (id, project_id, status_id, current_status_id, title, description, priority, start_date, organization_id, version, created_by, created_at, updated_at, task_number, display_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)",
+                id, projectId, standardStatusId, customStatusId, title, description, priority, java.sql.Timestamp.from(createdAt), orgId, createdBy, java.sql.Timestamp.from(createdAt), java.sql.Timestamp.from(createdAt), number, displayId);
+    }
+
+    private void insertActivity(UUID id, UUID taskId, UUID userId, String type, String description, String oldValue, String newValue, Instant createdAt) {
+        jdbcTemplate.update("INSERT INTO tasks.task_activities (id, task_id, user_id, activity_type, description, old_value, new_value, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                id, taskId, userId, type, description, oldValue, newValue, java.sql.Timestamp.from(createdAt));
     }
 }

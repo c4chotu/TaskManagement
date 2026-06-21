@@ -2,10 +2,20 @@ import { useState, useEffect } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import {
-  Bell, Search, LogOut, Folder, CheckSquare, AlertCircle, Clock, Pause, Sparkles, Users, Layers, Building
+  Bell, Search, LogOut, Folder, CheckSquare, AlertCircle, Clock, Pause, Sparkles, Users, Layers, Building,
+  Plus, ChevronDown, CalendarRange, FileText,
+  Clock10Icon
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "@tanstack/react-router";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useProjects, useTasks, useTimeEntries, useStopTimer } from "@/lib/queries";
 import { toast } from "sonner";
 import { apiRequest, USE_MOCK } from "@/lib/api";
@@ -20,8 +30,9 @@ import {
 } from "@/components/ui/command";
 
 export function Topbar({ title, actions }: { title?: string; actions?: React.ReactNode }) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const isSuperAdmin = user?.roleName === "SUPER_ADMIN";
 
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
@@ -173,7 +184,7 @@ export function Topbar({ title, actions }: { title?: string; actions?: React.Rea
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background/80 px-3 backdrop-blur">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border rounded-2xl bg-background px-3 backdrop-blur">
         <SidebarTrigger />
         <div className="flex items-center gap-2">
           {title && <h1 className="text-sm font-semibold tracking-tight">{title}</h1>}
@@ -181,7 +192,7 @@ export function Topbar({ title, actions }: { title?: string; actions?: React.Rea
 
         {/* Global time tracking widget */}
         {runningEntry && (
-          <div className="mx-auto flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/30 rounded-full py-1 px-3.5 shadow-[0_0_12px_rgba(16,185,129,0.1)] transition-all animate-in fade-in slide-in-from-top-1 text-[11px]">
+          <div className="mx-auto flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/30 rounded-full py-1 px-3.5 shadow-primary-xs transition-all animate-in fade-in slide-in-from-top-1 text-[11px]">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -217,6 +228,44 @@ export function Topbar({ title, actions }: { title?: string; actions?: React.Rea
               <span className="text-[10px]">⌘</span>K
             </kbd>
           </button>
+
+          {!isSuperAdmin && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  className="h-8 gap-1.5 rounded-md bg-gradient-to-r from-primary to-primary/90 hover:from-primary hover:to-primary/80 text-primary-foreground font-semibold shadow-[0_2px_8px_hsl(var(--primary)/0.25)] border-0 px-3 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Create</span>
+                  <ChevronDown className="h-3 w-3 opacity-85" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Create New</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate({ to: "/tasks/new" })} className="text-xs cursor-pointer">
+                  <CheckSquare className="h-3.5 w-3.5 mr-2 text-primary" /> Task
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate({ to: "/incidents" })} className="text-xs cursor-pointer">
+                  <AlertCircle className="h-3.5 w-3.5 mr-2 text-orange-500" /> Issue
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate({ to: "/projects" })} className="text-xs cursor-pointer">
+                  <Folder className="h-3.5 w-3.5 mr-2 text-indigo-500" /> Project
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate({ to: "/sprints" })} className="text-xs cursor-pointer">
+                  <CalendarRange className="h-3.5 w-3.5 mr-2 text-violet-500" /> Sprint
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate({ to: "/time" })} className="text-xs cursor-pointer">
+                  <Clock10Icon className="h-3.5 w-3.5 mr-2 text-violet-500" /> Time Log
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate({ to: "/reports" })} className="text-xs cursor-pointer">
+                  <FileText className="h-3.5 w-3.5 mr-2 text-blue-500" /> Report
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {actions}
           <Button variant="ghost" size="icon" className="h-8 w-8">

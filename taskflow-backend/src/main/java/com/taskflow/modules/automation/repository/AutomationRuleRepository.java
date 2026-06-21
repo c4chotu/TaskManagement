@@ -22,4 +22,13 @@ public interface AutomationRuleRepository extends JpaRepository<AutomationRule, 
                                                 @Param("teamId") UUID teamId, 
                                                 @Param("triggerType") String triggerType, 
                                                 @Param("enabled") boolean enabled);
+
+    // Level 1: Project-Specific Automation
+    List<AutomationRule> findByOrganizationIdAndProjectIdAndTriggerTypeIgnoreCaseAndEnabled(UUID orgId, UUID projectId, String triggerType, boolean enabled);
+
+    // Level 2: Team Lead Automation (Project is null, Team is specific)
+    List<AutomationRule> findByOrganizationIdAndProjectIdIsNullAndTeamIdAndTriggerTypeIgnoreCaseAndEnabled(UUID orgId, UUID teamId, String triggerType, boolean enabled);
+
+    // Level 3: Global Automation (Project is null, Team is null)
+    List<AutomationRule> findByOrganizationIdAndProjectIdIsNullAndTeamIdIsNullAndTriggerTypeIgnoreCaseAndEnabled(UUID orgId, String triggerType, boolean enabled);
 }
